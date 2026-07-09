@@ -1,0 +1,6926 @@
+{
+  "A1CAP": {
+    "name_tr": "A1 CAPİTAL YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "A1 CAPİTAL YATIRIM",
+      "A1 CAPITAL YATIRIM",
+      "A1 CAPITAL",
+      "A1 CAPİTAL"
+    ],
+    "search_gkg": [
+      "A1 CAPITAL YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "A1YEN": {
+    "name_tr": "A1 YENİLENEBİLİR ENERJİ ÜRETİM A.Ş.",
+    "search_title": [
+      "A1 YENILENEBILIR ENERJI",
+      "A1 YENİLENEBİLİR ENERJİ",
+      "A1 YENILENEBILIR",
+      "A1 YENİLENEBİLİR"
+    ],
+    "search_gkg": [
+      "A1 YENILENEBILIR ENERJI URETIM"
+    ]
+  },
+  "AAGYO": {
+    "name_tr": "AĞAOĞLU AVRASYA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AGAOGLU AVRASYA GAYRIMENKUL",
+      "AGAOGLU AVRASYA",
+      "AĞAOĞLU AVRASYA GAYRİMENKUL",
+      "AĞAOĞLU AVRASYA"
+    ],
+    "search_gkg": [
+      "AGAOGLU AVRASYA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ACSEL": {
+    "name_tr": "ACISELSAN ACIPAYAM SELÜLOZ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ACISELSAN ACIPAYAM SELULOZ",
+      "ACISELSAN ACIPAYAM SELÜLOZ",
+      "ACISELSAN ACIPAYAM"
+    ],
+    "search_gkg": [
+      "ACISELSAN ACIPAYAM SELULOZ SANAYI VE TICARET"
+    ]
+  },
+  "ADELA": {
+    "name_tr": "ADEL KALEMCİLİK TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "ADEL KALEMCILIK",
+      "ADEL KALEMCİLİK TİCARET",
+      "ADEL KALEMCILIK TICARET",
+      "ADEL KALEMCİLİK"
+    ],
+    "search_gkg": [
+      "ADEL KALEMCILIK TICARET VE SANAYI"
+    ]
+  },
+  "ADESE": {
+    "name_tr": "ADESE GAYRİMENKUL YATIRIM A.Ş.",
+    "search_title": [
+      "ADESE GAYRIMENKUL",
+      "ADESE GAYRIMENKUL YATIRIM",
+      "ADESE GAYRİMENKUL",
+      "ADESE GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "ADESE GAYRIMENKUL YATIRIM"
+    ]
+  },
+  "ADGYO": {
+    "name_tr": "ADRA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ADRA GAYRIMENKUL YATIRIM",
+      "ADRA GAYRIMENKUL",
+      "ADRA GAYRİMENKUL",
+      "ADRA GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "ADRA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AEFES": {
+    "search_title": [
+      "ANADOLU EFES",
+      "EFES",
+      "EFES BIRA"
+    ],
+    "search_gkg": [
+      "ANADOLU EFES"
+    ],
+    "name_tr": "ANADOLU EFES BİRACILIK VE MALT SANAYİİ A.Ş."
+  },
+  "AFYON": {
+    "name_tr": "AFYON ÇİMENTO SANAYİ T.A.Ş.",
+    "search_title": [
+      "AFYON CIMENTO",
+      "AFYON ÇİMENTO SANAYİ",
+      "AFYON ÇİMENTO",
+      "AFYON CIMENTO SANAYI"
+    ],
+    "search_gkg": [
+      "AFYON CIMENTO SANAYI"
+    ]
+  },
+  "AGESA": {
+    "name_tr": "AGESA HAYAT VE EMEKLİLİK A.Ş.",
+    "search_title": [
+      "AGESA HAYAT",
+      "AGESA HAYAT VE"
+    ],
+    "search_gkg": [
+      "AGESA HAYAT VE EMEKLILIK"
+    ]
+  },
+  "AGHOL": {
+    "name_tr": "AG ANADOLU GRUBU HOLDİNG A.Ş.",
+    "search_title": [
+      "AG ANADOLU",
+      "AG ANADOLU GRUBU"
+    ],
+    "search_gkg": [
+      "AG ANADOLU GRUBU HOLDING"
+    ]
+  },
+  "AGROT": {
+    "name_tr": "AGROTECH YÜKSEK TEKNOLOJİ VE YATIRIM A.Ş.",
+    "search_title": [
+      "AGROTECH YÜKSEK",
+      "AGROTECH YUKSEK TEKNOLOJI",
+      "AGROTECH YÜKSEK TEKNOLOJİ",
+      "AGROTECH YUKSEK"
+    ],
+    "search_gkg": [
+      "AGROTECH YUKSEK TEKNOLOJI VE YATIRIM"
+    ]
+  },
+  "AGYOA": {
+    "name_tr": "ATAKULE GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ATAKULE GAYRİMENKUL YATIRIM",
+      "ATAKULE GAYRİMENKUL",
+      "ATAKULE GAYRIMENKUL YATIRIM",
+      "ATAKULE GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "ATAKULE GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AHGAZ": {
+    "name_tr": "AHLATCI DOĞAL GAZ DAĞITIM ENERJİ VE YATIRIM A.Ş.",
+    "search_title": [
+      "AHLATCI DOGAL",
+      "AHLATCI DOĞAL",
+      "AHLATCI DOGAL GAZ",
+      "AHLATCI DOĞAL GAZ"
+    ],
+    "search_gkg": [
+      "AHLATCI DOGAL GAZ DAGITIM ENERJI VE YATIRIM"
+    ]
+  },
+  "AHSGY": {
+    "name_tr": "AHES GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AHES GAYRIMENKUL",
+      "AHES GAYRİMENKUL YATIRIM",
+      "AHES GAYRİMENKUL",
+      "AHES GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "AHES GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AKBNK": {
+    "search_title": [
+      "AKBANK",
+      "AKBNK"
+    ],
+    "search_gkg": [
+      "AKBANK"
+    ],
+    "name_tr": "AKBANK T.A.Ş."
+  },
+  "AKCNS": {
+    "name_tr": "AKÇANSA ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "AKCANSA CIMENTO SANAYI",
+      "AKCANSA CIMENTO",
+      "AKÇANSA ÇİMENTO SANAYİ",
+      "AKÇANSA ÇİMENTO"
+    ],
+    "search_gkg": [
+      "AKCANSA CIMENTO SANAYI VE TICARET"
+    ]
+  },
+  "AKENR": {
+    "name_tr": "AKENERJİ ELEKTRİK ÜRETİM A.Ş.",
+    "search_title": [
+      "AKENERJİ ELEKTRİK",
+      "AKENERJİ ELEKTRİK ÜRETİM",
+      "AKENERJI ELEKTRIK",
+      "AKENERJI ELEKTRIK URETIM"
+    ],
+    "search_gkg": [
+      "AKENERJI ELEKTRIK URETIM"
+    ]
+  },
+  "AKFGY": {
+    "name_tr": "AKFEN GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AKFEN GAYRIMENKUL",
+      "AKFEN GAYRİMENKUL",
+      "AKFEN GAYRIMENKUL YATIRIM",
+      "AKFEN GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "AKFEN GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AKFIS": {
+    "name_tr": "AKFEN İNŞAAT TURİZM VE TİCARET A.Ş.",
+    "search_title": [
+      "AKFEN INSAAT",
+      "AKFEN INSAAT TURIZM",
+      "AKFEN İNŞAAT",
+      "AKFEN İNŞAAT TURİZM"
+    ],
+    "search_gkg": [
+      "AKFEN INSAAT TURIZM VE TICARET"
+    ]
+  },
+  "AKFYE": {
+    "name_tr": "AKFEN YENİLENEBİLİR ENERJİ A.Ş.",
+    "search_title": [
+      "AKFEN YENİLENEBİLİR",
+      "AKFEN YENİLENEBİLİR ENERJİ",
+      "AKFEN YENILENEBILIR",
+      "AKFEN YENILENEBILIR ENERJI"
+    ],
+    "search_gkg": [
+      "AKFEN YENILENEBILIR ENERJI"
+    ]
+  },
+  "AKGRT": {
+    "name_tr": "AKSİGORTA A.Ş.",
+    "search_title": [
+      "AKSIGORTA",
+      "AKSİGORTA"
+    ],
+    "search_gkg": [
+      "AKSIGORTA"
+    ]
+  },
+  "AKHAN": {
+    "name_tr": "AKHAN UN FABRİKASI VE TARIM ÜRÜNLERİ GIDA SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "AKHAN UN",
+      "AKHAN UN FABRIKASI",
+      "AKHAN UN FABRİKASI"
+    ],
+    "search_gkg": [
+      "AKHAN UN FABRIKASI VE TARIM URUNLERI GIDA SANAYI TICARET"
+    ]
+  },
+  "AKMGY": {
+    "name_tr": "AKMERKEZ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AKMERKEZ GAYRIMENKUL",
+      "AKMERKEZ GAYRİMENKUL YATIRIM",
+      "AKMERKEZ GAYRİMENKUL",
+      "AKMERKEZ GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "AKMERKEZ GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AKSAA": {
+    "name_tr": "AKSA AKRİLİK KİMYA SANAYİİ A.Ş.",
+    "search_title": [
+      "AKSA AKRİLİK KİMYA",
+      "AKSA AKRİLİK",
+      "AKSA AKRILIK KIMYA",
+      "AKSA AKRILIK"
+    ],
+    "search_gkg": [
+      "AKSA AKRILIK KIMYA SANAYII"
+    ]
+  },
+  "AKSEN": {
+    "search_title": [
+      "AKSA ENERJİ",
+      "AKSA ENERJI"
+    ],
+    "search_gkg": [
+      "AKSA ENERJI"
+    ],
+    "name_tr": "AKSA ENERJİ ÜRETİM A.Ş."
+  },
+  "AKSGY": {
+    "name_tr": "AKİŞ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AKIS GAYRIMENKUL",
+      "AKİŞ GAYRİMENKUL YATIRIM",
+      "AKIS GAYRIMENKUL YATIRIM",
+      "AKİŞ GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "AKIS GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AKSUE": {
+    "name_tr": "AKSU ENERJİ VE TİCARET A.Ş.",
+    "search_title": [
+      "AKSU ENERJİ VE",
+      "AKSU ENERJI VE",
+      "AKSU ENERJI",
+      "AKSU ENERJİ"
+    ],
+    "search_gkg": [
+      "AKSU ENERJI VE TICARET"
+    ]
+  },
+  "AKYHO": {
+    "name_tr": "AKDENİZ YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "AKDENİZ YATIRIM HOLDİNG",
+      "AKDENİZ YATIRIM",
+      "AKDENIZ YATIRIM",
+      "AKDENIZ YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "AKDENIZ YATIRIM HOLDING"
+    ]
+  },
+  "ALARK": {
+    "search_title": [
+      "ALARKO",
+      "ALARKO HOLDİNG",
+      "ALARKO HOLDING"
+    ],
+    "search_gkg": [
+      "ALARKO HOLDING"
+    ],
+    "name_tr": "ALARKO HOLDİNG A.Ş."
+  },
+  "ALBRK": {
+    "name_tr": "ALBARAKA TÜRK KATILIM BANKASI A.Ş.",
+    "search_title": [
+      "ALBARAKA TURK",
+      "ALBARAKA TURK KATILIM",
+      "ALBARAKA TÜRK",
+      "ALBARAKA TÜRK KATILIM"
+    ],
+    "search_gkg": [
+      "ALBARAKA TURK KATILIM BANKASI"
+    ]
+  },
+  "ALCAR": {
+    "name_tr": "ALARKO CARRIER SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ALARKO CARRIER",
+      "ALARKO CARRIER SANAYI",
+      "ALARKO CARRIER SANAYİ"
+    ],
+    "search_gkg": [
+      "ALARKO CARRIER SANAYI VE TICARET"
+    ]
+  },
+  "ALCTL": {
+    "name_tr": "ALCATEL LUCENT TELETAŞ TELEKOMÜNİKASYON A.Ş.",
+    "search_title": [
+      "ALCATEL LUCENT",
+      "ALCATEL LUCENT TELETAS",
+      "ALCATEL LUCENT TELETAŞ"
+    ],
+    "search_gkg": [
+      "ALCATEL LUCENT TELETAS TELEKOMUNIKASYON"
+    ]
+  },
+  "ALFAS": {
+    "name_tr": "ALFA SOLAR ENERJİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ALFA SOLAR ENERJI",
+      "ALFA SOLAR",
+      "ALFA SOLAR ENERJİ"
+    ],
+    "search_gkg": [
+      "ALFA SOLAR ENERJI SANAYI VE TICARET"
+    ]
+  },
+  "ALGYO": {
+    "name_tr": "ALARKO GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ALARKO GAYRİMENKUL",
+      "ALARKO GAYRIMENKUL",
+      "ALARKO GAYRİMENKUL YATIRIM",
+      "ALARKO GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "ALARKO GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ALKAA": {
+    "name_tr": "ALKİM KAĞIT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ALKİM KAĞIT SANAYİ",
+      "ALKIM KAGIT SANAYI",
+      "ALKIM KAGIT",
+      "ALKİM KAĞIT"
+    ],
+    "search_gkg": [
+      "ALKIM KAGIT SANAYI VE TICARET"
+    ]
+  },
+  "ALKIM": {
+    "search_title": [
+      "ALKİM",
+      "ALKIM KİMYA"
+    ],
+    "search_gkg": [
+      "ALKIM KIMYA"
+    ],
+    "name_tr": "ALKİM ALKALİ KİMYA A.Ş."
+  },
+  "ALKLC": {
+    "name_tr": "ALTINKILIÇ GIDA VE SÜT SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "ALTINKILIC GIDA",
+      "ALTINKILIC GIDA VE",
+      "ALTINKILIÇ GIDA VE",
+      "ALTINKILIÇ GIDA"
+    ],
+    "search_gkg": [
+      "ALTINKILIC GIDA VE SUT SANAYI TICARET"
+    ]
+  },
+  "ALTNY": {
+    "name_tr": "ALTINAY SAVUNMA TEKNOLOJİLERİ A.Ş.",
+    "search_title": [
+      "ALTINAY SAVUNMA",
+      "ALTINAY SAVUNMA TEKNOLOJİLERİ",
+      "ALTINAY SAVUNMA TEKNOLOJILERI"
+    ],
+    "search_gkg": [
+      "ALTINAY SAVUNMA TEKNOLOJILERI"
+    ]
+  },
+  "ALVES": {
+    "name_tr": "ALVES KABLO SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ALVES KABLO",
+      "ALVES KABLO SANAYI",
+      "ALVES KABLO SANAYİ"
+    ],
+    "search_gkg": [
+      "ALVES KABLO SANAYI VE TICARET"
+    ]
+  },
+  "ANELE": {
+    "name_tr": "ANEL ELEKTRİK PROJE TAAHHÜT VE TİCARET A.Ş.",
+    "search_title": [
+      "ANEL ELEKTRİK",
+      "ANEL ELEKTRIK PROJE",
+      "ANEL ELEKTRIK",
+      "ANEL ELEKTRİK PROJE"
+    ],
+    "search_gkg": [
+      "ANEL ELEKTRIK PROJE TAAHHUT VE TICARET"
+    ]
+  },
+  "ANGEN": {
+    "name_tr": "ANATOLİA TANI VE BİYOTEKNOLOJİ ÜRÜNLERİ ARAŞTIRMA GELİŞTİRME SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ANATOLİA TANI VE",
+      "ANATOLIA TANI VE",
+      "ANATOLİA TANI",
+      "ANATOLIA TANI"
+    ],
+    "search_gkg": [
+      "ANATOLIA TANI VE BIYOTEKNOLOJI URUNLERI ARASTIRMA GELISTIRME SANAYI VE TICARET"
+    ]
+  },
+  "ANHYT": {
+    "name_tr": "ANADOLU HAYAT EMEKLİLİK A.Ş.",
+    "search_title": [
+      "ANADOLU HAYAT EMEKLİLİK",
+      "ANADOLU HAYAT EMEKLILIK",
+      "ANADOLU HAYAT"
+    ],
+    "search_gkg": [
+      "ANADOLU HAYAT EMEKLILIK"
+    ]
+  },
+  "ANSGR": {
+    "name_tr": "ANADOLU ANONİM TÜRK SİGORTA ŞİRKETİ",
+    "search_title": [
+      "ANADOLU ANONİM",
+      "ANADOLU ANONIM TURK",
+      "ANADOLU ANONIM",
+      "ANADOLU ANONİM TÜRK"
+    ],
+    "search_gkg": [
+      "ANADOLU ANONIM TURK SIGORTA SIRKETI"
+    ]
+  },
+  "ARASE": {
+    "name_tr": "DOĞU ARAS ENERJİ YATIRIMLARI A.Ş.",
+    "search_title": [
+      "DOGU ARAS ENERJI",
+      "DOGU ARAS",
+      "DOĞU ARAS ENERJİ",
+      "DOĞU ARAS"
+    ],
+    "search_gkg": [
+      "DOGU ARAS ENERJI YATIRIMLARI"
+    ]
+  },
+  "ARCLK": {
+    "search_title": [
+      "ARÇELİK",
+      "ARCELIK",
+      "ARCELIK"
+    ],
+    "search_gkg": [
+      "ARCELIK"
+    ],
+    "name_tr": "ARÇELİK A.Ş."
+  },
+  "ARDYZ": {
+    "name_tr": "ARD GRUP BİLİŞİM TEKNOLOJİLERİ A.Ş.",
+    "search_title": [
+      "ARD GRUP BİLİŞİM",
+      "ARD GRUP",
+      "ARD GRUP BILISIM"
+    ],
+    "search_gkg": [
+      "ARD GRUP BILISIM TEKNOLOJILERI"
+    ]
+  },
+  "ARENA": {
+    "name_tr": "ARENA BİLGİSAYAR SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ARENA BILGISAYAR SANAYI",
+      "ARENA BILGISAYAR",
+      "ARENA BİLGİSAYAR",
+      "ARENA BİLGİSAYAR SANAYİ"
+    ],
+    "search_gkg": [
+      "ARENA BILGISAYAR SANAYI VE TICARET"
+    ]
+  },
+  "ARFYE": {
+    "name_tr": "ARF BİO YENİLENEBİLİR ENERJİ ÜRETİM A.Ş.",
+    "search_title": [
+      "ARF BİO YENİLENEBİLİR",
+      "ARF BİO",
+      "ARF BIO YENILENEBILIR",
+      "ARF BIO"
+    ],
+    "search_gkg": [
+      "ARF BIO YENILENEBILIR ENERJI URETIM"
+    ]
+  },
+  "ARMGD": {
+    "name_tr": "ARMADA GIDA TİCARET SANAYİ A.Ş.",
+    "search_title": [
+      "ARMADA GIDA TICARET",
+      "ARMADA GIDA TİCARET",
+      "ARMADA GIDA"
+    ],
+    "search_gkg": [
+      "ARMADA GIDA TICARET SANAYI"
+    ]
+  },
+  "ARSAN": {
+    "name_tr": "ARSAN HOLDİNG A.Ş.",
+    "search_title": [
+      "ARSAN HOLDİNG",
+      "ARSAN HOLDING"
+    ],
+    "search_gkg": [
+      "ARSAN HOLDING"
+    ]
+  },
+  "ARTMS": {
+    "name_tr": "ARTEMİS HALI A.Ş.",
+    "search_title": [
+      "ARTEMIS HALI",
+      "ARTEMİS HALI"
+    ],
+    "search_gkg": [
+      "ARTEMIS HALI"
+    ]
+  },
+  "ARZUM": {
+    "name_tr": "ARZUM ELEKTRİKLİ EV ALETLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ARZUM ELEKTRIKLI",
+      "ARZUM ELEKTRİKLİ EV",
+      "ARZUM ELEKTRİKLİ",
+      "ARZUM ELEKTRIKLI EV"
+    ],
+    "search_gkg": [
+      "ARZUM ELEKTRIKLI EV ALETLERI SANAYI VE TICARET"
+    ]
+  },
+  "ASELS": {
+    "search_title": [
+      "ASELSAN"
+    ],
+    "search_gkg": [
+      "ASELSAN"
+    ],
+    "name_tr": "ASELSAN ELEKTRONİK SANAYİ VE TİCARET A.Ş."
+  },
+  "ASGYO": {
+    "name_tr": "ASCE GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ASCE GAYRIMENKUL YATIRIM",
+      "ASCE GAYRİMENKUL",
+      "ASCE GAYRIMENKUL",
+      "ASCE GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "ASCE GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ASTOR": {
+    "search_title": [
+      "ASTOR ENERJİ",
+      "ASTOR ENERJI"
+    ],
+    "search_gkg": [
+      "ASTOR ENERJI"
+    ],
+    "name_tr": "ASTOR ENERJİ A.Ş."
+  },
+  "ASUZU": {
+    "name_tr": "ANADOLU ISUZU OTOMOTİV SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ANADOLU ISUZU OTOMOTIV",
+      "ANADOLU ISUZU OTOMOTİV",
+      "ANADOLU ISUZU"
+    ],
+    "search_gkg": [
+      "ANADOLU ISUZU OTOMOTIV SANAYI VE TICARET"
+    ]
+  },
+  "ATAGY": {
+    "name_tr": "ATA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ATA GAYRİMENKUL",
+      "ATA GAYRIMENKUL YATIRIM",
+      "ATA GAYRIMENKUL",
+      "ATA GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "ATA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ATAKP": {
+    "name_tr": "ATAKEY PATATES GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ATAKEY PATATES GIDA",
+      "ATAKEY PATATES"
+    ],
+    "search_gkg": [
+      "ATAKEY PATATES GIDA SANAYI VE TICARET"
+    ]
+  },
+  "ATATP": {
+    "name_tr": "ATP YAZILIM VE TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "ATP YAZILIM VE",
+      "ATP YAZILIM"
+    ],
+    "search_gkg": [
+      "ATP YAZILIM VE TEKNOLOJI"
+    ]
+  },
+  "ATATR": {
+    "name_tr": "ATA TURİZM İŞLETMECİLİK TAŞIMACILIK MADENCİLİK KUYUMCULUK SANAYİ VE DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "ATA TURIZM",
+      "ATA TURIZM ISLETMECILIK",
+      "ATA TURİZM İŞLETMECİLİK",
+      "ATA TURİZM"
+    ],
+    "search_gkg": [
+      "ATA TURIZM ISLETMECILIK TASIMACILIK MADENCILIK KUYUMCULUK SANAYI VE DIS TICARET"
+    ]
+  },
+  "ATEKS": {
+    "name_tr": "AKIN TEKSTİL A.Ş.",
+    "search_title": [
+      "AKIN TEKSTIL",
+      "AKIN TEKSTİL"
+    ],
+    "search_gkg": [
+      "AKIN TEKSTIL"
+    ]
+  },
+  "ATLAS": {
+    "name_tr": "ATLAS MENKUL KIYMETLER YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ATLAS MENKUL KIYMETLER",
+      "ATLAS MENKUL"
+    ],
+    "search_gkg": [
+      "ATLAS MENKUL KIYMETLER YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ATSYH": {
+    "name_tr": "ATLANTİS YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "ATLANTIS YATIRIM",
+      "ATLANTİS YATIRIM HOLDİNG",
+      "ATLANTİS YATIRIM",
+      "ATLANTIS YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "ATLANTIS YATIRIM HOLDING"
+    ]
+  },
+  "AVGYO": {
+    "name_tr": "AVRASYA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AVRASYA GAYRİMENKUL YATIRIM",
+      "AVRASYA GAYRIMENKUL YATIRIM",
+      "AVRASYA GAYRIMENKUL",
+      "AVRASYA GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "AVRASYA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AVHOL": {
+    "name_tr": "AVRUPA YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "AVRUPA YATIRIM HOLDING",
+      "AVRUPA YATIRIM HOLDİNG",
+      "AVRUPA YATIRIM"
+    ],
+    "search_gkg": [
+      "AVRUPA YATIRIM HOLDING"
+    ]
+  },
+  "AVODA": {
+    "name_tr": "A.V.O.D. KURUTULMUŞ GIDA VE TARIM ÜRÜNLERİ SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "A.V.O.D. KURUTULMUŞ GIDA",
+      "A.V.O.D. KURUTULMUŞ",
+      "A.V.O.D. KURUTULMUS",
+      "A.V.O.D. KURUTULMUS GIDA"
+    ],
+    "search_gkg": [
+      "A.V.O.D. KURUTULMUS GIDA VE TARIM URUNLERI SANAYI TICARET"
+    ]
+  },
+  "AVPGY": {
+    "name_tr": "AVRUPAKENT GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "AVRUPAKENT GAYRİMENKUL YATIRIM",
+      "AVRUPAKENT GAYRİMENKUL",
+      "AVRUPAKENT GAYRIMENKUL YATIRIM",
+      "AVRUPAKENT GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "AVRUPAKENT GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "AVTUR": {
+    "name_tr": "AVRASYA PETROL VE TURİSTİK TESİSLER YATIRIMLAR A.Ş.",
+    "search_title": [
+      "AVRASYA PETROL",
+      "AVRASYA PETROL VE"
+    ],
+    "search_gkg": [
+      "AVRASYA PETROL VE TURISTIK TESISLER YATIRIMLAR"
+    ]
+  },
+  "AYCES": {
+    "name_tr": "ALTIN YUNUS ÇEŞME TURİSTİK TESİSLER A.Ş.",
+    "search_title": [
+      "ALTIN YUNUS ÇEŞME",
+      "ALTIN YUNUS",
+      "ALTIN YUNUS CESME"
+    ],
+    "search_gkg": [
+      "ALTIN YUNUS CESME TURISTIK TESISLER"
+    ]
+  },
+  "AYDEM": {
+    "name_tr": "AYDEM YENİLENEBİLİR ENERJİ A.Ş.",
+    "search_title": [
+      "AYDEM YENILENEBILIR",
+      "AYDEM YENİLENEBİLİR",
+      "AYDEM YENİLENEBİLİR ENERJİ",
+      "AYDEM YENILENEBILIR ENERJI"
+    ],
+    "search_gkg": [
+      "AYDEM YENILENEBILIR ENERJI"
+    ]
+  },
+  "AYENA": {
+    "name_tr": "AYEN ENERJİ A.Ş.",
+    "search_title": [
+      "AYEN ENERJI",
+      "AYEN ENERJİ"
+    ],
+    "search_gkg": [
+      "AYEN ENERJI"
+    ]
+  },
+  "AYESA": {
+    "name_tr": "AYES ÇELİK HASIR VE ÇİT SANAYİ A.Ş.",
+    "search_title": [
+      "AYES ÇELİK HASIR",
+      "AYES CELIK",
+      "AYES CELIK HASIR",
+      "AYES ÇELİK"
+    ],
+    "search_gkg": [
+      "AYES CELIK HASIR VE CIT SANAYI"
+    ]
+  },
+  "AYGAZ": {
+    "search_title": [
+      "AYGAZ"
+    ],
+    "search_gkg": [
+      "AYGAZ"
+    ],
+    "name_tr": "AYGAZ A.Ş."
+  },
+  "AZTEK": {
+    "name_tr": "AZTEK TEKNOLOJİ ÜRÜNLERİ TİCARET A.Ş.",
+    "search_title": [
+      "AZTEK TEKNOLOJİ",
+      "AZTEK TEKNOLOJİ ÜRÜNLERİ",
+      "AZTEK TEKNOLOJI",
+      "AZTEK TEKNOLOJI URUNLERI"
+    ],
+    "search_gkg": [
+      "AZTEK TEKNOLOJI URUNLERI TICARET"
+    ]
+  },
+  "BAGFS": {
+    "name_tr": "BAGFAŞ BANDIRMA GÜBRE FABRİKALARI A.Ş.",
+    "search_title": [
+      "BAGFAS BANDIRMA",
+      "BAGFAŞ BANDIRMA",
+      "BAGFAŞ BANDIRMA GÜBRE",
+      "BAGFAS BANDIRMA GUBRE"
+    ],
+    "search_gkg": [
+      "BAGFAS BANDIRMA GUBRE FABRIKALARI"
+    ]
+  },
+  "BAHKM": {
+    "name_tr": "BAHADIR KİMYA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BAHADIR KİMYA SANAYİ",
+      "BAHADIR KİMYA",
+      "BAHADIR KIMYA",
+      "BAHADIR KIMYA SANAYI"
+    ],
+    "search_gkg": [
+      "BAHADIR KIMYA SANAYI VE TICARET"
+    ]
+  },
+  "BAKAB": {
+    "name_tr": "BAK AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BAK AMBALAJ SANAYI",
+      "BAK AMBALAJ SANAYİ",
+      "BAK AMBALAJ"
+    ],
+    "search_gkg": [
+      "BAK AMBALAJ SANAYI VE TICARET"
+    ]
+  },
+  "BALAT": {
+    "name_tr": "BALATACILAR BALATACILIK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BALATACILAR BALATACILIK SANAYI",
+      "BALATACILAR BALATACILIK",
+      "BALATACILAR BALATACILIK SANAYİ"
+    ],
+    "search_gkg": [
+      "BALATACILAR BALATACILIK SANAYI VE TICARET"
+    ]
+  },
+  "BALSU": {
+    "name_tr": "BALSU GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BALSU GIDA SANAYİ",
+      "BALSU GIDA",
+      "BALSU GIDA SANAYI"
+    ],
+    "search_gkg": [
+      "BALSU GIDA SANAYI VE TICARET"
+    ]
+  },
+  "BANVT": {
+    "name_tr": "BANVİT BANDIRMA VİTAMİNLİ YEM SANAYİ A.Ş.",
+    "search_title": [
+      "BANVİT BANDIRMA VİTAMİNLİ",
+      "BANVİT BANDIRMA",
+      "BANVIT BANDIRMA VITAMINLI",
+      "BANVIT BANDIRMA"
+    ],
+    "search_gkg": [
+      "BANVIT BANDIRMA VITAMINLI YEM SANAYI"
+    ]
+  },
+  "BARMA": {
+    "name_tr": "BAREM AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BAREM AMBALAJ",
+      "BAREM AMBALAJ SANAYİ",
+      "BAREM AMBALAJ SANAYI"
+    ],
+    "search_gkg": [
+      "BAREM AMBALAJ SANAYI VE TICARET"
+    ]
+  },
+  "BASCM": {
+    "name_tr": "BAŞTAŞ BAŞKENT ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BASTAS BASKENT",
+      "BAŞTAŞ BAŞKENT",
+      "BASTAS BASKENT CIMENTO",
+      "BAŞTAŞ BAŞKENT ÇİMENTO"
+    ],
+    "search_gkg": [
+      "BASTAS BASKENT CIMENTO SANAYI VE TICARET"
+    ]
+  },
+  "BASGZ": {
+    "name_tr": "BAŞKENT DOĞALGAZ DAĞITIM GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "BASKENT DOGALGAZ DAGITIM",
+      "BAŞKENT DOĞALGAZ DAĞITIM",
+      "BASKENT DOGALGAZ",
+      "BAŞKENT DOĞALGAZ"
+    ],
+    "search_gkg": [
+      "BASKENT DOGALGAZ DAGITIM GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "BAYRK": {
+    "name_tr": "BAYRAK EBT TABAN SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BAYRAK EBT",
+      "BAYRAK EBT TABAN"
+    ],
+    "search_gkg": [
+      "BAYRAK EBT TABAN SANAYI VE TICARET"
+    ]
+  },
+  "BEGYO": {
+    "name_tr": "BATI EGE GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "BATI EGE",
+      "BATI EGE GAYRİMENKUL",
+      "BATI EGE GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "BATI EGE GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "BERAB": {
+    "name_tr": "BERA HOLDİNG A.Ş.",
+    "search_title": [
+      "BERA HOLDİNG",
+      "BERA HOLDING"
+    ],
+    "search_gkg": [
+      "BERA HOLDING"
+    ]
+  },
+  "BESLR": {
+    "name_tr": "BESLER GIDA VE KİMYA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BESLER GIDA",
+      "BESLER GIDA VE"
+    ],
+    "search_gkg": [
+      "BESLER GIDA VE KIMYA SANAYI VE TICARET"
+    ]
+  },
+  "BESTE": {
+    "name_tr": "BEST BRANDS GRUP ENERJİ YATIRIM A.Ş.",
+    "search_title": [
+      "BEST BRANDS GRUP",
+      "BEST BRANDS"
+    ],
+    "search_gkg": [
+      "BEST BRANDS GRUP ENERJI YATIRIM"
+    ]
+  },
+  "BETAE": {
+    "name_tr": "BETA ENERJİ VE TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "BETA ENERJİ",
+      "BETA ENERJİ VE",
+      "BETA ENERJI VE",
+      "BETA ENERJI"
+    ],
+    "search_gkg": [
+      "BETA ENERJI VE TEKNOLOJI"
+    ]
+  },
+  "BEYAZ": {
+    "name_tr": "BEYAZ FİLO OTO KİRALAMA A.Ş.",
+    "search_title": [
+      "BEYAZ FILO OTO",
+      "BEYAZ FİLO",
+      "BEYAZ FİLO OTO",
+      "BEYAZ FILO"
+    ],
+    "search_gkg": [
+      "BEYAZ FILO OTO KIRALAMA"
+    ]
+  },
+  "BFREN": {
+    "name_tr": "BOSCH FREN SİSTEMLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BOSCH FREN SISTEMLERI",
+      "BOSCH FREN",
+      "BOSCH FREN SİSTEMLERİ"
+    ],
+    "search_gkg": [
+      "BOSCH FREN SISTEMLERI SANAYI VE TICARET"
+    ]
+  },
+  "BIENY": {
+    "name_tr": "BİEN YAPI ÜRÜNLERİ SANAYİ TURİZM VE TİCARET A.Ş.",
+    "search_title": [
+      "BİEN YAPI ÜRÜNLERİ",
+      "BIEN YAPI",
+      "BİEN YAPI",
+      "BIEN YAPI URUNLERI"
+    ],
+    "search_gkg": [
+      "BIEN YAPI URUNLERI SANAYI TURIZM VE TICARET"
+    ]
+  },
+  "BIGCH": {
+    "name_tr": "BÜYÜK ŞEFLER GIDA TURİZM TEKSTİL DANIŞMANLIK ORGANİZASYON EĞİTİM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BÜYÜK ŞEFLER GIDA",
+      "BÜYÜK ŞEFLER",
+      "BUYUK SEFLER GIDA",
+      "BUYUK SEFLER"
+    ],
+    "search_gkg": [
+      "BUYUK SEFLER GIDA TURIZM TEKSTIL DANISMANLIK ORGANIZASYON EGITIM SANAYI VE TICARET"
+    ]
+  },
+  "BIGEN": {
+    "name_tr": "BİRLEŞİM GRUP ENERJİ YATIRIMLARI A.Ş.",
+    "search_title": [
+      "BIRLESIM GRUP",
+      "BİRLEŞİM GRUP ENERJİ",
+      "BIRLESIM GRUP ENERJI",
+      "BİRLEŞİM GRUP"
+    ],
+    "search_gkg": [
+      "BIRLESIM GRUP ENERJI YATIRIMLARI"
+    ]
+  },
+  "BIGTK": {
+    "name_tr": "BİG MEDYA TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "BIG MEDYA",
+      "BIG MEDYA TEKNOLOJI",
+      "BİG MEDYA TEKNOLOJİ",
+      "BİG MEDYA"
+    ],
+    "search_gkg": [
+      "BIG MEDYA TEKNOLOJI"
+    ]
+  },
+  "BIMAS": {
+    "search_title": [
+      "BİM",
+      "BIM BIRLESIK"
+    ],
+    "search_gkg": [
+      "BIM BIRLESIK"
+    ],
+    "name_tr": "BİM BİRLEŞİK MAĞAZALAR A.Ş."
+  },
+  "BINBN": {
+    "name_tr": "BİN ULAŞIM VE AKILLI ŞEHİR TEKNOLOJİLERİ A.Ş.",
+    "search_title": [
+      "BIN ULASIM VE",
+      "BİN ULAŞIM",
+      "BİN ULAŞIM VE",
+      "BIN ULASIM"
+    ],
+    "search_gkg": [
+      "BIN ULASIM VE AKILLI SEHIR TEKNOLOJILERI"
+    ]
+  },
+  "BINHO": {
+    "name_tr": "1000 YATIRIMLAR HOLDİNG A.Ş.",
+    "search_title": [
+      "1000 YATIRIMLAR HOLDİNG",
+      "1000 YATIRIMLAR HOLDING",
+      "1000 YATIRIMLAR"
+    ],
+    "search_gkg": [
+      "1000 YATIRIMLAR HOLDING"
+    ]
+  },
+  "BIOEN": {
+    "name_tr": "BİOTREND ÇEVRE VE ENERJİ YATIRIMLARI A.Ş.",
+    "search_title": [
+      "BIOTREND CEVRE",
+      "BIOTREND CEVRE VE",
+      "BİOTREND ÇEVRE",
+      "BİOTREND ÇEVRE VE"
+    ],
+    "search_gkg": [
+      "BIOTREND CEVRE VE ENERJI YATIRIMLARI"
+    ]
+  },
+  "BIZIM": {
+    "name_tr": "BİZİM TOPTAN SATIŞ MAĞAZALARI A.Ş.",
+    "search_title": [
+      "BİZİM TOPTAN",
+      "BIZIM TOPTAN SATIS",
+      "BİZİM TOPTAN SATIŞ",
+      "BIZIM TOPTAN"
+    ],
+    "search_gkg": [
+      "BIZIM TOPTAN SATIS MAGAZALARI"
+    ]
+  },
+  "BJKAS": {
+    "search_title": [
+      "BEŞİKTAŞ",
+      "BESIKTAS"
+    ],
+    "search_gkg": [
+      "BESIKTAS"
+    ],
+    "name_tr": "BEŞİKTAŞ FUTBOL YATIRIMLARI SANAYİ VE TİCARET A.Ş."
+  },
+  "BLCYT": {
+    "name_tr": "BİLİCİ YATIRIM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BILICI YATIRIM",
+      "BILICI YATIRIM SANAYI",
+      "BİLİCİ YATIRIM",
+      "BİLİCİ YATIRIM SANAYİ"
+    ],
+    "search_gkg": [
+      "BILICI YATIRIM SANAYI VE TICARET"
+    ]
+  },
+  "BLUME": {
+    "name_tr": "BLUME METAL KİMYA A.Ş.",
+    "search_title": [
+      "BLUME METAL",
+      "BLUME METAL KIMYA",
+      "BLUME METAL KİMYA"
+    ],
+    "search_gkg": [
+      "BLUME METAL KIMYA"
+    ]
+  },
+  "BMSCH": {
+    "name_tr": "BMS ÇELİK HASIR SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BMS ÇELİK",
+      "BMS CELIK HASIR",
+      "BMS CELIK",
+      "BMS ÇELİK HASIR"
+    ],
+    "search_gkg": [
+      "BMS CELIK HASIR SANAYI VE TICARET"
+    ]
+  },
+  "BMSTL": {
+    "name_tr": "BMS BİRLEŞİK METAL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BMS BİRLEŞİK",
+      "BMS BIRLESIK METAL",
+      "BMS BİRLEŞİK METAL",
+      "BMS BIRLESIK"
+    ],
+    "search_gkg": [
+      "BMS BIRLESIK METAL SANAYI VE TICARET"
+    ]
+  },
+  "BNTAS": {
+    "name_tr": "BANTAŞ BANDIRMA AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BANTAS BANDIRMA",
+      "BANTAŞ BANDIRMA",
+      "BANTAŞ BANDIRMA AMBALAJ",
+      "BANTAS BANDIRMA AMBALAJ"
+    ],
+    "search_gkg": [
+      "BANTAS BANDIRMA AMBALAJ SANAYI VE TICARET"
+    ]
+  },
+  "BOBET": {
+    "name_tr": "BOĞAZİÇİ BETON SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BOĞAZİÇİ BETON",
+      "BOGAZICI BETON SANAYI",
+      "BOGAZICI BETON",
+      "BOĞAZİÇİ BETON SANAYİ"
+    ],
+    "search_gkg": [
+      "BOGAZICI BETON SANAYI VE TICARET"
+    ]
+  },
+  "BORLS": {
+    "name_tr": "BORLEASE OTOMOTİV A.Ş.",
+    "search_title": [
+      "BORLEASE OTOMOTİV",
+      "BORLEASE OTOMOTIV"
+    ],
+    "search_gkg": [
+      "BORLEASE OTOMOTIV"
+    ]
+  },
+  "BORSK": {
+    "name_tr": "BOR ŞEKER A.Ş.",
+    "search_title": [
+      "BOR SEKER",
+      "BOR ŞEKER"
+    ],
+    "search_gkg": [
+      "BOR SEKER"
+    ]
+  },
+  "BOSSA": {
+    "name_tr": "BOSSA TİCARET VE SANAYİ İŞLETMELERİ T.A.Ş.",
+    "search_title": [
+      "BOSSA TİCARET VE",
+      "BOSSA TICARET",
+      "BOSSA TİCARET",
+      "BOSSA TICARET VE"
+    ],
+    "search_gkg": [
+      "BOSSA TICARET VE SANAYI ISLETMELERI"
+    ]
+  },
+  "BRISA": {
+    "name_tr": "BRİSA BRİDGESTONE SABANCI LASTİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BRISA BRIDGESTONE SABANCI",
+      "BRISA BRIDGESTONE",
+      "BRİSA BRİDGESTONE SABANCI",
+      "BRİSA BRİDGESTONE"
+    ],
+    "search_gkg": [
+      "BRISA BRIDGESTONE SABANCI LASTIK SANAYI VE TICARET"
+    ]
+  },
+  "BRKOB": {
+    "name_tr": "BİRKO BİRLEŞİK KOYUNLULULAR MENSUCAT TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "BIRKO BIRLESIK KOYUNLULULAR",
+      "BİRKO BİRLEŞİK KOYUNLULULAR",
+      "BİRKO BİRLEŞİK",
+      "BIRKO BIRLESIK"
+    ],
+    "search_gkg": [
+      "BIRKO BIRLESIK KOYUNLULULAR MENSUCAT TICARET VE SANAYI"
+    ]
+  },
+  "BRKSN": {
+    "name_tr": "BERKOSAN YALITIM VE TECRİT MADDELERİ ÜRETİM VE TİCARET A.Ş.",
+    "search_title": [
+      "BERKOSAN YALITIM",
+      "BERKOSAN YALITIM VE"
+    ],
+    "search_gkg": [
+      "BERKOSAN YALITIM VE TECRIT MADDELERI URETIM VE TICARET"
+    ]
+  },
+  "BRKVY": {
+    "name_tr": "BİRİKİM VARLIK YÖNETİM A.Ş.",
+    "search_title": [
+      "BİRİKİM VARLIK YÖNETİM",
+      "BİRİKİM VARLIK",
+      "BIRIKIM VARLIK YONETIM",
+      "BIRIKIM VARLIK"
+    ],
+    "search_gkg": [
+      "BIRIKIM VARLIK YONETIM"
+    ]
+  },
+  "BRLSM": {
+    "name_tr": "BİRLEŞİM MÜHENDİSLİK ISITMA SOĞUTMA HAVALANDIRMA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BIRLESIM MUHENDISLIK ISITMA",
+      "BİRLEŞİM MÜHENDİSLİK ISITMA",
+      "BIRLESIM MUHENDISLIK",
+      "BİRLEŞİM MÜHENDİSLİK"
+    ],
+    "search_gkg": [
+      "BIRLESIM MUHENDISLIK ISITMA SOGUTMA HAVALANDIRMA SANAYI VE TICARET"
+    ]
+  },
+  "BRMEN": {
+    "name_tr": "BİRLİK MENSUCAT TİCARET VE SANAYİ İŞLETMESİ A.Ş.",
+    "search_title": [
+      "BIRLIK MENSUCAT",
+      "BİRLİK MENSUCAT TİCARET",
+      "BİRLİK MENSUCAT",
+      "BIRLIK MENSUCAT TICARET"
+    ],
+    "search_gkg": [
+      "BIRLIK MENSUCAT TICARET VE SANAYI ISLETMESI"
+    ]
+  },
+  "BRSAN": {
+    "search_title": [
+      "BORUSAN",
+      "BORUSAN MANNESMANN"
+    ],
+    "search_gkg": [
+      "BORUSAN"
+    ],
+    "name_tr": "BORUSAN BİRLEŞİK BORU FABRİKALARI SANAYİ VE TİCARET A.Ş."
+  },
+  "BRYAT": {
+    "name_tr": "BORUSAN YATIRIM VE PAZARLAMA A.Ş.",
+    "search_title": [
+      "BORUSAN YATIRIM",
+      "BORUSAN YATIRIM VE"
+    ],
+    "search_gkg": [
+      "BORUSAN YATIRIM VE PAZARLAMA"
+    ]
+  },
+  "BSOKE": {
+    "name_tr": "BATIÇİM ÇİMENTO SANAYİ A.Ş.",
+    "search_title": [
+      "BATIÇİM ÇİMENTO",
+      "BATIÇİM ÇİMENTO SANAYİ",
+      "BATICIM CIMENTO",
+      "BATICIM CIMENTO SANAYI"
+    ],
+    "search_gkg": [
+      "BATICIM CIMENTO SANAYI"
+    ]
+  },
+  "BTCIM": {
+    "name_tr": "BATIÇİM BATI ANADOLU SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BATIÇİM BATI ANADOLU",
+      "BATIÇİM BATI",
+      "BATICIM BATI ANADOLU",
+      "BATICIM BATI"
+    ],
+    "search_gkg": [
+      "BATICIM BATI ANADOLU SANAYI VE TICARET"
+    ]
+  },
+  "BUCIM": {
+    "name_tr": "BURSA ÇİMENTO FABRİKASI A.Ş.",
+    "search_title": [
+      "BURSA CIMENTO",
+      "BURSA ÇİMENTO",
+      "BURSA CIMENTO FABRIKASI",
+      "BURSA ÇİMENTO FABRİKASI"
+    ],
+    "search_gkg": [
+      "BURSA CIMENTO FABRIKASI"
+    ]
+  },
+  "BULGS": {
+    "name_tr": "BULLS GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "BULLS GIRISIM SERMAYESI",
+      "BULLS GIRISIM",
+      "BULLS GİRİŞİM SERMAYESİ",
+      "BULLS GİRİŞİM"
+    ],
+    "search_gkg": [
+      "BULLS GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "BURCE": {
+    "name_tr": "BURÇELİK BURSA ÇELİK DÖKÜM SANAYİİ A.Ş.",
+    "search_title": [
+      "BURÇELİK BURSA ÇELİK",
+      "BURCELIK BURSA CELIK",
+      "BURÇELİK BURSA",
+      "BURCELIK BURSA"
+    ],
+    "search_gkg": [
+      "BURCELIK BURSA CELIK DOKUM SANAYII"
+    ]
+  },
+  "BURVA": {
+    "name_tr": "BURÇELİK VANA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BURÇELİK VANA",
+      "BURCELIK VANA",
+      "BURCELIK VANA SANAYI",
+      "BURÇELİK VANA SANAYİ"
+    ],
+    "search_gkg": [
+      "BURCELIK VANA SANAYI VE TICARET"
+    ]
+  },
+  "BVSAN": {
+    "name_tr": "BÜLBÜLOĞLU VİNÇ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "BÜLBÜLOĞLU VİNÇ",
+      "BÜLBÜLOĞLU VİNÇ SANAYİ",
+      "BULBULOGLU VINC",
+      "BULBULOGLU VINC SANAYI"
+    ],
+    "search_gkg": [
+      "BULBULOGLU VINC SANAYI VE TICARET"
+    ]
+  },
+  "BYDNR": {
+    "name_tr": "BAYDÖNER RESTORANLARI A.Ş.",
+    "search_title": [
+      "BAYDONER RESTORANLARI",
+      "BAYDÖNER RESTORANLARI"
+    ],
+    "search_gkg": [
+      "BAYDONER RESTORANLARI"
+    ]
+  },
+  "CANTE": {
+    "name_tr": "ÇAN2 TERMİK A.Ş.",
+    "search_title": [
+      "CAN2 TERMIK",
+      "ÇAN2 TERMİK"
+    ],
+    "search_gkg": [
+      "CAN2 TERMIK"
+    ]
+  },
+  "CASAC": {
+    "name_tr": "CASA EMTİA PETROL KİMYEVİ VE TÜREVLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "CASA EMTIA",
+      "CASA EMTİA PETROL",
+      "CASA EMTİA",
+      "CASA EMTIA PETROL"
+    ],
+    "search_gkg": [
+      "CASA EMTIA PETROL KIMYEVI VE TUREVLERI SANAYI VE TICARET"
+    ]
+  },
+  "CATES": {
+    "name_tr": "ÇATES ELEKTRİK ÜRETİM A.Ş.",
+    "search_title": [
+      "CATES ELEKTRIK URETIM",
+      "ÇATES ELEKTRİK",
+      "ÇATES ELEKTRİK ÜRETİM",
+      "CATES ELEKTRIK"
+    ],
+    "search_gkg": [
+      "CATES ELEKTRIK URETIM"
+    ]
+  },
+  "CCOLA": {
+    "search_title": [
+      "COCA COLA İÇECEK",
+      "COCA COLA ICECEK",
+      "COCA-COLA İÇECEK"
+    ],
+    "search_gkg": [
+      "COCA COLA ICECEK"
+    ],
+    "name_tr": "COCA-COLA İÇECEK A.Ş."
+  },
+  "CELHA": {
+    "name_tr": "ÇELİK HALAT VE TEL SANAYİİ A.Ş.",
+    "search_title": [
+      "CELIK HALAT",
+      "ÇELİK HALAT VE",
+      "CELIK HALAT VE",
+      "ÇELİK HALAT"
+    ],
+    "search_gkg": [
+      "CELIK HALAT VE TEL SANAYII"
+    ]
+  },
+  "CEMAS": {
+    "name_tr": "ÇEMAŞ DÖKÜM SANAYİ A.Ş.",
+    "search_title": [
+      "ÇEMAŞ DÖKÜM SANAYİ",
+      "CEMAS DOKUM SANAYI",
+      "CEMAS DOKUM",
+      "ÇEMAŞ DÖKÜM"
+    ],
+    "search_gkg": [
+      "CEMAS DOKUM SANAYI"
+    ]
+  },
+  "CEMTS": {
+    "search_title": [
+      "ÇEMTAŞ",
+      "CEMTAS",
+      "ÇEMTAŞ ÇELİK"
+    ],
+    "search_gkg": [
+      "CEMTAS"
+    ],
+    "name_tr": "ÇEMTAŞ ÇELİK MAKİNA SANAYİ VE TİCARET A.Ş."
+  },
+  "CEMZY": {
+    "name_tr": "CEM ZEYTİN A.Ş.",
+    "search_title": [
+      "CEM ZEYTIN",
+      "CEM ZEYTİN"
+    ],
+    "search_gkg": [
+      "CEM ZEYTIN"
+    ]
+  },
+  "CEOEM": {
+    "name_tr": "CEO EVENT MEDYA A.Ş.",
+    "search_title": [
+      "CEO EVENT MEDYA",
+      "CEO EVENT"
+    ],
+    "search_gkg": [
+      "CEO EVENT MEDYA"
+    ]
+  },
+  "CGCAM": {
+    "name_tr": "ÇAĞDAŞ CAM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ÇAĞDAŞ CAM SANAYİ",
+      "CAGDAS CAM SANAYI",
+      "ÇAĞDAŞ CAM",
+      "CAGDAS CAM"
+    ],
+    "search_gkg": [
+      "CAGDAS CAM SANAYI VE TICARET"
+    ]
+  },
+  "CIMSA": {
+    "name_tr": "ÇİMSA ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "CIMSA CIMENTO",
+      "CIMSA CIMENTO SANAYI",
+      "ÇİMSA ÇİMENTO SANAYİ",
+      "ÇİMSA ÇİMENTO"
+    ],
+    "search_gkg": [
+      "CIMSA CIMENTO SANAYI VE TICARET"
+    ]
+  },
+  "CLEBI": {
+    "search_title": [
+      "ÇELEBİ",
+      "CELEBI"
+    ],
+    "search_gkg": [
+      "CELEBI"
+    ],
+    "name_tr": "ÇELEBİ HAVA SERVİSİ A.Ş."
+  },
+  "CMBTN": {
+    "name_tr": "ÇİMBETON HAZIRBETON VE PREFABRİK YAPI ELEMANLARI SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "CIMBETON HAZIRBETON",
+      "ÇİMBETON HAZIRBETON",
+      "ÇİMBETON HAZIRBETON VE",
+      "CIMBETON HAZIRBETON VE"
+    ],
+    "search_gkg": [
+      "CIMBETON HAZIRBETON VE PREFABRIK YAPI ELEMANLARI SANAYI VE TICARET"
+    ]
+  },
+  "CMENT": {
+    "name_tr": "ÇİMENTAŞ İZMİR ÇİMENTO FABRİKASI T.A.Ş.",
+    "search_title": [
+      "ÇİMENTAŞ İZMİR",
+      "CIMENTAS IZMIR CIMENTO",
+      "CIMENTAS IZMIR",
+      "ÇİMENTAŞ İZMİR ÇİMENTO"
+    ],
+    "search_gkg": [
+      "CIMENTAS IZMIR CIMENTO FABRIKASI"
+    ]
+  },
+  "CONSE": {
+    "name_tr": "CONSUS ENERJİ İŞLETMECİLİĞİ VE HİZMETLERİ A.Ş.",
+    "search_title": [
+      "CONSUS ENERJİ İŞLETMECİLİĞİ",
+      "CONSUS ENERJİ",
+      "CONSUS ENERJI ISLETMECILIGI",
+      "CONSUS ENERJI"
+    ],
+    "search_gkg": [
+      "CONSUS ENERJI ISLETMECILIGI VE HIZMETLERI"
+    ]
+  },
+  "COSMO": {
+    "name_tr": "COSMOS YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "COSMOS YATIRIM",
+      "COSMOS YATIRIM HOLDING",
+      "COSMOS YATIRIM HOLDİNG"
+    ],
+    "search_gkg": [
+      "COSMOS YATIRIM HOLDING"
+    ]
+  },
+  "CRDFA": {
+    "name_tr": "CREDITWEST FAKTORİNG A.Ş.",
+    "search_title": [
+      "CREDITWEST FAKTORING",
+      "CREDITWEST FAKTORİNG"
+    ],
+    "search_gkg": [
+      "CREDITWEST FAKTORING"
+    ]
+  },
+  "CRFSA": {
+    "name_tr": "CARREFOURSA CARREFOUR SABANCI TİCARET MERKEZİ A.Ş.",
+    "search_title": [
+      "CARREFOURSA CARREFOUR SABANCI",
+      "CARREFOURSA CARREFOUR"
+    ],
+    "search_gkg": [
+      "CARREFOURSA CARREFOUR SABANCI TICARET MERKEZI"
+    ]
+  },
+  "CUSAN": {
+    "name_tr": "ÇUHADAROĞLU METAL SANAYİ VE PAZARLAMA A.Ş.",
+    "search_title": [
+      "ÇUHADAROĞLU METAL",
+      "ÇUHADAROĞLU METAL SANAYİ",
+      "CUHADAROGLU METAL",
+      "CUHADAROGLU METAL SANAYI"
+    ],
+    "search_gkg": [
+      "CUHADAROGLU METAL SANAYI VE PAZARLAMA"
+    ]
+  },
+  "CVKMD": {
+    "name_tr": "CVK MADEN İŞLETMELERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "CVK MADEN ISLETMELERI",
+      "CVK MADEN İŞLETMELERİ",
+      "CVK MADEN"
+    ],
+    "search_gkg": [
+      "CVK MADEN ISLETMELERI SANAYI VE TICARET"
+    ]
+  },
+  "CWENE": {
+    "name_tr": "CW ENERJİ MÜHENDİSLİK TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "CW ENERJİ MÜHENDİSLİK",
+      "CW ENERJİ",
+      "CW ENERJI",
+      "CW ENERJI MUHENDISLIK"
+    ],
+    "search_gkg": [
+      "CW ENERJI MUHENDISLIK TICARET VE SANAYI"
+    ]
+  },
+  "DAGID": {
+    "name_tr": "DAGİ GİYİM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DAGİ GİYİM SANAYİ",
+      "DAGİ GİYİM",
+      "DAGI GIYIM",
+      "DAGI GIYIM SANAYI"
+    ],
+    "search_gkg": [
+      "DAGI GIYIM SANAYI VE TICARET"
+    ]
+  },
+  "DAPGM": {
+    "name_tr": "DAP GAYRİMENKUL GELİŞTİRME A.Ş.",
+    "search_title": [
+      "DAP GAYRİMENKUL GELİŞTİRME",
+      "DAP GAYRIMENKUL GELISTIRME",
+      "DAP GAYRİMENKUL",
+      "DAP GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "DAP GAYRIMENKUL GELISTIRME"
+    ]
+  },
+  "DARDL": {
+    "name_tr": "DARDANEL ÖNENTAŞ GIDA SANAYİ A.Ş.",
+    "search_title": [
+      "DARDANEL ONENTAS GIDA",
+      "DARDANEL ONENTAS",
+      "DARDANEL ÖNENTAŞ",
+      "DARDANEL ÖNENTAŞ GIDA"
+    ],
+    "search_gkg": [
+      "DARDANEL ONENTAS GIDA SANAYI"
+    ]
+  },
+  "DCTTR": {
+    "name_tr": "DCT TRADİNG DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "DCT TRADING DIS",
+      "DCT TRADİNG",
+      "DCT TRADING",
+      "DCT TRADİNG DIŞ"
+    ],
+    "search_gkg": [
+      "DCT TRADING DIS TICARET"
+    ]
+  },
+  "DENGE": {
+    "name_tr": "DENGE YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "DENGE YATIRIM HOLDING",
+      "DENGE YATIRIM",
+      "DENGE YATIRIM HOLDİNG"
+    ],
+    "search_gkg": [
+      "DENGE YATIRIM HOLDING"
+    ]
+  },
+  "DERHL": {
+    "name_tr": "DERLÜKS YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "DERLUKS YATIRIM HOLDING",
+      "DERLUKS YATIRIM",
+      "DERLÜKS YATIRIM HOLDİNG",
+      "DERLÜKS YATIRIM"
+    ],
+    "search_gkg": [
+      "DERLUKS YATIRIM HOLDING"
+    ]
+  },
+  "DERIM": {
+    "name_tr": "DERİMOD KONFEKSİYON AYAKKABI DERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DERİMOD KONFEKSİYON AYAKKABI",
+      "DERIMOD KONFEKSIYON AYAKKABI",
+      "DERIMOD KONFEKSIYON",
+      "DERİMOD KONFEKSİYON"
+    ],
+    "search_gkg": [
+      "DERIMOD KONFEKSIYON AYAKKABI DERI SANAYI VE TICARET"
+    ]
+  },
+  "DESAD": {
+    "name_tr": "DESA DERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DESA DERİ",
+      "DESA DERI SANAYI",
+      "DESA DERI",
+      "DESA DERİ SANAYİ"
+    ],
+    "search_gkg": [
+      "DESA DERI SANAYI VE TICARET"
+    ]
+  },
+  "DESPC": {
+    "name_tr": "DESPEC BİLGİSAYAR PAZARLAMA VE TİCARET A.Ş.",
+    "search_title": [
+      "DESPEC BILGISAYAR",
+      "DESPEC BILGISAYAR PAZARLAMA",
+      "DESPEC BİLGİSAYAR PAZARLAMA",
+      "DESPEC BİLGİSAYAR"
+    ],
+    "search_gkg": [
+      "DESPEC BILGISAYAR PAZARLAMA VE TICARET"
+    ]
+  },
+  "DEVAD": {
+    "name_tr": "DEVA HOLDİNG A.Ş.",
+    "search_title": [
+      "DEVA HOLDİNG",
+      "DEVA HOLDING"
+    ],
+    "search_gkg": [
+      "DEVA HOLDING"
+    ]
+  },
+  "DGATE": {
+    "name_tr": "DATAGATE BİLGİSAYAR MALZEMELERİ TİCARET A.Ş.",
+    "search_title": [
+      "DATAGATE BİLGİSAYAR",
+      "DATAGATE BILGISAYAR MALZEMELERI",
+      "DATAGATE BİLGİSAYAR MALZEMELERİ",
+      "DATAGATE BILGISAYAR"
+    ],
+    "search_gkg": [
+      "DATAGATE BILGISAYAR MALZEMELERI TICARET"
+    ]
+  },
+  "DGGYO": {
+    "name_tr": "DOĞUŞ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "DOGUS GAYRIMENKUL",
+      "DOĞUŞ GAYRİMENKUL",
+      "DOGUS GAYRIMENKUL YATIRIM",
+      "DOĞUŞ GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "DOGUS GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "DGNMO": {
+    "name_tr": "DOĞANLAR MOBİLYA GRUBU İMALAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DOĞANLAR MOBİLYA GRUBU",
+      "DOĞANLAR MOBİLYA",
+      "DOGANLAR MOBILYA GRUBU",
+      "DOGANLAR MOBILYA"
+    ],
+    "search_gkg": [
+      "DOGANLAR MOBILYA GRUBU IMALAT SANAYI VE TICARET"
+    ]
+  },
+  "DIRIT": {
+    "name_tr": "DİRİTEKS DİRİLİŞ TEKSTİL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DİRİTEKS DİRİLİŞ",
+      "DIRITEKS DIRILIS TEKSTIL",
+      "DİRİTEKS DİRİLİŞ TEKSTİL",
+      "DIRITEKS DIRILIS"
+    ],
+    "search_gkg": [
+      "DIRITEKS DIRILIS TEKSTIL SANAYI VE TICARET"
+    ]
+  },
+  "DITAS": {
+    "name_tr": "DİTAŞ BDY YEDEK PARÇA İMALAT VE TEKNİK A.Ş.",
+    "search_title": [
+      "DITAS BDY",
+      "DITAS BDY YEDEK",
+      "DİTAŞ BDY",
+      "DİTAŞ BDY YEDEK"
+    ],
+    "search_gkg": [
+      "DITAS BDY YEDEK PARCA IMALAT VE TEKNIK"
+    ]
+  },
+  "DMRGD": {
+    "name_tr": "DMR UNLU MAMULLER ÜRETİM GIDA TOPTAN PERAKENDE İHRACAT A.Ş.",
+    "search_title": [
+      "DMR UNLU MAMULLER",
+      "DMR UNLU"
+    ],
+    "search_gkg": [
+      "DMR UNLU MAMULLER URETIM GIDA TOPTAN PERAKENDE IHRACAT"
+    ]
+  },
+  "DMSAS": {
+    "name_tr": "DEMİSAŞ DÖKÜM EMAYE MAMÜLLERİ SANAYİ A.Ş.",
+    "search_title": [
+      "DEMISAS DOKUM",
+      "DEMISAS DOKUM EMAYE",
+      "DEMİSAŞ DÖKÜM",
+      "DEMİSAŞ DÖKÜM EMAYE"
+    ],
+    "search_gkg": [
+      "DEMISAS DOKUM EMAYE MAMULLERI SANAYI"
+    ]
+  },
+  "DNISI": {
+    "name_tr": "DİNAMİK ISI MAKİNA YALITIM MALZEMELERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DİNAMİK ISI",
+      "DINAMIK ISI",
+      "DINAMIK ISI MAKINA",
+      "DİNAMİK ISI MAKİNA"
+    ],
+    "search_gkg": [
+      "DINAMIK ISI MAKINA YALITIM MALZEMELERI SANAYI VE TICARET"
+    ]
+  },
+  "DOASD": {
+    "name_tr": "DOĞUŞ OTOMOTİV SERVİS VE TİCARET A.Ş.",
+    "search_title": [
+      "DOGUS OTOMOTIV",
+      "DOĞUŞ OTOMOTİV SERVİS",
+      "DOGUS OTOMOTIV SERVIS",
+      "DOĞUŞ OTOMOTİV"
+    ],
+    "search_gkg": [
+      "DOGUS OTOMOTIV SERVIS VE TICARET"
+    ]
+  },
+  "DOCOD": {
+    "name_tr": "DO & CO AKTIENGESELLSCHAFT",
+    "search_title": [
+      "DO & CO",
+      "DO &"
+    ],
+    "search_gkg": [
+      "DO & CO AKTIENGESELLSCHAFT"
+    ]
+  },
+  "DOFER": {
+    "name_tr": "DOFER YAPI MALZEMELERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DOFER YAPI",
+      "DOFER YAPI MALZEMELERİ",
+      "DOFER YAPI MALZEMELERI"
+    ],
+    "search_gkg": [
+      "DOFER YAPI MALZEMELERI SANAYI VE TICARET"
+    ]
+  },
+  "DOFRB": {
+    "name_tr": "DOF ROBOTİK SANAYİ A.Ş.",
+    "search_title": [
+      "DOF ROBOTIK",
+      "DOF ROBOTİK",
+      "DOF ROBOTIK SANAYI",
+      "DOF ROBOTİK SANAYİ"
+    ],
+    "search_gkg": [
+      "DOF ROBOTIK SANAYI"
+    ]
+  },
+  "DOGUB": {
+    "name_tr": "DOĞUSAN BORU SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DOĞUSAN BORU",
+      "DOGUSAN BORU SANAYI",
+      "DOGUSAN BORU",
+      "DOĞUSAN BORU SANAYİ"
+    ],
+    "search_gkg": [
+      "DOGUSAN BORU SANAYI VE TICARET"
+    ]
+  },
+  "DOHOL": {
+    "name_tr": "DOĞAN ŞİRKETLER GRUBU HOLDİNG A.Ş.",
+    "search_title": [
+      "DOGAN SIRKETLER",
+      "DOĞAN ŞİRKETLER GRUBU",
+      "DOGAN SIRKETLER GRUBU",
+      "DOĞAN ŞİRKETLER"
+    ],
+    "search_gkg": [
+      "DOGAN SIRKETLER GRUBU HOLDING"
+    ]
+  },
+  "DOKTA": {
+    "name_tr": "DÖKTAŞ DÖKÜMCÜLÜK TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "DÖKTAŞ DÖKÜMCÜLÜK",
+      "DOKTAS DOKUMCULUK",
+      "DOKTAS DOKUMCULUK TICARET",
+      "DÖKTAŞ DÖKÜMCÜLÜK TİCARET"
+    ],
+    "search_gkg": [
+      "DOKTAS DOKUMCULUK TICARET VE SANAYI"
+    ]
+  },
+  "DSTKF": {
+    "name_tr": "DESTEK FİNANS FAKTORİNG A.Ş.",
+    "search_title": [
+      "DESTEK FINANS",
+      "DESTEK FİNANS FAKTORİNG",
+      "DESTEK FİNANS",
+      "DESTEK FINANS FAKTORING"
+    ],
+    "search_gkg": [
+      "DESTEK FINANS FAKTORING"
+    ]
+  },
+  "DUNYH": {
+    "name_tr": "DÜNYA HOLDİNG A.Ş.",
+    "search_title": [
+      "DUNYA HOLDING",
+      "DÜNYA HOLDİNG"
+    ],
+    "search_gkg": [
+      "DUNYA HOLDING"
+    ]
+  },
+  "DURDO": {
+    "name_tr": "DURAN DOĞAN BASIM VE AMBALAJ SANAYİ A.Ş.",
+    "search_title": [
+      "DURAN DOĞAN",
+      "DURAN DOGAN BASIM",
+      "DURAN DOGAN",
+      "DURAN DOĞAN BASIM"
+    ],
+    "search_gkg": [
+      "DURAN DOGAN BASIM VE AMBALAJ SANAYI"
+    ]
+  },
+  "DURKN": {
+    "name_tr": "DURUKAN ŞEKERLEME SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DURUKAN ŞEKERLEME",
+      "DURUKAN SEKERLEME SANAYI",
+      "DURUKAN SEKERLEME",
+      "DURUKAN ŞEKERLEME SANAYİ"
+    ],
+    "search_gkg": [
+      "DURUKAN SEKERLEME SANAYI VE TICARET"
+    ]
+  },
+  "DYOBY": {
+    "name_tr": "DYO BOYA FABRİKALARI SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "DYO BOYA FABRİKALARI",
+      "DYO BOYA",
+      "DYO BOYA FABRIKALARI"
+    ],
+    "search_gkg": [
+      "DYO BOYA FABRIKALARI SANAYI VE TICARET"
+    ]
+  },
+  "DZGYO": {
+    "name_tr": "DENİZ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "DENİZ GAYRİMENKUL YATIRIM",
+      "DENIZ GAYRIMENKUL",
+      "DENIZ GAYRIMENKUL YATIRIM",
+      "DENİZ GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "DENIZ GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "EBEBK": {
+    "name_tr": "EBEBEK MAĞAZACILIK A.Ş.",
+    "search_title": [
+      "EBEBEK MAĞAZACILIK",
+      "EBEBEK MAGAZACILIK"
+    ],
+    "search_gkg": [
+      "EBEBEK MAGAZACILIK"
+    ]
+  },
+  "ECILC": {
+    "name_tr": "EİS ECZACIBAŞI İLAÇ SINAİ VE FİNANSAL YATIRIMLAR SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EİS ECZACIBAŞI İLAÇ",
+      "EIS ECZACIBASI",
+      "EIS ECZACIBASI ILAC",
+      "EİS ECZACIBAŞI"
+    ],
+    "search_gkg": [
+      "EIS ECZACIBASI ILAC SINAI VE FINANSAL YATIRIMLAR SANAYI VE TICARET"
+    ]
+  },
+  "ECOGR": {
+    "name_tr": "ECOGREEN ENERJİ HOLDİNG A.Ş.",
+    "search_title": [
+      "ECOGREEN ENERJI HOLDING",
+      "ECOGREEN ENERJI",
+      "ECOGREEN ENERJİ HOLDİNG",
+      "ECOGREEN ENERJİ"
+    ],
+    "search_gkg": [
+      "ECOGREEN ENERJI HOLDING"
+    ]
+  },
+  "ECZYT": {
+    "name_tr": "ECZACIBAŞI YATIRIM HOLDİNG ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ECZACIBAŞI YATIRIM",
+      "ECZACIBAŞI YATIRIM HOLDİNG",
+      "ECZACIBASI YATIRIM",
+      "ECZACIBASI YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "ECZACIBASI YATIRIM HOLDING ORTAKLIGI"
+    ]
+  },
+  "EDATA": {
+    "name_tr": "E-DATA TEKNOLOJİ PAZARLAMA A.Ş.",
+    "search_title": [
+      "E-DATA TEKNOLOJI PAZARLAMA",
+      "E-DATA TEKNOLOJİ PAZARLAMA",
+      "E-DATA TEKNOLOJI",
+      "E-DATA TEKNOLOJİ"
+    ],
+    "search_gkg": [
+      "E-DATA TEKNOLOJI PAZARLAMA"
+    ]
+  },
+  "EDIPE": {
+    "name_tr": "EDİP GAYRİMENKUL YATIRIM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EDİP GAYRİMENKUL YATIRIM",
+      "EDİP GAYRİMENKUL",
+      "EDIP GAYRIMENKUL",
+      "EDIP GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "EDIP GAYRIMENKUL YATIRIM SANAYI VE TICARET"
+    ]
+  },
+  "EFORE": {
+    "name_tr": "EFOR YATIRIM SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "EFOR YATIRIM SANAYI",
+      "EFOR YATIRIM SANAYİ",
+      "EFOR YATIRIM"
+    ],
+    "search_gkg": [
+      "EFOR YATIRIM SANAYI TICARET"
+    ]
+  },
+  "EGEEN": {
+    "search_title": [
+      "EGE ENDÜSTRİ",
+      "EGE ENDUSTRI"
+    ],
+    "search_gkg": [
+      "EGE ENDUSTRI"
+    ],
+    "name_tr": "EGE ENDÜSTRİ VE TİCARET A.Ş."
+  },
+  "EGEGY": {
+    "name_tr": "EGEYAPI AVRUPA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "EGEYAPI AVRUPA GAYRİMENKUL",
+      "EGEYAPI AVRUPA",
+      "EGEYAPI AVRUPA GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "EGEYAPI AVRUPA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "EGEPO": {
+    "name_tr": "NASMED ÖZEL SAĞLIK HİZMETLERİ TİCARET A.Ş.",
+    "search_title": [
+      "NASMED OZEL",
+      "NASMED ÖZEL SAĞLIK",
+      "NASMED ÖZEL",
+      "NASMED OZEL SAGLIK"
+    ],
+    "search_gkg": [
+      "NASMED OZEL SAGLIK HIZMETLERI TICARET"
+    ]
+  },
+  "EGGUB": {
+    "name_tr": "EGE GÜBRE SANAYİİ A.Ş.",
+    "search_title": [
+      "EGE GUBRE SANAYII",
+      "EGE GÜBRE",
+      "EGE GUBRE",
+      "EGE GÜBRE SANAYİİ"
+    ],
+    "search_gkg": [
+      "EGE GUBRE SANAYII"
+    ]
+  },
+  "EGPRO": {
+    "name_tr": "EGE PROFİL TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "EGE PROFİL",
+      "EGE PROFİL TİCARET",
+      "EGE PROFIL TICARET",
+      "EGE PROFIL"
+    ],
+    "search_gkg": [
+      "EGE PROFIL TICARET VE SANAYI"
+    ]
+  },
+  "EGSER": {
+    "name_tr": "EGE SERAMİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EGE SERAMİK",
+      "EGE SERAMIK SANAYI",
+      "EGE SERAMİK SANAYİ",
+      "EGE SERAMIK"
+    ],
+    "search_gkg": [
+      "EGE SERAMIK SANAYI VE TICARET"
+    ]
+  },
+  "EKDMR": {
+    "name_tr": "EKİNCİLER DEMİR VE ÇELİK SANAYİ A.Ş.",
+    "search_title": [
+      "EKINCILER DEMIR",
+      "EKINCILER DEMIR VE",
+      "EKİNCİLER DEMİR VE",
+      "EKİNCİLER DEMİR"
+    ],
+    "search_gkg": [
+      "EKINCILER DEMIR VE CELIK SANAYI"
+    ]
+  },
+  "EKGYO": {
+    "search_title": [
+      "EMLAK KONUT",
+      "EMLAK GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "EMLAK KONUT"
+    ],
+    "name_tr": "EMLAK KONUT GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş."
+  },
+  "EKIZE": {
+    "name_tr": "EKİZ KİMYA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EKIZ KIMYA SANAYI",
+      "EKİZ KİMYA SANAYİ",
+      "EKİZ KİMYA",
+      "EKIZ KIMYA"
+    ],
+    "search_gkg": [
+      "EKIZ KIMYA SANAYI VE TICARET"
+    ]
+  },
+  "EKOSE": {
+    "name_tr": "EKOS TEKNOLOJİ VE ELEKTRİK A.Ş.",
+    "search_title": [
+      "EKOS TEKNOLOJI VE",
+      "EKOS TEKNOLOJİ VE",
+      "EKOS TEKNOLOJI",
+      "EKOS TEKNOLOJİ"
+    ],
+    "search_gkg": [
+      "EKOS TEKNOLOJI VE ELEKTRIK"
+    ]
+  },
+  "EKSUN": {
+    "name_tr": "EKSUN GIDA TARIM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EKSUN GIDA TARIM",
+      "EKSUN GIDA"
+    ],
+    "search_gkg": [
+      "EKSUN GIDA TARIM SANAYI VE TICARET"
+    ]
+  },
+  "ELITE": {
+    "name_tr": "ELİTE NATUREL ORGANİK GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ELITE NATUREL ORGANIK",
+      "ELİTE NATUREL",
+      "ELİTE NATUREL ORGANİK",
+      "ELITE NATUREL"
+    ],
+    "search_gkg": [
+      "ELITE NATUREL ORGANIK GIDA SANAYI VE TICARET"
+    ]
+  },
+  "EMKEL": {
+    "name_tr": "EMEK ELEKTRİK ENDÜSTRİSİ A.Ş.",
+    "search_title": [
+      "EMEK ELEKTRİK",
+      "EMEK ELEKTRIK",
+      "EMEK ELEKTRİK ENDÜSTRİSİ",
+      "EMEK ELEKTRIK ENDUSTRISI"
+    ],
+    "search_gkg": [
+      "EMEK ELEKTRIK ENDUSTRISI"
+    ]
+  },
+  "EMNIS": {
+    "name_tr": "EMİNİŞ AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EMİNİŞ AMBALAJ SANAYİ",
+      "EMINIS AMBALAJ",
+      "EMİNİŞ AMBALAJ",
+      "EMINIS AMBALAJ SANAYI"
+    ],
+    "search_gkg": [
+      "EMINIS AMBALAJ SANAYI VE TICARET"
+    ]
+  },
+  "EMPAE": {
+    "name_tr": "EMPA ELEKTRONİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EMPA ELEKTRONİK SANAYİ",
+      "EMPA ELEKTRONIK SANAYI",
+      "EMPA ELEKTRONIK",
+      "EMPA ELEKTRONİK"
+    ],
+    "search_gkg": [
+      "EMPA ELEKTRONIK SANAYI VE TICARET"
+    ]
+  },
+  "ENDAE": {
+    "name_tr": "ENDA ENERJİ HOLDİNG A.Ş.",
+    "search_title": [
+      "ENDA ENERJİ HOLDİNG",
+      "ENDA ENERJI",
+      "ENDA ENERJİ",
+      "ENDA ENERJI HOLDING"
+    ],
+    "search_gkg": [
+      "ENDA ENERJI HOLDING"
+    ]
+  },
+  "ENERY": {
+    "name_tr": "ENERYA ENERJİ A.Ş.",
+    "search_title": [
+      "ENERYA ENERJİ",
+      "ENERYA ENERJI"
+    ],
+    "search_gkg": [
+      "ENERYA ENERJI"
+    ]
+  },
+  "ENJSA": {
+    "search_title": [
+      "ENERJİSA",
+      "ENERJISA"
+    ],
+    "search_gkg": [
+      "ENERJISA"
+    ],
+    "name_tr": "ENERJİSA ENERJİ A.Ş."
+  },
+  "ENKAI": {
+    "search_title": [
+      "ENKA",
+      "ENKA İNŞAAT",
+      "ENKA INSAAT"
+    ],
+    "search_gkg": [
+      "ENKA INSAAT"
+    ],
+    "name_tr": "ENKA İNŞAAT VE SANAYİ A.Ş."
+  },
+  "ENPRA": {
+    "name_tr": "ENPARA BANK A.Ş.",
+    "search_title": [
+      "ENPARA BANK"
+    ],
+    "search_gkg": [
+      "ENPARA BANK"
+    ]
+  },
+  "ENSRI": {
+    "name_tr": "ENSARİ SINAİ YATIRIMLAR A.Ş.",
+    "search_title": [
+      "ENSARI SINAI YATIRIMLAR",
+      "ENSARİ SINAİ YATIRIMLAR",
+      "ENSARI SINAI",
+      "ENSARİ SINAİ"
+    ],
+    "search_gkg": [
+      "ENSARI SINAI YATIRIMLAR"
+    ]
+  },
+  "ENTRA": {
+    "name_tr": "IC ENTERRA YENİLENEBİLİR ENERJİ A.Ş.",
+    "search_title": [
+      "IC ENTERRA YENILENEBILIR",
+      "IC ENTERRA",
+      "IC ENTERRA YENİLENEBİLİR"
+    ],
+    "search_gkg": [
+      "IC ENTERRA YENILENEBILIR ENERJI"
+    ]
+  },
+  "EPLAS": {
+    "name_tr": "EGEPLAST EGE PLASTİK TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "EGEPLAST EGE PLASTIK",
+      "EGEPLAST EGE PLASTİK",
+      "EGEPLAST EGE"
+    ],
+    "search_gkg": [
+      "EGEPLAST EGE PLASTIK TICARET VE SANAYI"
+    ]
+  },
+  "ERBOS": {
+    "name_tr": "ERBOSAN ERCİYAS BORU SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ERBOSAN ERCIYAS BORU",
+      "ERBOSAN ERCIYAS",
+      "ERBOSAN ERCİYAS BORU",
+      "ERBOSAN ERCİYAS"
+    ],
+    "search_gkg": [
+      "ERBOSAN ERCIYAS BORU SANAYI VE TICARET"
+    ]
+  },
+  "ERCBE": {
+    "name_tr": "ERCİYAS ÇELİK BORU SANAYİ A.Ş.",
+    "search_title": [
+      "ERCIYAS CELIK BORU",
+      "ERCIYAS CELIK",
+      "ERCİYAS ÇELİK BORU",
+      "ERCİYAS ÇELİK"
+    ],
+    "search_gkg": [
+      "ERCIYAS CELIK BORU SANAYI"
+    ]
+  },
+  "EREGL": {
+    "search_title": [
+      "EREĞLİ",
+      "EREGLI",
+      "ERDEMIR"
+    ],
+    "search_gkg": [
+      "EREGLI DEMIR",
+      "ERDEMIR"
+    ],
+    "name_tr": "EREĞLİ DEMİR VE ÇELİK FABRİKALARI T.A.Ş."
+  },
+  "ERSUE": {
+    "name_tr": "ERSU MEYVE VE GIDA SANAYİ A.Ş.",
+    "search_title": [
+      "ERSU MEYVE VE",
+      "ERSU MEYVE"
+    ],
+    "search_gkg": [
+      "ERSU MEYVE VE GIDA SANAYI"
+    ]
+  },
+  "ESCAR": {
+    "name_tr": "ESCAR FİLO KİRALAMA HİZMETLERİ A.Ş.",
+    "search_title": [
+      "ESCAR FİLO",
+      "ESCAR FILO",
+      "ESCAR FİLO KİRALAMA",
+      "ESCAR FILO KIRALAMA"
+    ],
+    "search_gkg": [
+      "ESCAR FILO KIRALAMA HIZMETLERI"
+    ]
+  },
+  "ESCOM": {
+    "name_tr": "ESCORT TEKNOLOJİ YATIRIM A.Ş.",
+    "search_title": [
+      "ESCORT TEKNOLOJI YATIRIM",
+      "ESCORT TEKNOLOJİ YATIRIM",
+      "ESCORT TEKNOLOJI",
+      "ESCORT TEKNOLOJİ"
+    ],
+    "search_gkg": [
+      "ESCORT TEKNOLOJI YATIRIM"
+    ]
+  },
+  "ESENE": {
+    "name_tr": "ESENBOĞA ELEKTRİK ÜRETİM A.Ş.",
+    "search_title": [
+      "ESENBOGA ELEKTRIK",
+      "ESENBOGA ELEKTRIK URETIM",
+      "ESENBOĞA ELEKTRİK ÜRETİM",
+      "ESENBOĞA ELEKTRİK"
+    ],
+    "search_gkg": [
+      "ESENBOGA ELEKTRIK URETIM"
+    ]
+  },
+  "ETILR": {
+    "name_tr": "ETİLER GIDA VE TİCARİ YATIRIMLAR SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ETILER GIDA",
+      "ETILER GIDA VE",
+      "ETİLER GIDA VE",
+      "ETİLER GIDA"
+    ],
+    "search_gkg": [
+      "ETILER GIDA VE TICARI YATIRIMLAR SANAYI VE TICARET"
+    ]
+  },
+  "ETYAT": {
+    "name_tr": "EURO TREND YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "EURO TREND YATIRIM",
+      "EURO TREND"
+    ],
+    "search_gkg": [
+      "EURO TREND YATIRIM ORTAKLIGI"
+    ]
+  },
+  "EUHOL": {
+    "name_tr": "EURO YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "EURO YATIRIM HOLDING",
+      "EURO YATIRIM HOLDİNG",
+      "EURO YATIRIM"
+    ],
+    "search_gkg": [
+      "EURO YATIRIM HOLDING"
+    ]
+  },
+  "EUKYO": {
+    "name_tr": "EURO KAPİTAL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "EURO KAPITAL",
+      "EURO KAPİTAL",
+      "EURO KAPİTAL YATIRIM",
+      "EURO KAPITAL YATIRIM"
+    ],
+    "search_gkg": [
+      "EURO KAPITAL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "EUPWR": {
+    "name_tr": "EUROPOWER ENERJİ VE OTOMASYON TEKNOLOJİLERİ SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "EUROPOWER ENERJI VE",
+      "EUROPOWER ENERJİ VE",
+      "EUROPOWER ENERJI",
+      "EUROPOWER ENERJİ"
+    ],
+    "search_gkg": [
+      "EUROPOWER ENERJI VE OTOMASYON TEKNOLOJILERI SANAYI TICARET"
+    ]
+  },
+  "EUREN": {
+    "name_tr": "EUROPEN ENDÜSTRİ İNŞAAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "EUROPEN ENDUSTRI INSAAT",
+      "EUROPEN ENDÜSTRİ",
+      "EUROPEN ENDUSTRI",
+      "EUROPEN ENDÜSTRİ İNŞAAT"
+    ],
+    "search_gkg": [
+      "EUROPEN ENDUSTRI INSAAT SANAYI VE TICARET"
+    ]
+  },
+  "EUYOE": {
+    "name_tr": "EURO MENKUL KIYMET YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "EURO MENKUL KIYMET",
+      "EURO MENKUL"
+    ],
+    "search_gkg": [
+      "EURO MENKUL KIYMET YATIRIM ORTAKLIGI"
+    ]
+  },
+  "EYGYO": {
+    "name_tr": "EYG GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "EYG GAYRİMENKUL",
+      "EYG GAYRIMENKUL",
+      "EYG GAYRİMENKUL YATIRIM",
+      "EYG GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "EYG GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "FADEF": {
+    "name_tr": "FADE GIDA YATIRIM SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "FADE GIDA YATIRIM",
+      "FADE GIDA"
+    ],
+    "search_gkg": [
+      "FADE GIDA YATIRIM SANAYI TICARET"
+    ]
+  },
+  "FENER": {
+    "search_title": [
+      "FENERBAHÇE",
+      "FENERBAHCE"
+    ],
+    "search_gkg": [
+      "FENERBAHCE"
+    ],
+    "name_tr": "FENERBAHÇE FUTBOL A.Ş."
+  },
+  "FIN": {
+    "name_tr": "QNB BANK A.Ş.",
+    "search_title": [
+      "QNB BANK"
+    ],
+    "search_gkg": [
+      "QNB BANK"
+    ]
+  },
+  "FLAPF": {
+    "name_tr": "FLAP KONGRE TOPLANTI HİZMETLERİ OTOMOTİV VE TURİZM A.Ş.",
+    "search_title": [
+      "FLAP KONGRE TOPLANTI",
+      "FLAP KONGRE"
+    ],
+    "search_gkg": [
+      "FLAP KONGRE TOPLANTI HIZMETLERI OTOMOTIV VE TURIZM"
+    ]
+  },
+  "FMIZP": {
+    "name_tr": "FEDERAL MOGUL İZMİT PİSTON VE PİM ÜRETİM TESİSLERİ A.Ş.",
+    "search_title": [
+      "FEDERAL MOGUL",
+      "FEDERAL MOGUL IZMIT",
+      "FEDERAL MOGUL İZMİT"
+    ],
+    "search_gkg": [
+      "FEDERAL MOGUL IZMIT PISTON VE PIM URETIM TESISLERI"
+    ]
+  },
+  "FONET": {
+    "name_tr": "FONET BİLGİ TEKNOLOJİLERİ A.Ş.",
+    "search_title": [
+      "FONET BILGI",
+      "FONET BILGI TEKNOLOJILERI",
+      "FONET BİLGİ TEKNOLOJİLERİ",
+      "FONET BİLGİ"
+    ],
+    "search_gkg": [
+      "FONET BILGI TEKNOLOJILERI"
+    ]
+  },
+  "FORMT": {
+    "name_tr": "FORMET METAL VE CAM SANAYİ A.Ş.",
+    "search_title": [
+      "FORMET METAL VE",
+      "FORMET METAL"
+    ],
+    "search_gkg": [
+      "FORMET METAL VE CAM SANAYI"
+    ]
+  },
+  "FORTE": {
+    "name_tr": "FORTE BİLGİ İLETİŞİM TEKNOLOJİLERİ VE SAVUNMA SANAYİ A.Ş.",
+    "search_title": [
+      "FORTE BİLGİ İLETİŞİM",
+      "FORTE BILGI",
+      "FORTE BİLGİ",
+      "FORTE BILGI ILETISIM"
+    ],
+    "search_gkg": [
+      "FORTE BILGI ILETISIM TEKNOLOJILERI VE SAVUNMA SANAYI"
+    ]
+  },
+  "FRIGO": {
+    "name_tr": "FRİGO-PAK GIDA MADDELERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "FRIGO-PAK GIDA",
+      "FRİGO-PAK GIDA MADDELERİ",
+      "FRİGO-PAK GIDA",
+      "FRIGO-PAK GIDA MADDELERI"
+    ],
+    "search_gkg": [
+      "FRIGO-PAK GIDA MADDELERI SANAYI VE TICARET"
+    ]
+  },
+  "FRMPL": {
+    "name_tr": "FORMÜL PLASTİK VE METAL SANAYİ A.Ş.",
+    "search_title": [
+      "FORMUL PLASTIK VE",
+      "FORMÜL PLASTİK VE",
+      "FORMUL PLASTIK",
+      "FORMÜL PLASTİK"
+    ],
+    "search_gkg": [
+      "FORMUL PLASTIK VE METAL SANAYI"
+    ]
+  },
+  "FROTO": {
+    "search_title": [
+      "FORD OTOSAN",
+      "FORD OTOMOTIV"
+    ],
+    "search_gkg": [
+      "FORD OTOSAN"
+    ],
+    "name_tr": "FORD OTOMOTİV SANAYİ A.Ş."
+  },
+  "FZLGY": {
+    "name_tr": "FUZUL GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "FUZUL GAYRIMENKUL",
+      "FUZUL GAYRİMENKUL",
+      "FUZUL GAYRİMENKUL YATIRIM",
+      "FUZUL GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "FUZUL GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "GARAN": {
+    "search_title": [
+      "GARANTI BBVA",
+      "GARANTI BANKASI",
+      "GARANTI BANK"
+    ],
+    "search_gkg": [
+      "GARANTI BANKASI",
+      "GARANTI BBVA",
+      "TURKIYE GARANTI BANKASI"
+    ],
+    "name_tr": "TÜRKİYE GARANTİ BANKASI A.Ş."
+  },
+  "GARFA": {
+    "name_tr": "GARANTİ FAKTORİNG A.Ş.",
+    "search_title": [
+      "GARANTI FAKTORING",
+      "GARANTİ FAKTORİNG"
+    ],
+    "search_gkg": [
+      "GARANTI FAKTORING"
+    ]
+  },
+  "GATEG": {
+    "name_tr": "GATE GROUP TEKNOLOJİ MEDYA VE SİBER GÜVENLİK HİZMETLERİ A.Ş.",
+    "search_title": [
+      "GATE GROUP",
+      "GATE GROUP TEKNOLOJİ",
+      "GATE GROUP TEKNOLOJI"
+    ],
+    "search_gkg": [
+      "GATE GROUP TEKNOLOJI MEDYA VE SIBER GUVENLIK HIZMETLERI"
+    ]
+  },
+  "GEDIK": {
+    "name_tr": "GEDİK YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "GEDIK YATIRIM",
+      "GEDIK YATIRIM MENKUL",
+      "GEDİK YATIRIM MENKUL",
+      "GEDİK YATIRIM"
+    ],
+    "search_gkg": [
+      "GEDIK YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "GEDZA": {
+    "name_tr": "GEDİZ AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "GEDİZ AMBALAJ",
+      "GEDİZ AMBALAJ SANAYİ",
+      "GEDIZ AMBALAJ",
+      "GEDIZ AMBALAJ SANAYI"
+    ],
+    "search_gkg": [
+      "GEDIZ AMBALAJ SANAYI VE TICARET"
+    ]
+  },
+  "GENIL": {
+    "name_tr": "GEN İLAÇ VE SAĞLIK ÜRÜNLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "GEN İLAÇ",
+      "GEN ILAC",
+      "GEN İLAÇ VE",
+      "GEN ILAC VE"
+    ],
+    "search_gkg": [
+      "GEN ILAC VE SAGLIK URUNLERI SANAYI VE TICARET"
+    ]
+  },
+  "GENKM": {
+    "name_tr": "GENTAŞ KİMYA SANAYİ VE TİCARET PAZARLAMA A.Ş.",
+    "search_title": [
+      "GENTAS KIMYA SANAYI",
+      "GENTAS KIMYA",
+      "GENTAŞ KİMYA",
+      "GENTAŞ KİMYA SANAYİ"
+    ],
+    "search_gkg": [
+      "GENTAS KIMYA SANAYI VE TICARET PAZARLAMA"
+    ]
+  },
+  "GENTS": {
+    "name_tr": "GENTAŞ DEKORATİF YÜZEYLER SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "GENTAŞ DEKORATİF YÜZEYLER",
+      "GENTAS DEKORATIF YUZEYLER",
+      "GENTAS DEKORATIF",
+      "GENTAŞ DEKORATİF"
+    ],
+    "search_gkg": [
+      "GENTAS DEKORATIF YUZEYLER SANAYI VE TICARET"
+    ]
+  },
+  "GEREL": {
+    "name_tr": "GERSAN ELEKTRİK TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "GERSAN ELEKTRIK TICARET",
+      "GERSAN ELEKTRİK TİCARET",
+      "GERSAN ELEKTRİK",
+      "GERSAN ELEKTRIK"
+    ],
+    "search_gkg": [
+      "GERSAN ELEKTRIK TICARET VE SANAYI"
+    ]
+  },
+  "GESAN": {
+    "search_title": [
+      "GİRİŞİM ELEKTRİK",
+      "GIRISIM ELEKTRIK",
+      "GESAN"
+    ],
+    "search_gkg": [
+      "GESAN"
+    ],
+    "name_tr": "GİRİŞİM ELEKTRİK SANAYİ TAAHHÜT VE TİCARET A.Ş."
+  },
+  "GIPTA": {
+    "name_tr": "GIPTA OFİS KIRTASİYE VE PROMOSYON ÜRÜNLERİ İMALAT SANAYİ A.Ş.",
+    "search_title": [
+      "GIPTA OFIS",
+      "GIPTA OFIS KIRTASIYE",
+      "GIPTA OFİS KIRTASİYE",
+      "GIPTA OFİS"
+    ],
+    "search_gkg": [
+      "GIPTA OFIS KIRTASIYE VE PROMOSYON URUNLERI IMALAT SANAYI"
+    ]
+  },
+  "GLB": {
+    "name_tr": "GLOBAL MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "GLOBAL MENKUL DEGERLER",
+      "GLOBAL MENKUL DEĞERLER",
+      "GLOBAL MENKUL"
+    ],
+    "search_gkg": [
+      "GLOBAL MENKUL DEGERLER"
+    ]
+  },
+  "GLCVY": {
+    "name_tr": "GELECEK VARLIK YÖNETİMİ A.Ş.",
+    "search_title": [
+      "GELECEK VARLIK YÖNETİMİ",
+      "GELECEK VARLIK YONETIMI",
+      "GELECEK VARLIK"
+    ],
+    "search_gkg": [
+      "GELECEK VARLIK YONETIMI"
+    ]
+  },
+  "GLRMK": {
+    "name_tr": "GÜLERMAK AĞIR SANAYİ İNŞAAT VE TAAHHÜT A.Ş.",
+    "search_title": [
+      "GULERMAK AGIR SANAYI",
+      "GULERMAK AGIR",
+      "GÜLERMAK AĞIR SANAYİ",
+      "GÜLERMAK AĞIR"
+    ],
+    "search_gkg": [
+      "GULERMAK AGIR SANAYI INSAAT VE TAAHHUT"
+    ]
+  },
+  "GLRYH": {
+    "name_tr": "GÜLER YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "GULER YATIRIM HOLDING",
+      "GÜLER YATIRIM",
+      "GULER YATIRIM",
+      "GÜLER YATIRIM HOLDİNG"
+    ],
+    "search_gkg": [
+      "GULER YATIRIM HOLDING"
+    ]
+  },
+  "GLYHO": {
+    "search_title": [
+      "GLOBAL YATIRIM HOLDİNG",
+      "GLOBAL YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "GLOBAL YATIRIM HOLDING"
+    ],
+    "name_tr": "GLOBAL YATIRIM HOLDİNG A.Ş."
+  },
+  "GMTAS": {
+    "name_tr": "GİMAT MAĞAZACILIK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "GİMAT MAĞAZACILIK SANAYİ",
+      "GİMAT MAĞAZACILIK",
+      "GIMAT MAGAZACILIK SANAYI",
+      "GIMAT MAGAZACILIK"
+    ],
+    "search_gkg": [
+      "GIMAT MAGAZACILIK SANAYI VE TICARET"
+    ]
+  },
+  "GOKNR": {
+    "name_tr": "GÖKNUR GIDA MADDELERİ ENERJİ İMALAT İTHALAT İHRACAT TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "GÖKNUR GIDA MADDELERİ",
+      "GÖKNUR GIDA",
+      "GOKNUR GIDA",
+      "GOKNUR GIDA MADDELERI"
+    ],
+    "search_gkg": [
+      "GOKNUR GIDA MADDELERI ENERJI IMALAT ITHALAT IHRACAT TICARET VE SANAYI"
+    ]
+  },
+  "GOLTS": {
+    "name_tr": "GÖLTAŞ GÖLLER BÖLGESİ ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "GÖLTAŞ GÖLLER BÖLGESİ",
+      "GÖLTAŞ GÖLLER",
+      "GOLTAS GOLLER BOLGESI",
+      "GOLTAS GOLLER"
+    ],
+    "search_gkg": [
+      "GOLTAS GOLLER BOLGESI CIMENTO SANAYI VE TICARET"
+    ]
+  },
+  "GOODY": {
+    "name_tr": "GOODYEAR LASTİKLERİ T.A.Ş.",
+    "search_title": [
+      "GOODYEAR LASTİKLERİ",
+      "GOODYEAR LASTIKLERI"
+    ],
+    "search_gkg": [
+      "GOODYEAR LASTIKLERI"
+    ]
+  },
+  "GOZDE": {
+    "name_tr": "GÖZDE GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "GÖZDE GİRİŞİM SERMAYESİ",
+      "GOZDE GIRISIM",
+      "GÖZDE GİRİŞİM",
+      "GOZDE GIRISIM SERMAYESI"
+    ],
+    "search_gkg": [
+      "GOZDE GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "GRNYO": {
+    "name_tr": "GARANTİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "GARANTI YATIRIM",
+      "GARANTİ YATIRIM",
+      "GARANTİ YATIRIM ORTAKLIĞI",
+      "GARANTI YATIRIM ORTAKLIGI"
+    ],
+    "search_gkg": [
+      "GARANTI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "GRSEL": {
+    "name_tr": "GÜR-SEL TURİZM TAŞIMACILIK VE SERVİS TİCARET A.Ş.",
+    "search_title": [
+      "GUR-SEL TURIZM TASIMACILIK",
+      "GÜR-SEL TURİZM",
+      "GÜR-SEL TURİZM TAŞIMACILIK",
+      "GUR-SEL TURIZM"
+    ],
+    "search_gkg": [
+      "GUR-SEL TURIZM TASIMACILIK VE SERVIS TICARET"
+    ]
+  },
+  "GRTHO": {
+    "name_tr": "GRAINTURK HOLDİNG A.Ş.",
+    "search_title": [
+      "GRAINTURK HOLDING",
+      "GRAINTURK HOLDİNG"
+    ],
+    "search_gkg": [
+      "GRAINTURK HOLDING"
+    ]
+  },
+  "GSDDE": {
+    "name_tr": "GSD DENİZCİLİK GAYRİMENKUL İNŞAAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "GSD DENIZCILIK GAYRIMENKUL",
+      "GSD DENİZCİLİK",
+      "GSD DENİZCİLİK GAYRİMENKUL",
+      "GSD DENIZCILIK"
+    ],
+    "search_gkg": [
+      "GSD DENIZCILIK GAYRIMENKUL INSAAT SANAYI VE TICARET"
+    ]
+  },
+  "GSDHO": {
+    "name_tr": "GSD HOLDİNG A.Ş.",
+    "search_title": [
+      "GSD HOLDİNG",
+      "GSD HOLDING"
+    ],
+    "search_gkg": [
+      "GSD HOLDING"
+    ]
+  },
+  "GSRAY": {
+    "search_title": [
+      "GALATASARAY",
+      "GALATASARAY SPORTİF"
+    ],
+    "search_gkg": [
+      "GALATASARAY"
+    ],
+    "name_tr": "GALATASARAY SPORTİF SINAİ VE TİCARİ YATIRIMLAR A.Ş."
+  },
+  "GUBRF": {
+    "search_title": [
+      "GÜBRE FABRİKALARI",
+      "GUBRE FABRIKALARI"
+    ],
+    "search_gkg": [
+      "GUBRE FABRIKALARI"
+    ],
+    "name_tr": "GÜBRE FABRİKALARI T.A.Ş."
+  },
+  "GUNDG": {
+    "name_tr": "GÜNDOĞDU GIDA SÜT ÜRÜNLERİ SANAYİ VE DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "GUNDOGDU GIDA",
+      "GÜNDOĞDU GIDA",
+      "GUNDOGDU GIDA SUT",
+      "GÜNDOĞDU GIDA SÜT"
+    ],
+    "search_gkg": [
+      "GUNDOGDU GIDA SUT URUNLERI SANAYI VE DIS TICARET"
+    ]
+  },
+  "GWIND": {
+    "search_title": [
+      "GALATA WIND",
+      "GALATA ENERJİ"
+    ],
+    "search_gkg": [
+      "GALATA WIND"
+    ],
+    "name_tr": "GALATA WIND ENERJİ A.Ş."
+  },
+  "GZNMI": {
+    "name_tr": "GEZİNOMİ SEYAHAT TURİZM TİCARET A.Ş.",
+    "search_title": [
+      "GEZINOMI SEYAHAT TURIZM",
+      "GEZİNOMİ SEYAHAT TURİZM",
+      "GEZİNOMİ SEYAHAT",
+      "GEZINOMI SEYAHAT"
+    ],
+    "search_gkg": [
+      "GEZINOMI SEYAHAT TURIZM TICARET"
+    ]
+  },
+  "HALKB": {
+    "search_title": [
+      "HALKBANK",
+      "HALK BANKASI"
+    ],
+    "search_gkg": [
+      "HALK BANKASI"
+    ],
+    "name_tr": "TÜRKİYE HALK BANKASI A.Ş."
+  },
+  "HATEK": {
+    "name_tr": "HATEKS HATAY TEKSTİL İŞLETMELERİ A.Ş.",
+    "search_title": [
+      "HATEKS HATAY TEKSTIL",
+      "HATEKS HATAY TEKSTİL",
+      "HATEKS HATAY"
+    ],
+    "search_gkg": [
+      "HATEKS HATAY TEKSTIL ISLETMELERI"
+    ]
+  },
+  "HATSN": {
+    "name_tr": "HAT-SAN GEMİ İNŞAA BAKIM ONARIM DENİZ NAKLİYAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "HAT-SAN GEMI",
+      "HAT-SAN GEMİ İNŞAA",
+      "HAT-SAN GEMI INSAA",
+      "HAT-SAN GEMİ"
+    ],
+    "search_gkg": [
+      "HAT-SAN GEMI INSAA BAKIM ONARIM DENIZ NAKLIYAT SANAYI VE TICARET"
+    ]
+  },
+  "HDFGS": {
+    "name_tr": "HEDEF GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "HEDEF GIRISIM SERMAYESI",
+      "HEDEF GIRISIM",
+      "HEDEF GİRİŞİM SERMAYESİ",
+      "HEDEF GİRİŞİM"
+    ],
+    "search_gkg": [
+      "HEDEF GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "HEDEF": {
+    "name_tr": "HEDEF HOLDİNG A.Ş.",
+    "search_title": [
+      "HEDEF HOLDING",
+      "HEDEF HOLDİNG"
+    ],
+    "search_gkg": [
+      "HEDEF HOLDING"
+    ]
+  },
+  "HEKTS": {
+    "search_title": [
+      "HEKTAŞ",
+      "HEKTAS"
+    ],
+    "search_gkg": [
+      "HEKTAS"
+    ],
+    "name_tr": "HEKTAŞ TİCARET T.A.Ş."
+  },
+  "HKTMH": {
+    "name_tr": "HİDROPAR HAREKET KONTROL TEKNOLOJİLERİ MERKEZİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "HIDROPAR HAREKET KONTROL",
+      "HİDROPAR HAREKET KONTROL",
+      "HIDROPAR HAREKET",
+      "HİDROPAR HAREKET"
+    ],
+    "search_gkg": [
+      "HIDROPAR HAREKET KONTROL TEKNOLOJILERI MERKEZI SANAYI VE TICARET"
+    ]
+  },
+  "HLGYO": {
+    "name_tr": "HALK GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "HALK GAYRİMENKUL",
+      "HALK GAYRİMENKUL YATIRIM",
+      "HALK GAYRIMENKUL",
+      "HALK GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "HALK GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "HOROZ": {
+    "name_tr": "HOROZ LOJİSTİK KARGO HİZMETLERİ VE TİCARET A.Ş.",
+    "search_title": [
+      "HOROZ LOJISTIK",
+      "HOROZ LOJISTIK KARGO",
+      "HOROZ LOJİSTİK",
+      "HOROZ LOJİSTİK KARGO"
+    ],
+    "search_gkg": [
+      "HOROZ LOJISTIK KARGO HIZMETLERI VE TICARET"
+    ]
+  },
+  "HRKET": {
+    "name_tr": "HAREKET PROJE TAŞIMACILIĞI VE YÜK MÜHENDİSLİĞİ A.Ş.",
+    "search_title": [
+      "HAREKET PROJE",
+      "HAREKET PROJE TASIMACILIGI",
+      "HAREKET PROJE TAŞIMACILIĞI"
+    ],
+    "search_gkg": [
+      "HAREKET PROJE TASIMACILIGI VE YUK MUHENDISLIGI"
+    ]
+  },
+  "HTTBT": {
+    "search_title": [
+      "HİTİT BİLGİSAYAR",
+      "HITIT BILGISAYAR"
+    ],
+    "search_gkg": [
+      "HITIT"
+    ],
+    "name_tr": "HİTİT BİLGİSAYAR HİZMETLERİ A.Ş."
+  },
+  "HUBVC": {
+    "name_tr": "HUB GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "HUB GIRISIM SERMAYESI",
+      "HUB GIRISIM",
+      "HUB GİRİŞİM",
+      "HUB GİRİŞİM SERMAYESİ"
+    ],
+    "search_gkg": [
+      "HUB GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "HUNER": {
+    "name_tr": "HUN YENİLENEBİLİR ENERJİ ÜRETİM A.Ş.",
+    "search_title": [
+      "HUN YENİLENEBİLİR ENERJİ",
+      "HUN YENILENEBILIR ENERJI",
+      "HUN YENİLENEBİLİR",
+      "HUN YENILENEBILIR"
+    ],
+    "search_gkg": [
+      "HUN YENILENEBILIR ENERJI URETIM"
+    ]
+  },
+  "HURGZ": {
+    "name_tr": "HÜRRİYET GAZETECİLİK VE MATBAACILIK A.Ş.",
+    "search_title": [
+      "HÜRRİYET GAZETECİLİK VE",
+      "HÜRRİYET GAZETECİLİK",
+      "HURRIYET GAZETECILIK VE",
+      "HURRIYET GAZETECILIK"
+    ],
+    "search_gkg": [
+      "HURRIYET GAZETECILIK VE MATBAACILIK"
+    ]
+  },
+  "ICB": {
+    "name_tr": "ICBC TURKEY BANK A.Ş.",
+    "search_title": [
+      "ICBC TURKEY BANK",
+      "ICBC TURKEY"
+    ],
+    "search_gkg": [
+      "ICBC TURKEY BANK"
+    ]
+  },
+  "ICUGS": {
+    "name_tr": "ICU GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ICU GİRİŞİM",
+      "ICU GIRISIM",
+      "ICU GİRİŞİM SERMAYESİ",
+      "ICU GIRISIM SERMAYESI"
+    ],
+    "search_gkg": [
+      "ICU GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "IDGYO": {
+    "name_tr": "İDEALİST GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "İDEALİST GAYRİMENKUL YATIRIM",
+      "İDEALİST GAYRİMENKUL",
+      "IDEALIST GAYRIMENKUL YATIRIM",
+      "IDEALIST GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "IDEALIST GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "IEYHO": {
+    "name_tr": "IŞIKLAR ENERJİ VE YAPI HOLDİNG A.Ş.",
+    "search_title": [
+      "ISIKLAR ENERJI VE",
+      "IŞIKLAR ENERJİ VE",
+      "ISIKLAR ENERJI",
+      "IŞIKLAR ENERJİ"
+    ],
+    "search_gkg": [
+      "ISIKLAR ENERJI VE YAPI HOLDING"
+    ]
+  },
+  "IHAAS": {
+    "name_tr": "İHLAS HABER AJANSI A.Ş.",
+    "search_title": [
+      "IHLAS HABER AJANSI",
+      "IHLAS HABER",
+      "İHLAS HABER",
+      "İHLAS HABER AJANSI"
+    ],
+    "search_gkg": [
+      "IHLAS HABER AJANSI"
+    ]
+  },
+  "IHEVA": {
+    "name_tr": "İHLAS EV ALETLERİ İMALAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "İHLAS EV",
+      "IHLAS EV",
+      "IHLAS EV ALETLERI",
+      "İHLAS EV ALETLERİ"
+    ],
+    "search_gkg": [
+      "IHLAS EV ALETLERI IMALAT SANAYI VE TICARET"
+    ]
+  },
+  "IHGZT": {
+    "name_tr": "İHLAS GAZETECİLİK A.Ş.",
+    "search_title": [
+      "IHLAS GAZETECILIK",
+      "İHLAS GAZETECİLİK"
+    ],
+    "search_gkg": [
+      "IHLAS GAZETECILIK"
+    ]
+  },
+  "IHLAS": {
+    "name_tr": "İHLAS HOLDİNG A.Ş.",
+    "search_title": [
+      "İHLAS HOLDİNG",
+      "IHLAS HOLDING"
+    ],
+    "search_gkg": [
+      "IHLAS HOLDING"
+    ]
+  },
+  "IHLGM": {
+    "name_tr": "İHLAS GAYRİMENKUL PROJE GELİŞTİRME VE TİCARET A.Ş.",
+    "search_title": [
+      "İHLAS GAYRİMENKUL PROJE",
+      "İHLAS GAYRİMENKUL",
+      "IHLAS GAYRIMENKUL",
+      "IHLAS GAYRIMENKUL PROJE"
+    ],
+    "search_gkg": [
+      "IHLAS GAYRIMENKUL PROJE GELISTIRME VE TICARET"
+    ]
+  },
+  "IHYAY": {
+    "name_tr": "İHLAS YAYIN HOLDİNG A.Ş.",
+    "search_title": [
+      "IHLAS YAYIN HOLDING",
+      "İHLAS YAYIN",
+      "IHLAS YAYIN",
+      "İHLAS YAYIN HOLDİNG"
+    ],
+    "search_gkg": [
+      "IHLAS YAYIN HOLDING"
+    ]
+  },
+  "IMASM": {
+    "name_tr": "İMAŞ MAKİNA SANAYİ A.Ş.",
+    "search_title": [
+      "İMAŞ MAKİNA SANAYİ",
+      "İMAŞ MAKİNA",
+      "IMAS MAKINA",
+      "IMAS MAKINA SANAYI"
+    ],
+    "search_gkg": [
+      "IMAS MAKINA SANAYI"
+    ]
+  },
+  "INDES": {
+    "name_tr": "İNDEKS BİLGİSAYAR SİSTEMLERİ MÜHENDİSLİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "INDEKS BILGISAYAR",
+      "İNDEKS BİLGİSAYAR",
+      "INDEKS BILGISAYAR SISTEMLERI",
+      "İNDEKS BİLGİSAYAR SİSTEMLERİ"
+    ],
+    "search_gkg": [
+      "INDEKS BILGISAYAR SISTEMLERI MUHENDISLIK SANAYI VE TICARET"
+    ]
+  },
+  "INFO": {
+    "name_tr": "İNFO YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "INFO YATIRIM",
+      "İNFO YATIRIM",
+      "INFO YATIRIM MENKUL",
+      "İNFO YATIRIM MENKUL"
+    ],
+    "search_gkg": [
+      "INFO YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "INGRM": {
+    "name_tr": "INGRAM MİCRO BİLİŞİM SİSTEMLERİ A.Ş.",
+    "search_title": [
+      "INGRAM MICRO BILISIM",
+      "INGRAM MİCRO BİLİŞİM",
+      "INGRAM MİCRO",
+      "INGRAM MICRO"
+    ],
+    "search_gkg": [
+      "INGRAM MICRO BILISIM SISTEMLERI"
+    ]
+  },
+  "INTEK": {
+    "name_tr": "İNNOSA TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "INNOSA TEKNOLOJI",
+      "İNNOSA TEKNOLOJİ"
+    ],
+    "search_gkg": [
+      "INNOSA TEKNOLOJI"
+    ]
+  },
+  "INTEM": {
+    "name_tr": "İNTEMA İNŞAAT VE TESİSAT MALZEMELERİ YATIRIM VE PAZARLAMA A.Ş.",
+    "search_title": [
+      "INTEMA INSAAT",
+      "İNTEMA İNŞAAT",
+      "İNTEMA İNŞAAT VE",
+      "INTEMA INSAAT VE"
+    ],
+    "search_gkg": [
+      "INTEMA INSAAT VE TESISAT MALZEMELERI YATIRIM VE PAZARLAMA"
+    ]
+  },
+  "INVEO": {
+    "name_tr": "INVEO YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "INVEO YATIRIM HOLDİNG",
+      "INVEO YATIRIM",
+      "INVEO YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "INVEO YATIRIM HOLDING"
+    ]
+  },
+  "INVES": {
+    "search_title": [
+      "INVESTCO",
+      "INVESTCO HOLDİNG"
+    ],
+    "search_gkg": [
+      "INVESTCO HOLDING"
+    ],
+    "name_tr": "INVESTCO HOLDİNG A.Ş."
+  },
+  "ISATR": {
+    "name_tr": "TÜRKİYE İŞ BANKASI A.Ş.",
+    "search_title": [
+      "TURKIYE IS",
+      "TURKIYE IS BANKASI",
+      "TÜRKİYE İŞ BANKASI",
+      "TÜRKİYE İŞ"
+    ],
+    "search_gkg": [
+      "TURKIYE IS BANKASI"
+    ]
+  },
+  "ISBIR": {
+    "name_tr": "İŞBİR HOLDİNG A.Ş.",
+    "search_title": [
+      "İŞBİR HOLDİNG",
+      "ISBIR HOLDING"
+    ],
+    "search_gkg": [
+      "ISBIR HOLDING"
+    ]
+  },
+  "ISBTR": {
+    "name_tr": "TÜRKİYE İŞ BANKASI A.Ş. B GRUBU",
+    "search_title": [
+      "TURKIYE IS",
+      "TURKIYE IS BANKASI",
+      "TÜRKİYE İŞ BANKASI",
+      "TÜRKİYE İŞ"
+    ],
+    "search_gkg": [
+      "TURKIYE IS BANKASI A.S. B GRUBU"
+    ]
+  },
+  "ISCTR": {
+    "search_title": [
+      "İŞ BANKASI",
+      "IS BANKASI",
+      "İŞ BANK",
+      "IS BANK"
+    ],
+    "search_gkg": [
+      "IS BANKASI"
+    ],
+    "name_tr": "TÜRKİYE İŞ BANKASI A.Ş. C GRUBU"
+  },
+  "ISDMR": {
+    "search_title": [
+      "İSKENDERUN DEMİR",
+      "ISKENDERUN DEMIR",
+      "İSDEMİR",
+      "ISDEMIR"
+    ],
+    "search_gkg": [
+      "ISKENDERUN DEMIR"
+    ],
+    "name_tr": "İSKENDERUN DEMİR VE ÇELİK A.Ş."
+  },
+  "ISFIN": {
+    "name_tr": "İŞ FİNANSAL KİRALAMA A.Ş.",
+    "search_title": [
+      "IS FINANSAL KIRALAMA",
+      "İŞ FİNANSAL",
+      "IS FINANSAL",
+      "İŞ FİNANSAL KİRALAMA"
+    ],
+    "search_gkg": [
+      "IS FINANSAL KIRALAMA"
+    ]
+  },
+  "ISGSY": {
+    "name_tr": "İŞ GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "İŞ GİRİŞİM SERMAYESİ",
+      "IS GIRISIM SERMAYESI",
+      "IS GIRISIM",
+      "İŞ GİRİŞİM"
+    ],
+    "search_gkg": [
+      "IS GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ISGYO": {
+    "name_tr": "İŞ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "İŞ GAYRİMENKUL YATIRIM",
+      "IS GAYRIMENKUL YATIRIM",
+      "IS GAYRIMENKUL",
+      "İŞ GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "IS GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ISKPL": {
+    "name_tr": "IŞIK PLASTİK SANAYİ VE DIŞ TİCARET PAZARLAMA A.Ş.",
+    "search_title": [
+      "IŞIK PLASTİK SANAYİ",
+      "ISIK PLASTIK SANAYI",
+      "IŞIK PLASTİK",
+      "ISIK PLASTIK"
+    ],
+    "search_gkg": [
+      "ISIK PLASTIK SANAYI VE DIS TICARET PAZARLAMA"
+    ]
+  },
+  "ISKUR": {
+    "name_tr": "TÜRKİYE İŞ BANKASI A.Ş. KURUCU",
+    "search_title": [
+      "TURKIYE IS",
+      "TURKIYE IS BANKASI",
+      "TÜRKİYE İŞ BANKASI",
+      "TÜRKİYE İŞ"
+    ],
+    "search_gkg": [
+      "TURKIYE IS BANKASI A.S. KURUCU"
+    ]
+  },
+  "ISMEN": {
+    "search_title": [
+      "İŞ YATIRIM",
+      "IS YATIRIM"
+    ],
+    "search_gkg": [
+      "IS YATIRIM"
+    ],
+    "name_tr": "İŞ YATIRIM MENKUL DEĞERLER A.Ş."
+  },
+  "ISSEN": {
+    "name_tr": "İŞBİR SENTETİK DOKUMA SANAYİ A.Ş.",
+    "search_title": [
+      "ISBIR SENTETIK",
+      "İŞBİR SENTETİK",
+      "ISBIR SENTETIK DOKUMA",
+      "İŞBİR SENTETİK DOKUMA"
+    ],
+    "search_gkg": [
+      "ISBIR SENTETIK DOKUMA SANAYI"
+    ]
+  },
+  "ISYAT": {
+    "name_tr": "İŞ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "IS YATIRIM",
+      "İŞ YATIRIM",
+      "İŞ YATIRIM ORTAKLIĞI",
+      "IS YATIRIM ORTAKLIGI"
+    ],
+    "search_gkg": [
+      "IS YATIRIM ORTAKLIGI"
+    ]
+  },
+  "IZENR": {
+    "search_title": [
+      "İZDEMİR ENERJİ",
+      "IZDEMIR ENERJI"
+    ],
+    "search_gkg": [
+      "IZDEMIR ENERJI"
+    ],
+    "name_tr": "İZDEMİR ENERJİ ELEKTRİK ÜRETİM A.Ş."
+  },
+  "IZFAS": {
+    "name_tr": "İZMİR FIRÇA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "IZMIR FIRCA SANAYI",
+      "IZMIR FIRCA",
+      "İZMİR FIRÇA SANAYİ",
+      "İZMİR FIRÇA"
+    ],
+    "search_gkg": [
+      "IZMIR FIRCA SANAYI VE TICARET"
+    ]
+  },
+  "IZINV": {
+    "name_tr": "İZ YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "İZ YATIRIM",
+      "İZ YATIRIM HOLDİNG",
+      "IZ YATIRIM",
+      "IZ YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "IZ YATIRIM HOLDING"
+    ]
+  },
+  "IZMDC": {
+    "name_tr": "İZMİR DEMİR ÇELİK SANAYİ A.Ş.",
+    "search_title": [
+      "İZMİR DEMİR ÇELİK",
+      "IZMIR DEMIR",
+      "IZMIR DEMIR CELIK",
+      "İZMİR DEMİR"
+    ],
+    "search_gkg": [
+      "IZMIR DEMIR CELIK SANAYI"
+    ]
+  },
+  "JANTS": {
+    "name_tr": "JANTSA JANT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "JANTSA JANT SANAYİ",
+      "JANTSA JANT SANAYI",
+      "JANTSA JANT"
+    ],
+    "search_gkg": [
+      "JANTSA JANT SANAYI VE TICARET"
+    ]
+  },
+  "KAPLM": {
+    "name_tr": "KAPLAMİN AMBALAJ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KAPLAMIN AMBALAJ",
+      "KAPLAMIN AMBALAJ SANAYI",
+      "KAPLAMİN AMBALAJ SANAYİ",
+      "KAPLAMİN AMBALAJ"
+    ],
+    "search_gkg": [
+      "KAPLAMIN AMBALAJ SANAYI VE TICARET"
+    ]
+  },
+  "KAREL": {
+    "name_tr": "KAREL ELEKTRONİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KAREL ELEKTRONİK",
+      "KAREL ELEKTRONİK SANAYİ",
+      "KAREL ELEKTRONIK",
+      "KAREL ELEKTRONIK SANAYI"
+    ],
+    "search_gkg": [
+      "KAREL ELEKTRONIK SANAYI VE TICARET"
+    ]
+  },
+  "KARSN": {
+    "search_title": [
+      "KARSAN"
+    ],
+    "search_gkg": [
+      "KARSAN"
+    ],
+    "name_tr": "KARSAN OTOMOTİV SANAYİİ VE TİCARET A.Ş."
+  },
+  "KARTN": {
+    "search_title": [
+      "KARTONSAN"
+    ],
+    "search_gkg": [
+      "KARTONSAN"
+    ],
+    "name_tr": "KARTONSAN KARTON SANAYİ VE TİCARET A.Ş."
+  },
+  "KATMR": {
+    "name_tr": "KATMERCİLER ARAÇ ÜSTÜ EKİPMAN SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KATMERCİLER ARAÇ",
+      "KATMERCILER ARAC USTU",
+      "KATMERCİLER ARAÇ ÜSTÜ",
+      "KATMERCILER ARAC"
+    ],
+    "search_gkg": [
+      "KATMERCILER ARAC USTU EKIPMAN SANAYI VE TICARET"
+    ]
+  },
+  "KAYSE": {
+    "name_tr": "KAYSERİ ŞEKER FABRİKASI A.Ş.",
+    "search_title": [
+      "KAYSERİ ŞEKER FABRİKASI",
+      "KAYSERI SEKER FABRIKASI",
+      "KAYSERI SEKER",
+      "KAYSERİ ŞEKER"
+    ],
+    "search_gkg": [
+      "KAYSERI SEKER FABRIKASI"
+    ]
+  },
+  "KBORU": {
+    "name_tr": "KUZEY BORU A.Ş.",
+    "search_title": [
+      "KUZEY BORU"
+    ],
+    "search_gkg": [
+      "KUZEY BORU"
+    ]
+  },
+  "KCAER": {
+    "name_tr": "KOCAER ÇELİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KOCAER ÇELİK SANAYİ",
+      "KOCAER CELIK SANAYI",
+      "KOCAER ÇELİK",
+      "KOCAER CELIK"
+    ],
+    "search_gkg": [
+      "KOCAER CELIK SANAYI VE TICARET"
+    ]
+  },
+  "KCHOL": {
+    "search_title": [
+      "KOÇ HOLDİNG",
+      "KOÇ HOLDING",
+      "KOC HOLDING"
+    ],
+    "search_gkg": [
+      "KOC HOLDING"
+    ],
+    "name_tr": "KOÇ HOLDİNG A.Ş."
+  },
+  "KENTK": {
+    "name_tr": "KENT GIDA MADDELERİ SANAYİİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KENT GIDA MADDELERI",
+      "KENT GIDA MADDELERİ",
+      "KENT GIDA"
+    ],
+    "search_gkg": [
+      "KENT GIDA MADDELERI SANAYII VE TICARET"
+    ]
+  },
+  "KERVN": {
+    "name_tr": "KERVANSARAY YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "KERVANSARAY YATIRIM HOLDİNG",
+      "KERVANSARAY YATIRIM HOLDING",
+      "KERVANSARAY YATIRIM"
+    ],
+    "search_gkg": [
+      "KERVANSARAY YATIRIM HOLDING"
+    ]
+  },
+  "KFEIN": {
+    "name_tr": "KAFEİN YAZILIM HİZMETLERİ TİCARET A.Ş.",
+    "search_title": [
+      "KAFEİN YAZILIM HİZMETLERİ",
+      "KAFEIN YAZILIM",
+      "KAFEİN YAZILIM",
+      "KAFEIN YAZILIM HIZMETLERI"
+    ],
+    "search_gkg": [
+      "KAFEIN YAZILIM HIZMETLERI TICARET"
+    ]
+  },
+  "KGYOK": {
+    "name_tr": "KORAY GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "KORAY GAYRIMENKUL YATIRIM",
+      "KORAY GAYRIMENKUL",
+      "KORAY GAYRİMENKUL YATIRIM",
+      "KORAY GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "KORAY GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "KIMMR": {
+    "name_tr": "ERSAN ALIŞVERİŞ HİZMETLERİ VE GIDA SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "ERSAN ALISVERIS",
+      "ERSAN ALIŞVERİŞ HİZMETLERİ",
+      "ERSAN ALISVERIS HIZMETLERI",
+      "ERSAN ALIŞVERİŞ"
+    ],
+    "search_gkg": [
+      "ERSAN ALISVERIS HIZMETLERI VE GIDA SANAYI TICARET"
+    ]
+  },
+  "KLGYO": {
+    "name_tr": "KİLER GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "KİLER GAYRİMENKUL YATIRIM",
+      "KILER GAYRIMENKUL",
+      "KILER GAYRIMENKUL YATIRIM",
+      "KİLER GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "KILER GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "KLKIM": {
+    "name_tr": "KALEKİM KİMYEVİ MADDELER SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KALEKIM KIMYEVI",
+      "KALEKİM KİMYEVİ MADDELER",
+      "KALEKİM KİMYEVİ",
+      "KALEKIM KIMYEVI MADDELER"
+    ],
+    "search_gkg": [
+      "KALEKIM KIMYEVI MADDELER SANAYI VE TICARET"
+    ]
+  },
+  "KLMSN": {
+    "name_tr": "KLİMASAN KLİMA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KLİMASAN KLİMA SANAYİ",
+      "KLİMASAN KLİMA",
+      "KLIMASAN KLIMA SANAYI",
+      "KLIMASAN KLIMA"
+    ],
+    "search_gkg": [
+      "KLIMASAN KLIMA SANAYI VE TICARET"
+    ]
+  },
+  "KLN": {
+    "name_tr": "TÜRKİYE KALKINMA VE YATIRIM BANKASI A.Ş.",
+    "search_title": [
+      "TÜRKİYE KALKINMA",
+      "TÜRKİYE KALKINMA VE",
+      "TURKIYE KALKINMA VE",
+      "TURKIYE KALKINMA"
+    ],
+    "search_gkg": [
+      "TURKIYE KALKINMA VE YATIRIM BANKASI"
+    ]
+  },
+  "KLRHO": {
+    "name_tr": "KİLER HOLDİNG A.Ş.",
+    "search_title": [
+      "KİLER HOLDİNG",
+      "KILER HOLDING"
+    ],
+    "search_gkg": [
+      "KILER HOLDING"
+    ]
+  },
+  "KLSER": {
+    "search_title": [
+      "KALESERAMİK",
+      "KALESERAMIK",
+      "KALE SERAMİK"
+    ],
+    "search_gkg": [
+      "KALESERAMIK"
+    ],
+    "name_tr": "KALESERAMİK ÇANAKKALE KALEBODUR SERAMİK SANAYİ A.Ş."
+  },
+  "KLSYN": {
+    "name_tr": "KOLEKSİYON MOBİLYA SANAYİ A.Ş.",
+    "search_title": [
+      "KOLEKSIYON MOBILYA SANAYI",
+      "KOLEKSİYON MOBİLYA SANAYİ",
+      "KOLEKSIYON MOBILYA",
+      "KOLEKSİYON MOBİLYA"
+    ],
+    "search_gkg": [
+      "KOLEKSIYON MOBILYA SANAYI"
+    ]
+  },
+  "KLYPV": {
+    "name_tr": "KALYON GÜNEŞ TEKNOLOJİLERİ ÜRETİM A.Ş.",
+    "search_title": [
+      "KALYON GUNES",
+      "KALYON GÜNEŞ",
+      "KALYON GUNES TEKNOLOJILERI",
+      "KALYON GÜNEŞ TEKNOLOJİLERİ"
+    ],
+    "search_gkg": [
+      "KALYON GUNES TEKNOLOJILERI URETIM"
+    ]
+  },
+  "KMPUR": {
+    "search_title": [
+      "KİMTEKS",
+      "KIMTEKS"
+    ],
+    "search_gkg": [
+      "KIMTEKS"
+    ],
+    "name_tr": "KİMTEKS POLİÜRETAN SANAYİ VE TİCARET A.Ş."
+  },
+  "KNFRT": {
+    "name_tr": "KONFRUT TARIM A.Ş.",
+    "search_title": [
+      "KONFRUT TARIM"
+    ],
+    "search_gkg": [
+      "KONFRUT TARIM"
+    ]
+  },
+  "KOCMT": {
+    "name_tr": "KOÇ METALURJİ A.Ş.",
+    "search_title": [
+      "KOÇ METALURJİ",
+      "KOC METALURJI"
+    ],
+    "search_gkg": [
+      "KOC METALURJI"
+    ]
+  },
+  "KONKA": {
+    "name_tr": "KONYA KAĞIT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KONYA KAGIT SANAYI",
+      "KONYA KAĞIT",
+      "KONYA KAĞIT SANAYİ",
+      "KONYA KAGIT"
+    ],
+    "search_gkg": [
+      "KONYA KAGIT SANAYI VE TICARET"
+    ]
+  },
+  "KONTR": {
+    "search_title": [
+      "KONTROLMATİK",
+      "KONTROLMATIK"
+    ],
+    "search_gkg": [
+      "KONTROLMATIK"
+    ],
+    "name_tr": "KONTROLMATİK TEKNOLOJİ ENERJİ VE MÜHENDİSLİK A.Ş."
+  },
+  "KONYA": {
+    "search_title": [
+      "KONYA ÇİMENTO",
+      "KONYA CIMENTO"
+    ],
+    "search_gkg": [
+      "KONYA CIMENTO"
+    ],
+    "name_tr": "KONYA ÇİMENTO SANAYİİ A.Ş."
+  },
+  "KOPOL": {
+    "name_tr": "KOZA POLYESTER SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KOZA POLYESTER SANAYI",
+      "KOZA POLYESTER",
+      "KOZA POLYESTER SANAYİ"
+    ],
+    "search_gkg": [
+      "KOZA POLYESTER SANAYI VE TICARET"
+    ]
+  },
+  "KORDS": {
+    "search_title": [
+      "KORDSA",
+      "KORDSA TEKNİK"
+    ],
+    "search_gkg": [
+      "KORDSA"
+    ],
+    "name_tr": "KORDSA TEKNİK TEKSTİL A.Ş."
+  },
+  "KOTON": {
+    "search_title": [
+      "KOTON",
+      "KOTON MAĞAZACILIK"
+    ],
+    "search_gkg": [
+      "KOTON"
+    ],
+    "name_tr": "KOTON MAĞAZACILIK TEKSTİL SANAYİ VE TİCARET A.Ş."
+  },
+  "KRDMA": {
+    "name_tr": "KARDEMİR KARABÜK DEMİR ÇELİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KARDEMİR KARABÜK",
+      "KARDEMIR KARABUK",
+      "KARDEMIR KARABUK DEMIR",
+      "KARDEMİR KARABÜK DEMİR"
+    ],
+    "search_gkg": [
+      "KARDEMIR KARABUK DEMIR CELIK SANAYI VE TICARET"
+    ]
+  },
+  "KRDMB": {
+    "name_tr": "KARDEMİR KARABÜK DEMİR ÇELİK SANAYİ VE TİCARET A.Ş.B GRUBU",
+    "search_title": [
+      "KARDEMİR KARABÜK",
+      "KARDEMIR KARABUK",
+      "KARDEMIR KARABUK DEMIR",
+      "KARDEMİR KARABÜK DEMİR"
+    ],
+    "search_gkg": [
+      "KARDEMIR KARABUK DEMIR CELIK SANAYI VE TICARET A.S.B GRUBU"
+    ]
+  },
+  "KRDMD": {
+    "search_title": [
+      "KARDEMİR",
+      "KARDEMIR",
+      "KARABÜK DEMİR"
+    ],
+    "search_gkg": [
+      "KARDEMIR"
+    ],
+    "name_tr": "KARDEMİR KARABÜK DEMİR ÇELİK SANAYİ VE TİCARET A.Ş. D GRUBU"
+  },
+  "KRGYO": {
+    "name_tr": "KÖRFEZ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "KÖRFEZ GAYRİMENKUL",
+      "KORFEZ GAYRIMENKUL",
+      "KÖRFEZ GAYRİMENKUL YATIRIM",
+      "KORFEZ GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "KORFEZ GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "KRONT": {
+    "name_tr": "KRON TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "KRON TEKNOLOJI",
+      "KRON TEKNOLOJİ"
+    ],
+    "search_gkg": [
+      "KRON TEKNOLOJI"
+    ]
+  },
+  "KRPLS": {
+    "name_tr": "KOROPLAST TEMİZLİK AMBALAJ ÜRÜNLERİ SANAYİ VE DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "KOROPLAST TEMIZLIK AMBALAJ",
+      "KOROPLAST TEMİZLİK",
+      "KOROPLAST TEMIZLIK",
+      "KOROPLAST TEMİZLİK AMBALAJ"
+    ],
+    "search_gkg": [
+      "KOROPLAST TEMIZLIK AMBALAJ URUNLERI SANAYI VE DIS TICARET"
+    ]
+  },
+  "KRSTL": {
+    "name_tr": "KRİSTAL KOLA VE MEŞRUBAT SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "KRISTAL KOLA VE",
+      "KRİSTAL KOLA",
+      "KRISTAL KOLA",
+      "KRİSTAL KOLA VE"
+    ],
+    "search_gkg": [
+      "KRISTAL KOLA VE MESRUBAT SANAYI TICARET"
+    ]
+  },
+  "KRTEK": {
+    "name_tr": "KARSU TEKSTİL SANAYİİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KARSU TEKSTIL",
+      "KARSU TEKSTİL",
+      "KARSU TEKSTİL SANAYİİ",
+      "KARSU TEKSTIL SANAYII"
+    ],
+    "search_gkg": [
+      "KARSU TEKSTIL SANAYII VE TICARET"
+    ]
+  },
+  "KRVGD": {
+    "name_tr": "KERVAN GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KERVAN GIDA",
+      "KERVAN GIDA SANAYI",
+      "KERVAN GIDA SANAYİ"
+    ],
+    "search_gkg": [
+      "KERVAN GIDA SANAYI VE TICARET"
+    ]
+  },
+  "KSTUR": {
+    "name_tr": "KUŞTUR KUŞADASI TURİZM ENDÜSTRİSİ A.Ş.",
+    "search_title": [
+      "KUSTUR KUSADASI TURIZM",
+      "KUŞTUR KUŞADASI",
+      "KUSTUR KUSADASI",
+      "KUŞTUR KUŞADASI TURİZM"
+    ],
+    "search_gkg": [
+      "KUSTUR KUSADASI TURIZM ENDUSTRISI"
+    ]
+  },
+  "KTLEV": {
+    "name_tr": "KATILIMEVİM TASARRUF FİNANSMAN A.Ş.",
+    "search_title": [
+      "KATILIMEVİM TASARRUF FİNANSMAN",
+      "KATILIMEVIM TASARRUF",
+      "KATILIMEVİM TASARRUF",
+      "KATILIMEVIM TASARRUF FINANSMAN"
+    ],
+    "search_gkg": [
+      "KATILIMEVIM TASARRUF FINANSMAN"
+    ]
+  },
+  "KTSKR": {
+    "name_tr": "KÜTAHYA ŞEKER FABRİKASI A.Ş.",
+    "search_title": [
+      "KÜTAHYA ŞEKER FABRİKASI",
+      "KÜTAHYA ŞEKER",
+      "KUTAHYA SEKER",
+      "KUTAHYA SEKER FABRIKASI"
+    ],
+    "search_gkg": [
+      "KUTAHYA SEKER FABRIKASI"
+    ]
+  },
+  "KUTPO": {
+    "name_tr": "KÜTAHYA PORSELEN SANAYİ A.Ş.",
+    "search_title": [
+      "KÜTAHYA PORSELEN",
+      "KUTAHYA PORSELEN",
+      "KÜTAHYA PORSELEN SANAYİ",
+      "KUTAHYA PORSELEN SANAYI"
+    ],
+    "search_gkg": [
+      "KUTAHYA PORSELEN SANAYI"
+    ]
+  },
+  "KUVVA": {
+    "name_tr": "KUVVA GIDA TİCARET VE SANAYİ YATIRIMLARI A.Ş.",
+    "search_title": [
+      "KUVVA GIDA TİCARET",
+      "KUVVA GIDA",
+      "KUVVA GIDA TICARET"
+    ],
+    "search_gkg": [
+      "KUVVA GIDA TICARET VE SANAYI YATIRIMLARI"
+    ]
+  },
+  "KUYAS": {
+    "name_tr": "KUYAŞ YATIRIM A.Ş.",
+    "search_title": [
+      "KUYAS YATIRIM",
+      "KUYAŞ YATIRIM"
+    ],
+    "search_gkg": [
+      "KUYAS YATIRIM"
+    ]
+  },
+  "KZBGY": {
+    "name_tr": "KIZILBÜK GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "KIZILBUK GAYRIMENKUL",
+      "KIZILBÜK GAYRİMENKUL",
+      "KIZILBÜK GAYRİMENKUL YATIRIM",
+      "KIZILBUK GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "KIZILBUK GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "KZGYO": {
+    "name_tr": "KUZUGRUP GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "KUZUGRUP GAYRİMENKUL YATIRIM",
+      "KUZUGRUP GAYRİMENKUL",
+      "KUZUGRUP GAYRIMENKUL",
+      "KUZUGRUP GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "KUZUGRUP GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "LIDER": {
+    "name_tr": "LDR TURİZM A.Ş.",
+    "search_title": [
+      "LDR TURIZM",
+      "LDR TURİZM"
+    ],
+    "search_gkg": [
+      "LDR TURIZM"
+    ]
+  },
+  "LIDFA": {
+    "name_tr": "LİDER FAKTORİNG A.Ş.",
+    "search_title": [
+      "LİDER FAKTORİNG",
+      "LIDER FAKTORING"
+    ],
+    "search_gkg": [
+      "LIDER FAKTORING"
+    ]
+  },
+  "LILAK": {
+    "search_title": [
+      "LİLA KAĞIT",
+      "LILA KAGIT"
+    ],
+    "search_gkg": [
+      "LILA KAGIT"
+    ],
+    "name_tr": "LİLA KAĞIT SANAYİ VE TİCARET A.Ş."
+  },
+  "LINKL": {
+    "name_tr": "LİNK BİLGİSAYAR SİSTEMLERİ YAZILIMI VE DONANIMI SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "LINK BILGISAYAR",
+      "LINK BILGISAYAR SISTEMLERI",
+      "LİNK BİLGİSAYAR SİSTEMLERİ",
+      "LİNK BİLGİSAYAR"
+    ],
+    "search_gkg": [
+      "LINK BILGISAYAR SISTEMLERI YAZILIMI VE DONANIMI SANAYI VE TICARET"
+    ]
+  },
+  "LKMNH": {
+    "name_tr": "LOKMAN HEKİM ENGÜRÜSAĞ SAĞLIK TURİZM EĞİTİM HİZMETLERİ VE İNŞAAT TAAHHÜT A.Ş.",
+    "search_title": [
+      "LOKMAN HEKİM ENGÜRÜSAĞ",
+      "LOKMAN HEKIM ENGURUSAG",
+      "LOKMAN HEKIM",
+      "LOKMAN HEKİM"
+    ],
+    "search_gkg": [
+      "LOKMAN HEKIM ENGURUSAG SAGLIK TURIZM EGITIM HIZMETLERI VE INSAAT TAAHHUT"
+    ]
+  },
+  "LMKDC": {
+    "name_tr": "LİMAK DOĞU ANADOLU ÇİMENTO SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "LİMAK DOĞU",
+      "LİMAK DOĞU ANADOLU",
+      "LIMAK DOGU ANADOLU",
+      "LIMAK DOGU"
+    ],
+    "search_gkg": [
+      "LIMAK DOGU ANADOLU CIMENTO SANAYI VE TICARET"
+    ]
+  },
+  "LOGOL": {
+    "name_tr": "LOGO YAZILIM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "LOGO YAZILIM SANAYI",
+      "LOGO YAZILIM SANAYİ",
+      "LOGO YAZILIM"
+    ],
+    "search_gkg": [
+      "LOGO YAZILIM SANAYI VE TICARET"
+    ]
+  },
+  "LRSHO": {
+    "name_tr": "LORAS HOLDİNG A.Ş.",
+    "search_title": [
+      "LORAS HOLDING",
+      "LORAS HOLDİNG"
+    ],
+    "search_gkg": [
+      "LORAS HOLDING"
+    ]
+  },
+  "LUKSK": {
+    "name_tr": "LÜKS KADİFE TİCARET VE SANAYİİ A.Ş.",
+    "search_title": [
+      "LUKS KADIFE",
+      "LUKS KADIFE TICARET",
+      "LÜKS KADİFE",
+      "LÜKS KADİFE TİCARET"
+    ],
+    "search_gkg": [
+      "LUKS KADIFE TICARET VE SANAYII"
+    ]
+  },
+  "LXGYO": {
+    "name_tr": "LUXERA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "LUXERA GAYRIMENKUL",
+      "LUXERA GAYRIMENKUL YATIRIM",
+      "LUXERA GAYRİMENKUL YATIRIM",
+      "LUXERA GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "LUXERA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "LYDHO": {
+    "name_tr": "LYDİA HOLDİNG A.Ş.",
+    "search_title": [
+      "LYDİA HOLDİNG",
+      "LYDIA HOLDING"
+    ],
+    "search_gkg": [
+      "LYDIA HOLDING"
+    ]
+  },
+  "LYDYE": {
+    "name_tr": "LYDİA YEŞİL ENERJİ KAYNAKLARI A.Ş.",
+    "search_title": [
+      "LYDİA YEŞİL",
+      "LYDİA YEŞİL ENERJİ",
+      "LYDIA YESIL",
+      "LYDIA YESIL ENERJI"
+    ],
+    "search_gkg": [
+      "LYDIA YESIL ENERJI KAYNAKLARI"
+    ]
+  },
+  "MAALT": {
+    "name_tr": "MARMARİS ALTINYUNUS TURİSTİK TESİSLER A.Ş.",
+    "search_title": [
+      "MARMARIS ALTINYUNUS",
+      "MARMARIS ALTINYUNUS TURISTIK",
+      "MARMARİS ALTINYUNUS",
+      "MARMARİS ALTINYUNUS TURİSTİK"
+    ],
+    "search_gkg": [
+      "MARMARIS ALTINYUNUS TURISTIK TESISLER"
+    ]
+  },
+  "MACKO": {
+    "search_title": [
+      "MACKOLİK",
+      "MACKOLIK"
+    ],
+    "search_gkg": [
+      "MACKOLIK"
+    ],
+    "name_tr": "MACKOLİK İNTERNET HİZMETLERİ TİCARET A.Ş."
+  },
+  "MAGEN": {
+    "name_tr": "MARGÜN ENERJİ ÜRETİM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MARGUN ENERJI URETIM",
+      "MARGÜN ENERJİ",
+      "MARGÜN ENERJİ ÜRETİM",
+      "MARGUN ENERJI"
+    ],
+    "search_gkg": [
+      "MARGUN ENERJI URETIM SANAYI VE TICARET"
+    ]
+  },
+  "MAKIM": {
+    "name_tr": "MAKİM MAKİNA TEKNOLOJİLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MAKİM MAKİNA",
+      "MAKIM MAKINA TEKNOLOJILERI",
+      "MAKIM MAKINA",
+      "MAKİM MAKİNA TEKNOLOJİLERİ"
+    ],
+    "search_gkg": [
+      "MAKIM MAKINA TEKNOLOJILERI SANAYI VE TICARET"
+    ]
+  },
+  "MAKTK": {
+    "name_tr": "MAKİNA TAKIM ENDÜSTRİSİ A.Ş.",
+    "search_title": [
+      "MAKINA TAKIM ENDUSTRISI",
+      "MAKİNA TAKIM ENDÜSTRİSİ",
+      "MAKİNA TAKIM",
+      "MAKINA TAKIM"
+    ],
+    "search_gkg": [
+      "MAKINA TAKIM ENDUSTRISI"
+    ]
+  },
+  "MANAS": {
+    "name_tr": "MANAS ENERJİ YÖNETİMİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MANAS ENERJI",
+      "MANAS ENERJİ",
+      "MANAS ENERJİ YÖNETİMİ",
+      "MANAS ENERJI YONETIMI"
+    ],
+    "search_gkg": [
+      "MANAS ENERJI YONETIMI SANAYI VE TICARET"
+    ]
+  },
+  "MARBL": {
+    "name_tr": "TUREKS TURUNÇ MADENCİLİK İÇ VE DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "TUREKS TURUNÇ",
+      "TUREKS TURUNC MADENCILIK",
+      "TUREKS TURUNÇ MADENCİLİK",
+      "TUREKS TURUNC"
+    ],
+    "search_gkg": [
+      "TUREKS TURUNC MADENCILIK IC VE DIS TICARET"
+    ]
+  },
+  "MARKA": {
+    "name_tr": "MARKA YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "MARKA YATIRIM",
+      "MARKA YATIRIM HOLDİNG",
+      "MARKA YATIRIM HOLDING"
+    ],
+    "search_gkg": [
+      "MARKA YATIRIM HOLDING"
+    ]
+  },
+  "MARMR": {
+    "name_tr": "MARMARA HOLDİNG A.Ş.",
+    "search_title": [
+      "MARMARA HOLDİNG",
+      "MARMARA HOLDING"
+    ],
+    "search_gkg": [
+      "MARMARA HOLDING"
+    ]
+  },
+  "MARTI": {
+    "name_tr": "MARTI OTEL İŞLETMELERİ A.Ş.",
+    "search_title": [
+      "MARTI OTEL İŞLETMELERİ",
+      "MARTI OTEL ISLETMELERI",
+      "MARTI OTEL"
+    ],
+    "search_gkg": [
+      "MARTI OTEL ISLETMELERI"
+    ]
+  },
+  "MAVIM": {
+    "name_tr": "MAVİ GİYİM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MAVI GIYIM SANAYI",
+      "MAVİ GİYİM SANAYİ",
+      "MAVİ GİYİM",
+      "MAVI GIYIM"
+    ],
+    "search_gkg": [
+      "MAVI GIYIM SANAYI VE TICARET"
+    ]
+  },
+  "MCARD": {
+    "name_tr": "METROPAL KURUMSAL HİZMETLER A.Ş.",
+    "search_title": [
+      "METROPAL KURUMSAL HIZMETLER",
+      "METROPAL KURUMSAL HİZMETLER",
+      "METROPAL KURUMSAL"
+    ],
+    "search_gkg": [
+      "METROPAL KURUMSAL HIZMETLER"
+    ]
+  },
+  "MEDTR": {
+    "name_tr": "MEDİTERA TIBBİ MALZEME SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MEDITERA TIBBI MALZEME",
+      "MEDİTERA TIBBİ MALZEME",
+      "MEDİTERA TIBBİ",
+      "MEDITERA TIBBI"
+    ],
+    "search_gkg": [
+      "MEDITERA TIBBI MALZEME SANAYI VE TICARET"
+    ]
+  },
+  "MEGAP": {
+    "name_tr": "MEGA POLİETİLEN KÖPÜK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MEGA POLİETİLEN",
+      "MEGA POLIETILEN",
+      "MEGA POLİETİLEN KÖPÜK",
+      "MEGA POLIETILEN KOPUK"
+    ],
+    "search_gkg": [
+      "MEGA POLIETILEN KOPUK SANAYI VE TICARET"
+    ]
+  },
+  "MEGMT": {
+    "name_tr": "MEGA METAL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MEGA METAL SANAYİ",
+      "MEGA METAL SANAYI",
+      "MEGA METAL"
+    ],
+    "search_gkg": [
+      "MEGA METAL SANAYI VE TICARET"
+    ]
+  },
+  "MEKAG": {
+    "name_tr": "MEKA GLOBAL MAKİNE İMALAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MEKA GLOBAL MAKINE",
+      "MEKA GLOBAL MAKİNE",
+      "MEKA GLOBAL"
+    ],
+    "search_gkg": [
+      "MEKA GLOBAL MAKINE IMALAT SANAYI VE TICARET"
+    ]
+  },
+  "MEPET": {
+    "name_tr": "BREAK MOLA TURİZM YATIRIMLAR A.Ş.",
+    "search_title": [
+      "BREAK MOLA TURİZM",
+      "BREAK MOLA",
+      "BREAK MOLA TURIZM"
+    ],
+    "search_gkg": [
+      "BREAK MOLA TURIZM YATIRIMLAR"
+    ]
+  },
+  "MERCN": {
+    "name_tr": "MERCAN KİMYA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MERCAN KIMYA SANAYI",
+      "MERCAN KİMYA SANAYİ",
+      "MERCAN KIMYA",
+      "MERCAN KİMYA"
+    ],
+    "search_gkg": [
+      "MERCAN KIMYA SANAYI VE TICARET"
+    ]
+  },
+  "MERIT": {
+    "name_tr": "MERİT TURİZM YATIRIM VE İŞLETME A.Ş.",
+    "search_title": [
+      "MERIT TURIZM",
+      "MERİT TURİZM YATIRIM",
+      "MERIT TURIZM YATIRIM",
+      "MERİT TURİZM"
+    ],
+    "search_gkg": [
+      "MERIT TURIZM YATIRIM VE ISLETME"
+    ]
+  },
+  "MERKO": {
+    "name_tr": "MERKO GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MERKO GIDA SANAYI",
+      "MERKO GIDA",
+      "MERKO GIDA SANAYİ"
+    ],
+    "search_gkg": [
+      "MERKO GIDA SANAYI VE TICARET"
+    ]
+  },
+  "METRO": {
+    "name_tr": "METRO TİCARİ VE MALİ YATIRIMLAR HOLDİNG A.Ş.",
+    "search_title": [
+      "METRO TİCARİ VE",
+      "METRO TICARI",
+      "METRO TICARI VE",
+      "METRO TİCARİ"
+    ],
+    "search_gkg": [
+      "METRO TICARI VE MALI YATIRIMLAR HOLDING"
+    ]
+  },
+  "MEYSU": {
+    "name_tr": "MEYSU GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MEYSU GIDA SANAYI",
+      "MEYSU GIDA",
+      "MEYSU GIDA SANAYİ"
+    ],
+    "search_gkg": [
+      "MEYSU GIDA SANAYI VE TICARET"
+    ]
+  },
+  "MGROS": {
+    "search_title": [
+      "MİGROS",
+      "MIGROS"
+    ],
+    "search_gkg": [
+      "MIGROS"
+    ],
+    "name_tr": "MİGROS TİCARET A.Ş."
+  },
+  "MHRGY": {
+    "name_tr": "MHR GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "MHR GAYRIMENKUL",
+      "MHR GAYRİMENKUL",
+      "MHR GAYRİMENKUL YATIRIM",
+      "MHR GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "MHR GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "MIATK": {
+    "search_title": [
+      "MİA TEKNOLOJİ",
+      "MIA TEKNOLOJI"
+    ],
+    "search_gkg": [
+      "MIA TEKNOLOJI"
+    ],
+    "name_tr": "MİA TEKNOLOJİ A.Ş."
+  },
+  "MMCAS": {
+    "name_tr": "MMC SANAYİ VE TİCARİ YATIRIMLAR A.Ş.",
+    "search_title": [
+      "MMC SANAYI",
+      "MMC SANAYI VE",
+      "MMC SANAYİ",
+      "MMC SANAYİ VE"
+    ],
+    "search_gkg": [
+      "MMC SANAYI VE TICARI YATIRIMLAR"
+    ]
+  },
+  "MNDRS": {
+    "name_tr": "MENDERES TEKSTİL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MENDERES TEKSTIL SANAYI",
+      "MENDERES TEKSTİL",
+      "MENDERES TEKSTİL SANAYİ",
+      "MENDERES TEKSTIL"
+    ],
+    "search_gkg": [
+      "MENDERES TEKSTIL SANAYI VE TICARET"
+    ]
+  },
+  "MNDTR": {
+    "name_tr": "MONDİ TURKEY OLUKLU MUKAVVA KAĞIT VE AMBALAJ SANAYİ A.Ş.",
+    "search_title": [
+      "MONDİ TURKEY",
+      "MONDI TURKEY OLUKLU",
+      "MONDİ TURKEY OLUKLU",
+      "MONDI TURKEY"
+    ],
+    "search_gkg": [
+      "MONDI TURKEY OLUKLU MUKAVVA KAGIT VE AMBALAJ SANAYI"
+    ]
+  },
+  "MOBTL": {
+    "name_tr": "MOBİLTEL İLETİŞİM HİZMETLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MOBİLTEL İLETİŞİM HİZMETLERİ",
+      "MOBILTEL ILETISIM HIZMETLERI",
+      "MOBİLTEL İLETİŞİM",
+      "MOBILTEL ILETISIM"
+    ],
+    "search_gkg": [
+      "MOBILTEL ILETISIM HIZMETLERI SANAYI VE TICARET"
+    ]
+  },
+  "MOGAN": {
+    "search_title": [
+      "MOGAN ENERJİ",
+      "MOGAN ENERJI"
+    ],
+    "search_gkg": [
+      "MOGAN ENERJI"
+    ],
+    "name_tr": "MOGAN ENERJİ YATIRIM HOLDİNG A.Ş."
+  },
+  "MOPAS": {
+    "name_tr": "MOPAŞ MARKETÇİLİK GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "MOPAŞ MARKETÇİLİK",
+      "MOPAS MARKETCILIK GIDA",
+      "MOPAS MARKETCILIK",
+      "MOPAŞ MARKETÇİLİK GIDA"
+    ],
+    "search_gkg": [
+      "MOPAS MARKETCILIK GIDA SANAYI VE TICARET"
+    ]
+  },
+  "MPARK": {
+    "search_title": [
+      "MLP SAĞLIK",
+      "MLP SAGLIK",
+      "MEDICAL PARK"
+    ],
+    "search_gkg": [
+      "MLP SAGLIK"
+    ],
+    "name_tr": "MLP SAĞLIK HİZMETLERİ A.Ş."
+  },
+  "MRGYO": {
+    "name_tr": "MARTI GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "MARTI GAYRİMENKUL",
+      "MARTI GAYRIMENKUL YATIRIM",
+      "MARTI GAYRIMENKUL",
+      "MARTI GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "MARTI GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "MRSHL": {
+    "name_tr": "MARSHALL BOYA VE VERNİK SANAYİİ A.Ş.",
+    "search_title": [
+      "MARSHALL BOYA",
+      "MARSHALL BOYA VE"
+    ],
+    "search_gkg": [
+      "MARSHALL BOYA VE VERNIK SANAYII"
+    ]
+  },
+  "MSGYO": {
+    "name_tr": "MİSTRAL GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "MİSTRAL GAYRİMENKUL",
+      "MİSTRAL GAYRİMENKUL YATIRIM",
+      "MISTRAL GAYRIMENKUL YATIRIM",
+      "MISTRAL GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "MISTRAL GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "MTRKS": {
+    "search_title": [
+      "MATRİKS",
+      "MATRIKS"
+    ],
+    "search_gkg": [
+      "MATRIKS"
+    ],
+    "name_tr": "MATRİKS FİNANSAL TEKNOLOJİLER A.Ş."
+  },
+  "MTRYO": {
+    "name_tr": "METRO YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "METRO YATIRIM ORTAKLIGI",
+      "METRO YATIRIM",
+      "METRO YATIRIM ORTAKLIĞI"
+    ],
+    "search_gkg": [
+      "METRO YATIRIM ORTAKLIGI"
+    ]
+  },
+  "MZHLD": {
+    "name_tr": "MAZHAR ZORLU HOLDİNG A.Ş.",
+    "search_title": [
+      "MAZHAR ZORLU HOLDİNG",
+      "MAZHAR ZORLU HOLDING",
+      "MAZHAR ZORLU"
+    ],
+    "search_gkg": [
+      "MAZHAR ZORLU HOLDING"
+    ]
+  },
+  "NATEN": {
+    "name_tr": "NATUREL YENİLENEBİLİR ENERJİ TİCARET A.Ş.",
+    "search_title": [
+      "NATUREL YENILENEBILIR ENERJI",
+      "NATUREL YENİLENEBİLİR ENERJİ",
+      "NATUREL YENİLENEBİLİR",
+      "NATUREL YENILENEBILIR"
+    ],
+    "search_gkg": [
+      "NATUREL YENILENEBILIR ENERJI TICARET"
+    ]
+  },
+  "NETAS": {
+    "search_title": [
+      "NETAŞ",
+      "NETAS"
+    ],
+    "search_gkg": [
+      "NETAS"
+    ],
+    "name_tr": "NETAŞ TELEKOMÜNİKASYON A.Ş."
+  },
+  "NETCD": {
+    "name_tr": "NETCAD YAZILIM A.Ş.",
+    "search_title": [
+      "NETCAD YAZILIM"
+    ],
+    "search_gkg": [
+      "NETCAD YAZILIM"
+    ]
+  },
+  "NIBAS": {
+    "name_tr": "NİĞBAŞ NİĞDE BETON SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "NIGBAS NIGDE",
+      "NİĞBAŞ NİĞDE BETON",
+      "NİĞBAŞ NİĞDE",
+      "NIGBAS NIGDE BETON"
+    ],
+    "search_gkg": [
+      "NIGBAS NIGDE BETON SANAYI VE TICARET"
+    ]
+  },
+  "NTGAZ": {
+    "name_tr": "NATURELGAZ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "NATURELGAZ SANAYİ",
+      "NATURELGAZ SANAYI VE",
+      "NATURELGAZ SANAYI",
+      "NATURELGAZ SANAYİ VE"
+    ],
+    "search_gkg": [
+      "NATURELGAZ SANAYI VE TICARET"
+    ]
+  },
+  "NTHOL": {
+    "search_title": [
+      "NET HOLDİNG",
+      "NET HOLDING"
+    ],
+    "search_gkg": [
+      "NET HOLDING"
+    ],
+    "name_tr": "NET HOLDİNG A.Ş."
+  },
+  "NUGYO": {
+    "name_tr": "NUROL GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "NUROL GAYRIMENKUL",
+      "NUROL GAYRİMENKUL",
+      "NUROL GAYRİMENKUL YATIRIM",
+      "NUROL GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "NUROL GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "NUHCM": {
+    "search_title": [
+      "NUH ÇİMENTO",
+      "NUH CIMENTO"
+    ],
+    "search_gkg": [
+      "NUH CIMENTO"
+    ],
+    "name_tr": "NUH ÇİMENTO SANAYİ A.Ş."
+  },
+  "OBAMS": {
+    "search_title": [
+      "OBA MAKARNA",
+      "OBA MAKARNACILIK"
+    ],
+    "search_gkg": [
+      "OBA MAKARNA"
+    ],
+    "name_tr": "OBA MAKARNACILIK SANAYİ VE TİCARET A.Ş."
+  },
+  "OBASE": {
+    "name_tr": "OBASE BİLGİSAYAR VE DANIŞMANLIK HİZMETLERİ TİCARET A.Ş.",
+    "search_title": [
+      "OBASE BİLGİSAYAR VE",
+      "OBASE BILGISAYAR",
+      "OBASE BİLGİSAYAR",
+      "OBASE BILGISAYAR VE"
+    ],
+    "search_gkg": [
+      "OBASE BILGISAYAR VE DANISMANLIK HIZMETLERI TICARET"
+    ]
+  },
+  "ODASO": {
+    "name_tr": "ODAŞ ELEKTRİK ÜRETİM SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "ODAS ELEKTRIK",
+      "ODAŞ ELEKTRİK ÜRETİM",
+      "ODAS ELEKTRIK URETIM",
+      "ODAŞ ELEKTRİK"
+    ],
+    "search_gkg": [
+      "ODAS ELEKTRIK URETIM SANAYI TICARET"
+    ]
+  },
+  "ODINE": {
+    "search_title": [
+      "ODİNE",
+      "ODINE SOLUTIONS"
+    ],
+    "search_gkg": [
+      "ODINE"
+    ],
+    "name_tr": "ODİNE SOLUTİONS TEKNOLOJİ TİCARET VE SANAYİ A.Ş."
+  },
+  "OFSYM": {
+    "name_tr": "OFİS YEM GIDA SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "OFİS YEM",
+      "OFİS YEM GIDA",
+      "OFIS YEM GIDA",
+      "OFIS YEM"
+    ],
+    "search_gkg": [
+      "OFIS YEM GIDA SANAYI TICARET"
+    ]
+  },
+  "OMD": {
+    "name_tr": "OSMANLI YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "OSMANLI YATIRIM",
+      "OSMANLI YATIRIM MENKUL"
+    ],
+    "search_gkg": [
+      "OSMANLI YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "ONCSM": {
+    "name_tr": "ONCOSEM ONKOLOJİK SİSTEMLER SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ONCOSEM ONKOLOJIK SISTEMLER",
+      "ONCOSEM ONKOLOJİK SİSTEMLER",
+      "ONCOSEM ONKOLOJIK",
+      "ONCOSEM ONKOLOJİK"
+    ],
+    "search_gkg": [
+      "ONCOSEM ONKOLOJIK SISTEMLER SANAYI VE TICARET"
+    ]
+  },
+  "ONRYT": {
+    "name_tr": "ONUR YÜKSEK TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "ONUR YÜKSEK",
+      "ONUR YUKSEK TEKNOLOJI",
+      "ONUR YÜKSEK TEKNOLOJİ",
+      "ONUR YUKSEK"
+    ],
+    "search_gkg": [
+      "ONUR YUKSEK TEKNOLOJI"
+    ]
+  },
+  "ORCAY": {
+    "name_tr": "ORÇAY ORTAKÖY ÇAY SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ORÇAY ORTAKÖY",
+      "ORCAY ORTAKOY",
+      "ORÇAY ORTAKÖY ÇAY",
+      "ORCAY ORTAKOY CAY"
+    ],
+    "search_gkg": [
+      "ORCAY ORTAKOY CAY SANAYI VE TICARET"
+    ]
+  },
+  "ORGEO": {
+    "name_tr": "ORGE ENERJİ ELEKTRİK TAAHHÜT A.Ş.",
+    "search_title": [
+      "ORGE ENERJI",
+      "ORGE ENERJİ ELEKTRİK",
+      "ORGE ENERJI ELEKTRIK",
+      "ORGE ENERJİ"
+    ],
+    "search_gkg": [
+      "ORGE ENERJI ELEKTRIK TAAHHUT"
+    ]
+  },
+  "ORMAO": {
+    "name_tr": "ORMA ORMAN MAHSÜLLERİ İNTEGRE SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ORMA ORMAN MAHSULLERI",
+      "ORMA ORMAN MAHSÜLLERİ",
+      "ORMA ORMAN"
+    ],
+    "search_gkg": [
+      "ORMA ORMAN MAHSULLERI INTEGRE SANAYI VE TICARET"
+    ]
+  },
+  "OSTIM": {
+    "name_tr": "OSTİM ENDÜSTRİYEL YATIRIMLAR VE İŞLETME A.Ş.",
+    "search_title": [
+      "OSTIM ENDUSTRIYEL YATIRIMLAR",
+      "OSTİM ENDÜSTRİYEL YATIRIMLAR",
+      "OSTIM ENDUSTRIYEL",
+      "OSTİM ENDÜSTRİYEL"
+    ],
+    "search_gkg": [
+      "OSTIM ENDUSTRIYEL YATIRIMLAR VE ISLETME"
+    ]
+  },
+  "OTKAR": {
+    "search_title": [
+      "OTOKAR"
+    ],
+    "search_gkg": [
+      "OTOKAR"
+    ],
+    "name_tr": "OTOKAR OTOMOTİV VE SAVUNMA SANAYİ A.Ş."
+  },
+  "OTTOO": {
+    "name_tr": "OTTO HOLDİNG A.Ş.",
+    "search_title": [
+      "OTTO HOLDING",
+      "OTTO HOLDİNG"
+    ],
+    "search_gkg": [
+      "OTTO HOLDING"
+    ]
+  },
+  "OYA": {
+    "name_tr": "OYAK YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "OYAK YATIRIM MENKUL",
+      "OYAK YATIRIM"
+    ],
+    "search_gkg": [
+      "OYAK YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "OYAKC": {
+    "search_title": [
+      "OYAK ÇİMENTO",
+      "OYAK CIMENTO"
+    ],
+    "search_gkg": [
+      "OYAK CIMENTO"
+    ],
+    "name_tr": "OYAK ÇİMENTO FABRİKALARI A.Ş."
+  },
+  "OYAYO": {
+    "name_tr": "OYAK YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "OYAK YATIRIM ORTAKLIGI",
+      "OYAK YATIRIM",
+      "OYAK YATIRIM ORTAKLIĞI"
+    ],
+    "search_gkg": [
+      "OYAK YATIRIM ORTAKLIGI"
+    ]
+  },
+  "OYLUM": {
+    "name_tr": "OYLUM SINAİ YATIRIMLAR A.Ş.",
+    "search_title": [
+      "OYLUM SINAİ",
+      "OYLUM SINAİ YATIRIMLAR",
+      "OYLUM SINAI YATIRIMLAR",
+      "OYLUM SINAI"
+    ],
+    "search_gkg": [
+      "OYLUM SINAI YATIRIMLAR"
+    ]
+  },
+  "OZATD": {
+    "search_title": [
+      "ÖZATA DENİZCİLİK",
+      "OZATA DENIZCILIK"
+    ],
+    "search_gkg": [
+      "OZATA DENIZCILIK"
+    ],
+    "name_tr": "ÖZATA DENİZCİLİK SANAYİ VE TİCARET A.Ş."
+  },
+  "OZGYO": {
+    "name_tr": "ÖZDERİCİ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "OZDERICI GAYRIMENKUL YATIRIM",
+      "ÖZDERİCİ GAYRİMENKUL YATIRIM",
+      "OZDERICI GAYRIMENKUL",
+      "ÖZDERİCİ GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "OZDERICI GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "OZKGY": {
+    "search_title": [
+      "ÖZAK GAYRİMENKUL",
+      "OZAK GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "OZAK GAYRIMENKUL"
+    ],
+    "name_tr": "ÖZAK GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş."
+  },
+  "OZRDN": {
+    "name_tr": "ÖZERDEN AMBALAJ SANAYİ A.Ş.",
+    "search_title": [
+      "OZERDEN AMBALAJ",
+      "ÖZERDEN AMBALAJ",
+      "ÖZERDEN AMBALAJ SANAYİ",
+      "OZERDEN AMBALAJ SANAYI"
+    ],
+    "search_gkg": [
+      "OZERDEN AMBALAJ SANAYI"
+    ]
+  },
+  "OZSUB": {
+    "name_tr": "ÖZSU BALIK ÜRETİM A.Ş.",
+    "search_title": [
+      "OZSU BALIK URETIM",
+      "ÖZSU BALIK ÜRETİM",
+      "OZSU BALIK",
+      "ÖZSU BALIK"
+    ],
+    "search_gkg": [
+      "OZSU BALIK URETIM"
+    ]
+  },
+  "OZYSR": {
+    "name_tr": "ÖZYAŞAR TEL VE GALVANİZLEME SANAYİ A.Ş.",
+    "search_title": [
+      "ÖZYAŞAR TEL VE",
+      "ÖZYAŞAR TEL",
+      "OZYASAR TEL",
+      "OZYASAR TEL VE"
+    ],
+    "search_gkg": [
+      "OZYASAR TEL VE GALVANIZLEME SANAYI"
+    ]
+  },
+  "PAGYO": {
+    "name_tr": "PANORA GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "PANORA GAYRIMENKUL YATIRIM",
+      "PANORA GAYRİMENKUL YATIRIM",
+      "PANORA GAYRİMENKUL",
+      "PANORA GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "PANORA GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "PAHOL": {
+    "name_tr": "PASİFİK HOLDİNG A.Ş.",
+    "search_title": [
+      "PASİFİK HOLDİNG",
+      "PASIFIK HOLDING"
+    ],
+    "search_gkg": [
+      "PASIFIK HOLDING"
+    ]
+  },
+  "PAMEL": {
+    "name_tr": "PAMEL YENİLENEBİLİR ELEKTRİK ÜRETİM A.Ş.",
+    "search_title": [
+      "PAMEL YENILENEBILIR ELEKTRIK",
+      "PAMEL YENİLENEBİLİR",
+      "PAMEL YENİLENEBİLİR ELEKTRİK",
+      "PAMEL YENILENEBILIR"
+    ],
+    "search_gkg": [
+      "PAMEL YENILENEBILIR ELEKTRIK URETIM"
+    ]
+  },
+  "PAPIL": {
+    "search_title": [
+      "PAPİLON",
+      "PAPILON SAVUNMA"
+    ],
+    "search_gkg": [
+      "PAPILON SAVUNMA"
+    ],
+    "name_tr": "PAPİLON SAVUNMA TEKNOLOJİ VE TİCARET A.Ş."
+  },
+  "PARSN": {
+    "name_tr": "PARSAN MAKİNA PARÇALARI SANAYİİ A.Ş.",
+    "search_title": [
+      "PARSAN MAKINA PARCALARI",
+      "PARSAN MAKİNA PARÇALARI",
+      "PARSAN MAKİNA",
+      "PARSAN MAKINA"
+    ],
+    "search_gkg": [
+      "PARSAN MAKINA PARCALARI SANAYII"
+    ]
+  },
+  "PASEU": {
+    "name_tr": "PASİFİK EURASİA LOJİSTİK DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "PASIFIK EURASIA LOJISTIK",
+      "PASİFİK EURASİA LOJİSTİK",
+      "PASIFIK EURASIA",
+      "PASİFİK EURASİA"
+    ],
+    "search_gkg": [
+      "PASIFIK EURASIA LOJISTIK DIS TICARET"
+    ]
+  },
+  "PATEK": {
+    "name_tr": "PASİFİK TEKNOLOJİ A.Ş.",
+    "search_title": [
+      "PASİFİK TEKNOLOJİ",
+      "PASIFIK TEKNOLOJI"
+    ],
+    "search_gkg": [
+      "PASIFIK TEKNOLOJI"
+    ]
+  },
+  "PCILT": {
+    "name_tr": "PC İLETİŞİM VE MEDYA HİZMETLERİ SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "PC İLETİŞİM",
+      "PC İLETİŞİM VE",
+      "PC ILETISIM",
+      "PC ILETISIM VE"
+    ],
+    "search_gkg": [
+      "PC ILETISIM VE MEDYA HIZMETLERI SANAYI TICARET"
+    ]
+  },
+  "PEKGY": {
+    "search_title": [
+      "PEKER GAYRİMENKUL",
+      "PEKER GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "PEKER GAYRIMENKUL"
+    ],
+    "name_tr": "PEKER GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş."
+  },
+  "PENGD": {
+    "name_tr": "PENGUEN GIDA SANAYİ A.Ş.",
+    "search_title": [
+      "PENGUEN GIDA SANAYI",
+      "PENGUEN GIDA SANAYİ",
+      "PENGUEN GIDA"
+    ],
+    "search_gkg": [
+      "PENGUEN GIDA SANAYI"
+    ]
+  },
+  "PENTA": {
+    "search_title": [
+      "PENTA TEKNOLOJİ",
+      "PENTA TEKNOLOJI"
+    ],
+    "search_gkg": [
+      "PENTA TEKNOLOJI"
+    ],
+    "name_tr": "PENTA TEKNOLOJİ ÜRÜNLERİ DAĞITIM TİCARET A.Ş."
+  },
+  "PETKM": {
+    "search_title": [
+      "PETKİM",
+      "PETKIM"
+    ],
+    "search_gkg": [
+      "PETKIM"
+    ],
+    "name_tr": "PETKİM PETROKİMYA HOLDİNG A.Ş."
+  },
+  "PETUN": {
+    "search_title": [
+      "PINAR ET",
+      "PINAR ENTEGRE"
+    ],
+    "search_gkg": [
+      "PINAR ET"
+    ],
+    "name_tr": "PINAR ENTEGRE ET VE UN SANAYİİ A.Ş."
+  },
+  "PGSUS": {
+    "search_title": [
+      "PEGASUS",
+      "PEGASUS HAVA",
+      "PEGASUS AIRLINES"
+    ],
+    "search_gkg": [
+      "PEGASUS AIRLINES"
+    ],
+    "name_tr": "PEGASUS HAVA TAŞIMACILIĞI A.Ş."
+  },
+  "PINSU": {
+    "search_title": [
+      "PINAR SU"
+    ],
+    "search_gkg": [
+      "PINAR SU"
+    ],
+    "name_tr": "PINAR SU VE İÇECEK SANAYİ VE TİCARET A.Ş."
+  },
+  "PKART": {
+    "search_title": [
+      "PLASTİKKART",
+      "PLASTIKKART"
+    ],
+    "search_gkg": [
+      "PLASTIKKART"
+    ],
+    "name_tr": "PLASTİKKART AKILLI KART İLETİŞİM SİSTEMLERİ SANAYİ VE TİCARET A.Ş."
+  },
+  "PKENT": {
+    "name_tr": "PETROKENT TURİZM A.Ş.",
+    "search_title": [
+      "PETROKENT TURIZM",
+      "PETROKENT TURİZM"
+    ],
+    "search_gkg": [
+      "PETROKENT TURIZM"
+    ]
+  },
+  "PLTUR": {
+    "name_tr": "PLATFORM TURİZM TAŞIMACILIK GIDA İNŞAAT TEMİZLİK HİZMETLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "PLATFORM TURIZM TASIMACILIK",
+      "PLATFORM TURİZM TAŞIMACILIK",
+      "PLATFORM TURİZM",
+      "PLATFORM TURIZM"
+    ],
+    "search_gkg": [
+      "PLATFORM TURIZM TASIMACILIK GIDA INSAAT TEMIZLIK HIZMETLERI SANAYI VE TICARET"
+    ]
+  },
+  "PNLSN": {
+    "name_tr": "PANELSAN ÇATI CEPHE SİSTEMLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "PANELSAN CATI CEPHE",
+      "PANELSAN ÇATI",
+      "PANELSAN ÇATI CEPHE",
+      "PANELSAN CATI"
+    ],
+    "search_gkg": [
+      "PANELSAN CATI CEPHE SISTEMLERI SANAYI VE TICARET"
+    ]
+  },
+  "PNSUT": {
+    "search_title": [
+      "PINAR SÜT",
+      "PINAR SUT"
+    ],
+    "search_gkg": [
+      "PINAR SUT"
+    ],
+    "name_tr": "PINAR SÜT MAMÜLLERİ SANAYİİ A.Ş."
+  },
+  "POLHO": {
+    "search_title": [
+      "POLİSAN",
+      "POLISAN",
+      "POLİSAN HOLDİNG"
+    ],
+    "search_gkg": [
+      "POLISAN HOLDING"
+    ],
+    "name_tr": "POLİSAN HOLDİNG A.Ş."
+  },
+  "POLTK": {
+    "name_tr": "POLİTEKNİK METAL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "POLİTEKNİK METAL",
+      "POLİTEKNİK METAL SANAYİ",
+      "POLITEKNIK METAL",
+      "POLITEKNIK METAL SANAYI"
+    ],
+    "search_gkg": [
+      "POLITEKNIK METAL SANAYI VE TICARET"
+    ]
+  },
+  "PRDGS": {
+    "name_tr": "PARDUS GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "PARDUS GİRİŞİM SERMAYESİ",
+      "PARDUS GİRİŞİM",
+      "PARDUS GIRISIM SERMAYESI",
+      "PARDUS GIRISIM"
+    ],
+    "search_gkg": [
+      "PARDUS GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "PRKAB": {
+    "search_title": [
+      "PRYSMİAN",
+      "PRYSMIAN",
+      "TÜRK PRYSMİAN"
+    ],
+    "search_gkg": [
+      "PRYSMIAN"
+    ],
+    "name_tr": "TÜRK PRYSMİAN KABLO VE SİSTEMLERİ A.Ş."
+  },
+  "PRKME": {
+    "name_tr": "PARK ELEKTRİK ÜRETİM MADENCİLİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "PARK ELEKTRİK",
+      "PARK ELEKTRİK ÜRETİM",
+      "PARK ELEKTRIK URETIM",
+      "PARK ELEKTRIK"
+    ],
+    "search_gkg": [
+      "PARK ELEKTRIK URETIM MADENCILIK SANAYI VE TICARET"
+    ]
+  },
+  "PRZMA": {
+    "name_tr": "PRİZMA PRES MATBAACILIK YAYINCILIK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "PRIZMA PRES",
+      "PRİZMA PRES MATBAACILIK",
+      "PRIZMA PRES MATBAACILIK",
+      "PRİZMA PRES"
+    ],
+    "search_gkg": [
+      "PRIZMA PRES MATBAACILIK YAYINCILIK SANAYI VE TICARET"
+    ]
+  },
+  "PSDTC": {
+    "name_tr": "PERGAMON STATUS DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "PERGAMON STATUS DIS",
+      "PERGAMON STATUS DIŞ",
+      "PERGAMON STATUS"
+    ],
+    "search_gkg": [
+      "PERGAMON STATUS DIS TICARET"
+    ]
+  },
+  "PSGYO": {
+    "name_tr": "PASİFİK GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "PASIFIK GAYRIMENKUL YATIRIM",
+      "PASİFİK GAYRİMENKUL YATIRIM",
+      "PASIFIK GAYRIMENKUL",
+      "PASİFİK GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "PASIFIK GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "QNBFK": {
+    "name_tr": "QNB FİNANSAL KİRALAMA A.Ş.",
+    "search_title": [
+      "QNB FİNANSAL",
+      "QNB FINANSAL",
+      "QNB FİNANSAL KİRALAMA",
+      "QNB FINANSAL KIRALAMA"
+    ],
+    "search_gkg": [
+      "QNB FINANSAL KIRALAMA"
+    ]
+  },
+  "QUAGR": {
+    "search_title": [
+      "QUA GRANITE",
+      "QUA GRANİT"
+    ],
+    "search_gkg": [
+      "QUA GRANITE"
+    ],
+    "name_tr": "QUA GRANITE HAYAL YAPI VE ÜRÜNLERİ SANAYİ TİCARET A.Ş."
+  },
+  "RALYH": {
+    "search_title": [
+      "RAL YATIRIM",
+      "RAL YATIRIM HOLDİNG"
+    ],
+    "search_gkg": [
+      "RAL YATIRIM HOLDING"
+    ],
+    "name_tr": "RAL YATIRIM HOLDİNG A.Ş."
+  },
+  "RAYSG": {
+    "name_tr": "RAY SİGORTA A.Ş.",
+    "search_title": [
+      "RAY SİGORTA",
+      "RAY SIGORTA"
+    ],
+    "search_gkg": [
+      "RAY SIGORTA"
+    ]
+  },
+  "REEDR": {
+    "search_title": [
+      "REEDER",
+      "REEDER TEKNOLOJİ"
+    ],
+    "search_gkg": [
+      "REEDER TEKNOLOJI"
+    ],
+    "name_tr": "REEDER TEKNOLOJİ SANAYİ VE TİCARET A.Ş."
+  },
+  "RGYAS": {
+    "name_tr": "RÖNESANS GAYRİMENKUL YATIRIM A.Ş.",
+    "search_title": [
+      "RONESANS GAYRIMENKUL",
+      "RONESANS GAYRIMENKUL YATIRIM",
+      "RÖNESANS GAYRİMENKUL",
+      "RÖNESANS GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "RONESANS GAYRIMENKUL YATIRIM"
+    ]
+  },
+  "RNPOL": {
+    "name_tr": "RAİNBOW POLİKARBONAT SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "RAİNBOW POLİKARBONAT",
+      "RAINBOW POLIKARBONAT SANAYI",
+      "RAINBOW POLIKARBONAT",
+      "RAİNBOW POLİKARBONAT SANAYİ"
+    ],
+    "search_gkg": [
+      "RAINBOW POLIKARBONAT SANAYI TICARET"
+    ]
+  },
+  "RODRG": {
+    "name_tr": "RODRİGO TEKSTİL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "RODRİGO TEKSTİL",
+      "RODRIGO TEKSTIL SANAYI",
+      "RODRİGO TEKSTİL SANAYİ",
+      "RODRIGO TEKSTIL"
+    ],
+    "search_gkg": [
+      "RODRIGO TEKSTIL SANAYI VE TICARET"
+    ]
+  },
+  "RTALB": {
+    "search_title": [
+      "RTA LABORATUVARLARI",
+      "RTA LAB"
+    ],
+    "search_gkg": [
+      "RTA LAB"
+    ],
+    "name_tr": "RTA LABORATUVARLARI BİYOLOJİK ÜRÜNLER İLAÇ VE MAKİNE SANAYİ TİCARET A.Ş."
+  },
+  "RUBNS": {
+    "name_tr": "RUBENİS TEKSTİL SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "RUBENİS TEKSTİL",
+      "RUBENIS TEKSTIL",
+      "RUBENIS TEKSTIL SANAYI",
+      "RUBENİS TEKSTİL SANAYİ"
+    ],
+    "search_gkg": [
+      "RUBENIS TEKSTIL SANAYI TICARET"
+    ]
+  },
+  "RUZYE": {
+    "name_tr": "RUZY MADENCİLİK VE ENERJİ YATIRIMLARI SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "RUZY MADENCİLİK VE",
+      "RUZY MADENCILIK",
+      "RUZY MADENCİLİK",
+      "RUZY MADENCILIK VE"
+    ],
+    "search_gkg": [
+      "RUZY MADENCILIK VE ENERJI YATIRIMLARI SANAYI VE TICARET"
+    ]
+  },
+  "RYGYO": {
+    "name_tr": "REYSAŞ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "REYSAS GAYRIMENKUL YATIRIM",
+      "REYSAS GAYRIMENKUL",
+      "REYSAŞ GAYRİMENKUL YATIRIM",
+      "REYSAŞ GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "REYSAS GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "RYSAS": {
+    "name_tr": "REYSAŞ TAŞIMACILIK VE LOJİSTİK TİCARET A.Ş.",
+    "search_title": [
+      "REYSAS TASIMACILIK VE",
+      "REYSAŞ TAŞIMACILIK",
+      "REYSAŞ TAŞIMACILIK VE",
+      "REYSAS TASIMACILIK"
+    ],
+    "search_gkg": [
+      "REYSAS TASIMACILIK VE LOJISTIK TICARET"
+    ]
+  },
+  "SAFKR": {
+    "search_title": [
+      "SAFKAR"
+    ],
+    "search_gkg": [
+      "SAFKAR"
+    ],
+    "name_tr": "SAFKAR EGE SOĞUTMACILIK KLİMA SOĞUK HAVA TESİSLERİ İHRACAT İTHALAT SANAYİ VE TİCARET A.Ş."
+  },
+  "SAHOL": {
+    "search_title": [
+      "SABANCI",
+      "SABANCI HOLDİNG",
+      "SABANCI HOLDING"
+    ],
+    "search_gkg": [
+      "SABANCI HOLDING"
+    ],
+    "name_tr": "HACI ÖMER SABANCI HOLDİNG A.Ş."
+  },
+  "SAMAT": {
+    "name_tr": "SARAY MATBAACILIK KAĞITÇILIK KIRTASİYECİLİK TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "SARAY MATBAACILIK",
+      "SARAY MATBAACILIK KAGITCILIK",
+      "SARAY MATBAACILIK KAĞITÇILIK"
+    ],
+    "search_gkg": [
+      "SARAY MATBAACILIK KAGITCILIK KIRTASIYECILIK TICARET VE SANAYI"
+    ]
+  },
+  "SANEL": {
+    "name_tr": "SAN-EL MÜHENDİSLİK ELEKTRİK TAAHHÜT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SAN-EL MUHENDISLIK",
+      "SAN-EL MUHENDISLIK ELEKTRIK",
+      "SAN-EL MÜHENDİSLİK ELEKTRİK",
+      "SAN-EL MÜHENDİSLİK"
+    ],
+    "search_gkg": [
+      "SAN-EL MUHENDISLIK ELEKTRIK TAAHHUT SANAYI VE TICARET"
+    ]
+  },
+  "SANFM": {
+    "name_tr": "SANİFOAM ENDÜSTRİ VE TÜKETİM ÜRÜNLERİ SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "SANİFOAM ENDÜSTRİ",
+      "SANIFOAM ENDUSTRI",
+      "SANİFOAM ENDÜSTRİ VE",
+      "SANIFOAM ENDUSTRI VE"
+    ],
+    "search_gkg": [
+      "SANIFOAM ENDUSTRI VE TUKETIM URUNLERI SANAYI TICARET"
+    ]
+  },
+  "SANKO": {
+    "name_tr": "SANKO PAZARLAMA İTHALAT İHRACAT A.Ş.",
+    "search_title": [
+      "SANKO PAZARLAMA İTHALAT",
+      "SANKO PAZARLAMA ITHALAT",
+      "SANKO PAZARLAMA"
+    ],
+    "search_gkg": [
+      "SANKO PAZARLAMA ITHALAT IHRACAT"
+    ]
+  },
+  "SARKY": {
+    "name_tr": "SARKUYSAN ELEKTROLİTİK BAKIR SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SARKUYSAN ELEKTROLİTİK BAKIR",
+      "SARKUYSAN ELEKTROLITIK",
+      "SARKUYSAN ELEKTROLITIK BAKIR",
+      "SARKUYSAN ELEKTROLİTİK"
+    ],
+    "search_gkg": [
+      "SARKUYSAN ELEKTROLITIK BAKIR SANAYI VE TICARET"
+    ]
+  },
+  "SASAS": {
+    "name_tr": "SASA POLYESTER SANAYİ A.Ş.",
+    "search_title": [
+      "SASA POLYESTER",
+      "SASA POLYESTER SANAYI",
+      "SASA POLYESTER SANAYİ"
+    ],
+    "search_gkg": [
+      "SASA POLYESTER SANAYI"
+    ]
+  },
+  "SAYAS": {
+    "name_tr": "SAY YENİLENEBİLİR ENERJİ EKİPMANLARI SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SAY YENILENEBILIR ENERJI",
+      "SAY YENİLENEBİLİR ENERJİ",
+      "SAY YENİLENEBİLİR",
+      "SAY YENILENEBILIR"
+    ],
+    "search_gkg": [
+      "SAY YENILENEBILIR ENERJI EKIPMANLARI SANAYI VE TICARET"
+    ]
+  },
+  "SDTTR": {
+    "search_title": [
+      "SDT UZAY",
+      "SDT SPACE"
+    ],
+    "search_gkg": [
+      "SDT UZAY"
+    ],
+    "name_tr": "SDT UZAY VE SAVUNMA TEKNOLOJİLERİ A.Ş."
+  },
+  "SEGMN": {
+    "name_tr": "SEĞMEN KARDEŞLER GIDA ÜRETİM VE AMBALAJ SANAYİ A.Ş.",
+    "search_title": [
+      "SEGMEN KARDESLER GIDA",
+      "SEĞMEN KARDEŞLER GIDA",
+      "SEĞMEN KARDEŞLER",
+      "SEGMEN KARDESLER"
+    ],
+    "search_gkg": [
+      "SEGMEN KARDESLER GIDA URETIM VE AMBALAJ SANAYI"
+    ]
+  },
+  "SEGYO": {
+    "name_tr": "ŞEKER GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "SEKER GAYRIMENKUL YATIRIM",
+      "ŞEKER GAYRİMENKUL YATIRIM",
+      "SEKER GAYRIMENKUL",
+      "ŞEKER GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "SEKER GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "SEK": {
+    "name_tr": "ŞEKERBANK T.A.Ş.",
+    "search_title": [
+      "ŞEKERBANK",
+      "SEKERBANK"
+    ],
+    "search_gkg": [
+      "SEKERBANK"
+    ]
+  },
+  "SEKFK": {
+    "name_tr": "ŞEKER FİNANSAL KİRALAMA A.Ş.",
+    "search_title": [
+      "ŞEKER FİNANSAL KİRALAMA",
+      "ŞEKER FİNANSAL",
+      "SEKER FINANSAL KIRALAMA",
+      "SEKER FINANSAL"
+    ],
+    "search_gkg": [
+      "SEKER FINANSAL KIRALAMA"
+    ]
+  },
+  "SEKUR": {
+    "name_tr": "SEKURO PLASTİK AMBALAJ SANAYİ A.Ş.",
+    "search_title": [
+      "SEKURO PLASTIK AMBALAJ",
+      "SEKURO PLASTİK AMBALAJ",
+      "SEKURO PLASTIK",
+      "SEKURO PLASTİK"
+    ],
+    "search_gkg": [
+      "SEKURO PLASTIK AMBALAJ SANAYI"
+    ]
+  },
+  "SELEC": {
+    "search_title": [
+      "SELÇUK ECZA",
+      "SELCUK ECZA"
+    ],
+    "search_gkg": [
+      "SELCUK ECZA"
+    ],
+    "name_tr": "SELÇUK ECZA DEPOSU TİCARET VE SANAYİ A.Ş."
+  },
+  "SELVA": {
+    "name_tr": "SELVA GIDA SANAYİ A.Ş.",
+    "search_title": [
+      "SELVA GIDA",
+      "SELVA GIDA SANAYI",
+      "SELVA GIDA SANAYİ"
+    ],
+    "search_gkg": [
+      "SELVA GIDA SANAYI"
+    ]
+  },
+  "SERNT": {
+    "name_tr": "SERANİT GRANİT SERAMİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SERANİT GRANİT SERAMİK",
+      "SERANİT GRANİT",
+      "SERANIT GRANIT SERAMIK",
+      "SERANIT GRANIT"
+    ],
+    "search_gkg": [
+      "SERANIT GRANIT SERAMIK SANAYI VE TICARET"
+    ]
+  },
+  "SEYKM": {
+    "name_tr": "SEYİTLER KİMYA SANAYİ A.Ş.",
+    "search_title": [
+      "SEYİTLER KİMYA",
+      "SEYITLER KIMYA SANAYI",
+      "SEYİTLER KİMYA SANAYİ",
+      "SEYITLER KIMYA"
+    ],
+    "search_gkg": [
+      "SEYITLER KIMYA SANAYI"
+    ]
+  },
+  "SILVR": {
+    "name_tr": "SİLVERLİNE ENDÜSTRİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SİLVERLİNE ENDÜSTRİ",
+      "SİLVERLİNE ENDÜSTRİ VE",
+      "SILVERLINE ENDUSTRI VE",
+      "SILVERLINE ENDUSTRI"
+    ],
+    "search_gkg": [
+      "SILVERLINE ENDUSTRI VE TICARET"
+    ]
+  },
+  "SISES": {
+    "name_tr": "TÜRKİYE ŞİŞE VE CAM FABRİKALARI A.Ş.",
+    "search_title": [
+      "TURKIYE SISE VE",
+      "TURKIYE SISE",
+      "TÜRKİYE ŞİŞE VE",
+      "TÜRKİYE ŞİŞE"
+    ],
+    "search_gkg": [
+      "TURKIYE SISE VE CAM FABRIKALARI"
+    ]
+  },
+  "SKTAS": {
+    "search_title": [
+      "SÖKTAŞ",
+      "SOKTAS"
+    ],
+    "search_gkg": [
+      "SOKTAS"
+    ],
+    "name_tr": "SÖKTAŞ TEKSTİL SANAYİ VE TİCARET A.Ş."
+  },
+  "SKY": {
+    "name_tr": "ŞEKER YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "SEKER YATIRIM",
+      "SEKER YATIRIM MENKUL",
+      "ŞEKER YATIRIM MENKUL",
+      "ŞEKER YATIRIM"
+    ],
+    "search_gkg": [
+      "SEKER YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "SKYLP": {
+    "name_tr": "SKYALP FİNANSAL TEKNOLOJİLER VE DANIŞMANLIK A.Ş.",
+    "search_title": [
+      "SKYALP FİNANSAL",
+      "SKYALP FINANSAL TEKNOLOJILER",
+      "SKYALP FINANSAL",
+      "SKYALP FİNANSAL TEKNOLOJİLER"
+    ],
+    "search_gkg": [
+      "SKYALP FINANSAL TEKNOLOJILER VE DANISMANLIK"
+    ]
+  },
+  "SMART": {
+    "search_title": [
+      "SMARTİKS",
+      "SMARTIKS"
+    ],
+    "search_gkg": [
+      "SMARTIKS"
+    ],
+    "name_tr": "SMARTİKS YAZILIM A.Ş."
+  },
+  "SMRTG": {
+    "search_title": [
+      "SMART GÜNEŞ",
+      "SMART GUNES",
+      "SMART ENERJİ"
+    ],
+    "search_gkg": [
+      "SMART GUNES"
+    ],
+    "name_tr": "SMART GÜNEŞ ENERJİSİ TEKNOLOJİLERİ ARAŞTIRMA GELİŞTİRME ÜRETİM SANAYİ VE TİCARET A.Ş."
+  },
+  "SMRVA": {
+    "name_tr": "SÜMER VARLIK YÖNETİM A.Ş.",
+    "search_title": [
+      "SUMER VARLIK",
+      "SÜMER VARLIK YÖNETİM",
+      "SUMER VARLIK YONETIM",
+      "SÜMER VARLIK"
+    ],
+    "search_gkg": [
+      "SUMER VARLIK YONETIM"
+    ]
+  },
+  "SNGYO": {
+    "search_title": [
+      "SİNPAŞ GAYRİMENKUL",
+      "SINPAS GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "SINPAS GAYRIMENKUL"
+    ],
+    "name_tr": "SİNPAŞ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş."
+  },
+  "SNICA": {
+    "name_tr": "SANİCA ISI SANAYİ A.Ş.",
+    "search_title": [
+      "SANİCA ISI SANAYİ",
+      "SANICA ISI",
+      "SANİCA ISI",
+      "SANICA ISI SANAYI"
+    ],
+    "search_gkg": [
+      "SANICA ISI SANAYI"
+    ]
+  },
+  "SNPAM": {
+    "name_tr": "SÖNMEZ PAMUKLU SANAYİİ A.Ş.",
+    "search_title": [
+      "SÖNMEZ PAMUKLU SANAYİİ",
+      "SONMEZ PAMUKLU",
+      "SONMEZ PAMUKLU SANAYII",
+      "SÖNMEZ PAMUKLU"
+    ],
+    "search_gkg": [
+      "SONMEZ PAMUKLU SANAYII"
+    ]
+  },
+  "SODSN": {
+    "name_tr": "SODAŞ SODYUM SANAYİİ A.Ş.",
+    "search_title": [
+      "SODAS SODYUM SANAYII",
+      "SODAS SODYUM",
+      "SODAŞ SODYUM",
+      "SODAŞ SODYUM SANAYİİ"
+    ],
+    "search_gkg": [
+      "SODAS SODYUM SANAYII"
+    ]
+  },
+  "SOHOE": {
+    "name_tr": "SOHO GİYİM VE ENERJİ A.Ş.",
+    "search_title": [
+      "SOHO GİYİM VE",
+      "SOHO GIYIM",
+      "SOHO GIYIM VE",
+      "SOHO GİYİM"
+    ],
+    "search_gkg": [
+      "SOHO GIYIM VE ENERJI"
+    ]
+  },
+  "SOKES": {
+    "name_tr": "SÖKE DEĞİRMENCİLİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SÖKE DEĞİRMENCİLİK SANAYİ",
+      "SOKE DEGIRMENCILIK SANAYI",
+      "SÖKE DEĞİRMENCİLİK",
+      "SOKE DEGIRMENCILIK"
+    ],
+    "search_gkg": [
+      "SOKE DEGIRMENCILIK SANAYI VE TICARET"
+    ]
+  },
+  "SOKMS": {
+    "name_tr": "ŞOK MARKETLER TİCARET A.Ş.",
+    "search_title": [
+      "SOK MARKETLER TICARET",
+      "ŞOK MARKETLER",
+      "ŞOK MARKETLER TİCARET",
+      "SOK MARKETLER"
+    ],
+    "search_gkg": [
+      "SOK MARKETLER TICARET"
+    ]
+  },
+  "SONME": {
+    "name_tr": "SÖNMEZ FİLAMENT SENTETİK İPLİK VE ELYAF SANAYİ A.Ş.",
+    "search_title": [
+      "SÖNMEZ FİLAMENT",
+      "SÖNMEZ FİLAMENT SENTETİK",
+      "SONMEZ FILAMENT",
+      "SONMEZ FILAMENT SENTETIK"
+    ],
+    "search_gkg": [
+      "SONMEZ FILAMENT SENTETIK IPLIK VE ELYAF SANAYI"
+    ]
+  },
+  "SRVGY": {
+    "name_tr": "SERVET GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "SERVET GAYRIMENKUL",
+      "SERVET GAYRİMENKUL",
+      "SERVET GAYRİMENKUL YATIRIM",
+      "SERVET GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "SERVET GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "SUMAS": {
+    "name_tr": "SUMAŞ SUNİ TAHTA VE MOBİLYA SANAYİİ A.Ş.",
+    "search_title": [
+      "SUMAŞ SUNİ",
+      "SUMAS SUNI",
+      "SUMAS SUNI TAHTA",
+      "SUMAŞ SUNİ TAHTA"
+    ],
+    "search_gkg": [
+      "SUMAS SUNI TAHTA VE MOBILYA SANAYII"
+    ]
+  },
+  "SUNTK": {
+    "name_tr": "SUN TEKSTİL SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "SUN TEKSTİL SANAYİ",
+      "SUN TEKSTIL SANAYI",
+      "SUN TEKSTİL",
+      "SUN TEKSTIL"
+    ],
+    "search_gkg": [
+      "SUN TEKSTIL SANAYI VE TICARET"
+    ]
+  },
+  "SURGY": {
+    "name_tr": "SUR TATİL EVLERİ GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "SUR TATİL",
+      "SUR TATİL EVLERİ",
+      "SUR TATIL",
+      "SUR TATIL EVLERI"
+    ],
+    "search_gkg": [
+      "SUR TATIL EVLERI GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "SUWEN": {
+    "search_title": [
+      "SUWEN TEKSTİL",
+      "SUWEN"
+    ],
+    "search_gkg": [
+      "SUWEN"
+    ],
+    "name_tr": "SUWEN TEKSTİL SANAYİ PAZARLAMA A.Ş."
+  },
+  "SVGYO": {
+    "name_tr": "SAVUR GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "SAVUR GAYRİMENKUL",
+      "SAVUR GAYRIMENKUL YATIRIM",
+      "SAVUR GAYRİMENKUL YATIRIM",
+      "SAVUR GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "SAVUR GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "TABGD": {
+    "search_title": [
+      "TAB GIDA",
+      "TAB FOOD"
+    ],
+    "search_gkg": [
+      "TAB GIDA"
+    ],
+    "name_tr": "TAB GIDA SANAYİ VE TİCARET A.Ş."
+  },
+  "TARKM": {
+    "search_title": [
+      "TARKİM",
+      "TARKIM"
+    ],
+    "search_gkg": [
+      "TARKIM"
+    ],
+    "name_tr": "TARKİM BİTKİ KORUMA SANAYİ VE TİCARET A.Ş."
+  },
+  "TATEN": {
+    "search_title": [
+      "TATLIPINAR",
+      "TATLIPINAR ENERJİ"
+    ],
+    "search_gkg": [
+      "TATLIPINAR ENERJI"
+    ],
+    "name_tr": "TATLIPINAR ENERJİ ÜRETİM A.Ş."
+  },
+  "TATGD": {
+    "name_tr": "TAT GIDA SANAYİ A.Ş.",
+    "search_title": [
+      "TAT GIDA SANAYİ",
+      "TAT GIDA SANAYI",
+      "TAT GIDA"
+    ],
+    "search_gkg": [
+      "TAT GIDA SANAYI"
+    ]
+  },
+  "TAVHL": {
+    "search_title": [
+      "TAV HAVALİMANLARI",
+      "TAV HAVALIMANLARI",
+      "TAV AIRPORTS"
+    ],
+    "search_gkg": [
+      "TAV HAVALIMANLARI"
+    ],
+    "name_tr": "TAV HAVALİMANLARI HOLDİNG A.Ş."
+  },
+  "TBORG": {
+    "name_tr": "TÜRK TUBORG BİRA VE MALT SANAYİİ A.Ş.",
+    "search_title": [
+      "TÜRK TUBORG BİRA",
+      "TURK TUBORG BIRA",
+      "TÜRK TUBORG",
+      "TURK TUBORG"
+    ],
+    "search_gkg": [
+      "TURK TUBORG BIRA VE MALT SANAYII"
+    ]
+  },
+  "TCELL": {
+    "search_title": [
+      "TURKCELL"
+    ],
+    "search_gkg": [
+      "TURKCELL"
+    ],
+    "name_tr": "TURKCELL İLETİŞİM HİZMETLERİ A.Ş."
+  },
+  "TCKRC": {
+    "name_tr": "KIRAÇ GALVANİZ TELEKOMİNİKASYON METAL MAKİNE İNŞAAT ELEKTRİK SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "KIRAÇ GALVANİZ TELEKOMİNİKASYON",
+      "KIRAC GALVANIZ TELEKOMINIKASYON",
+      "KIRAÇ GALVANİZ",
+      "KIRAC GALVANIZ"
+    ],
+    "search_gkg": [
+      "KIRAC GALVANIZ TELEKOMINIKASYON METAL MAKINE INSAAT ELEKTRIK SANAYI VE TICARET"
+    ]
+  },
+  "TDGYO": {
+    "name_tr": "TREND GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "TREND GAYRIMENKUL YATIRIM",
+      "TREND GAYRİMENKUL",
+      "TREND GAYRIMENKUL",
+      "TREND GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "TREND GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "TEHOL": {
+    "name_tr": "TERA YATIRIM TEKNOLOJİ HOLDİNG A.Ş.",
+    "search_title": [
+      "TERA YATIRIM TEKNOLOJI",
+      "TERA YATIRIM TEKNOLOJİ",
+      "TERA YATIRIM"
+    ],
+    "search_gkg": [
+      "TERA YATIRIM TEKNOLOJI HOLDING"
+    ]
+  },
+  "TEKTU": {
+    "name_tr": "TEK-ART İNŞAAT TİCARET TURİZM SANAYİ VE YATIRIMLAR A.Ş.",
+    "search_title": [
+      "TEK-ART INSAAT TICARET",
+      "TEK-ART İNŞAAT",
+      "TEK-ART INSAAT",
+      "TEK-ART İNŞAAT TİCARET"
+    ],
+    "search_gkg": [
+      "TEK-ART INSAAT TICARET TURIZM SANAYI VE YATIRIMLAR"
+    ]
+  },
+  "TERA": {
+    "name_tr": "TERA YATIRIM MENKUL DEĞERLER A.Ş.",
+    "search_title": [
+      "TERA YATIRIM MENKUL",
+      "TERA YATIRIM"
+    ],
+    "search_gkg": [
+      "TERA YATIRIM MENKUL DEGERLER"
+    ]
+  },
+  "TEZOL": {
+    "search_title": [
+      "EUROPAP",
+      "TEZOL KAĞIT"
+    ],
+    "search_gkg": [
+      "EUROPAP"
+    ],
+    "name_tr": "EUROPAP TEZOL KAĞIT SANAYİ VE TİCARET A.Ş."
+  },
+  "TGSAS": {
+    "name_tr": "TGS DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "TGS DIŞ",
+      "TGS DIS",
+      "TGS DIS TICARET",
+      "TGS DIŞ TİCARET"
+    ],
+    "search_gkg": [
+      "TGS DIS TICARET"
+    ]
+  },
+  "THYAO": {
+    "search_title": [
+      "TÜRK HAVA",
+      "TURKISH AIRLINES",
+      "THY"
+    ],
+    "search_gkg": [
+      "TURKISH AIRLINES"
+    ],
+    "filter_lang": {
+      "THY": [
+        "TURKISH"
+      ]
+    },
+    "name_tr": "TÜRK HAVA YOLLARI A.O."
+  },
+  "TKFEN": {
+    "search_title": [
+      "TEKFEN",
+      "TEKFEN HOLDİNG"
+    ],
+    "search_gkg": [
+      "TEKFEN HOLDING"
+    ],
+    "name_tr": "TEKFEN HOLDİNG A.Ş."
+  },
+  "TKNSA": {
+    "name_tr": "TEKNOSA İÇ VE DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "TEKNOSA İÇ VE",
+      "TEKNOSA IC VE",
+      "TEKNOSA İÇ",
+      "TEKNOSA IC"
+    ],
+    "search_gkg": [
+      "TEKNOSA IC VE DIS TICARET"
+    ]
+  },
+  "TLMAN": {
+    "name_tr": "TRABZON LİMAN İŞLETMECİLİĞİ A.Ş.",
+    "search_title": [
+      "TRABZON LİMAN",
+      "TRABZON LİMAN İŞLETMECİLİĞİ",
+      "TRABZON LIMAN",
+      "TRABZON LIMAN ISLETMECILIGI"
+    ],
+    "search_gkg": [
+      "TRABZON LIMAN ISLETMECILIGI"
+    ]
+  },
+  "TMPOL": {
+    "name_tr": "TEMAPOL POLİMER PLASTİK VE İNŞAAT SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "TEMAPOL POLİMER PLASTİK",
+      "TEMAPOL POLIMER PLASTIK",
+      "TEMAPOL POLIMER",
+      "TEMAPOL POLİMER"
+    ],
+    "search_gkg": [
+      "TEMAPOL POLIMER PLASTIK VE INSAAT SANAYI TICARET"
+    ]
+  },
+  "TMSNT": {
+    "name_tr": "TÜMOSAN MOTOR VE TRAKTÖR SANAYİ A.Ş.",
+    "search_title": [
+      "TÜMOSAN MOTOR",
+      "TUMOSAN MOTOR",
+      "TUMOSAN MOTOR VE",
+      "TÜMOSAN MOTOR VE"
+    ],
+    "search_gkg": [
+      "TUMOSAN MOTOR VE TRAKTOR SANAYI"
+    ]
+  },
+  "TNZTP": {
+    "name_tr": "TAPDİ OKSİJEN ÖZEL SAĞLIK VE EĞİTİM HİZMETLERİ SANAYİ TİCARET A.Ş.",
+    "search_title": [
+      "TAPDI OKSIJEN OZEL",
+      "TAPDİ OKSİJEN",
+      "TAPDI OKSIJEN",
+      "TAPDİ OKSİJEN ÖZEL"
+    ],
+    "search_gkg": [
+      "TAPDI OKSIJEN OZEL SAGLIK VE EGITIM HIZMETLERI SANAYI TICARET"
+    ]
+  },
+  "TOASO": {
+    "search_title": [
+      "TOFAŞ",
+      "TOFAS"
+    ],
+    "search_gkg": [
+      "TOFAS"
+    ],
+    "name_tr": "TOFAŞ TÜRK OTOMOBİL FABRİKASI A.Ş."
+  },
+  "TRALT": {
+    "name_tr": "TÜRK ALTIN İŞLETMELERİ A.Ş.",
+    "search_title": [
+      "TÜRK ALTIN",
+      "TURK ALTIN ISLETMELERI",
+      "TÜRK ALTIN İŞLETMELERİ",
+      "TURK ALTIN"
+    ],
+    "search_gkg": [
+      "TURK ALTIN ISLETMELERI"
+    ]
+  },
+  "TRCAS": {
+    "search_title": [
+      "TURCAS",
+      "TURCAS HOLDİNG"
+    ],
+    "search_gkg": [
+      "TURCAS HOLDING"
+    ],
+    "name_tr": "TURCAS HOLDİNG A.Ş."
+  },
+  "TRENJ": {
+    "name_tr": "TR DOĞAL ENERJİ KAYNAKLARI ARAŞTIRMA VE ÜRETİM A.Ş.",
+    "search_title": [
+      "TR DOĞAL",
+      "TR DOGAL",
+      "TR DOĞAL ENERJİ",
+      "TR DOGAL ENERJI"
+    ],
+    "search_gkg": [
+      "TR DOGAL ENERJI KAYNAKLARI ARASTIRMA VE URETIM"
+    ]
+  },
+  "TRGYO": {
+    "search_title": [
+      "TORUNLAR GAYRİMENKUL",
+      "TORUNLAR GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "TORUNLAR GAYRIMENKUL"
+    ],
+    "name_tr": "TORUNLAR GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş."
+  },
+  "TRHOL": {
+    "name_tr": "TERA FİNANSAL YATIRIMLAR HOLDİNG A.Ş.",
+    "search_title": [
+      "TERA FINANSAL",
+      "TERA FİNANSAL",
+      "TERA FINANSAL YATIRIMLAR",
+      "TERA FİNANSAL YATIRIMLAR"
+    ],
+    "search_gkg": [
+      "TERA FINANSAL YATIRIMLAR HOLDING"
+    ]
+  },
+  "TRILC": {
+    "search_title": [
+      "TURK İLAÇ",
+      "TURK ILAC"
+    ],
+    "search_gkg": [
+      "TURK ILAC"
+    ],
+    "name_tr": "TURK İLAÇ VE SERUM SANAYİ A.Ş."
+  },
+  "TRMET": {
+    "name_tr": "TR ANADOLU METAL MADENCİLİK İŞLETMELERİ A.Ş.",
+    "search_title": [
+      "TR ANADOLU METAL",
+      "TR ANADOLU"
+    ],
+    "search_gkg": [
+      "TR ANADOLU METAL MADENCILIK ISLETMELERI"
+    ]
+  },
+  "TSGYO": {
+    "name_tr": "TSKB GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "TSKB GAYRİMENKUL",
+      "TSKB GAYRIMENKUL YATIRIM",
+      "TSKB GAYRİMENKUL YATIRIM",
+      "TSKB GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "TSKB GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "TSK": {
+    "name_tr": "TÜRKİYE SINAİ KALKINMA BANKASI A.Ş.",
+    "search_title": [
+      "TÜRKİYE SINAİ KALKINMA",
+      "TURKIYE SINAI KALKINMA",
+      "TÜRKİYE SINAİ",
+      "TURKIYE SINAI"
+    ],
+    "search_gkg": [
+      "TURKIYE SINAI KALKINMA BANKASI"
+    ]
+  },
+  "TSPOR": {
+    "search_title": [
+      "TRABZONSPOR",
+      "TRABZONSPOR"
+    ],
+    "search_gkg": [
+      "TRABZONSPOR"
+    ],
+    "name_tr": "TRABZONSPOR SPORTİF YATIRIM VE FUTBOL İŞLETMECİLİĞİ TİCARET A.Ş."
+  },
+  "TTKOM": {
+    "search_title": [
+      "TÜRK TELEKOM",
+      "TURK TELEKOM"
+    ],
+    "search_gkg": [
+      "TURK TELEKOM"
+    ],
+    "name_tr": "TÜRK TELEKOMÜNİKASYON A.Ş."
+  },
+  "TTRAK": {
+    "search_title": [
+      "TÜRK TRAKTÖR",
+      "TURK TRAKTOR"
+    ],
+    "search_gkg": [
+      "TURK TRAKTOR"
+    ],
+    "name_tr": "TÜRK TRAKTÖR VE ZİRAAT MAKİNELERİ A.Ş."
+  },
+  "TUCLK": {
+    "name_tr": "TUĞÇELİK ALÜMİNYUM VE METAL MAMÜLLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "TUGCELIK ALUMINYUM",
+      "TUĞÇELİK ALÜMİNYUM",
+      "TUGCELIK ALUMINYUM VE",
+      "TUĞÇELİK ALÜMİNYUM VE"
+    ],
+    "search_gkg": [
+      "TUGCELIK ALUMINYUM VE METAL MAMULLERI SANAYI VE TICARET"
+    ]
+  },
+  "TUKAS": {
+    "name_tr": "TUKAŞ GIDA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "TUKAŞ GIDA SANAYİ",
+      "TUKAS GIDA",
+      "TUKAS GIDA SANAYI",
+      "TUKAŞ GIDA"
+    ],
+    "search_gkg": [
+      "TUKAS GIDA SANAYI VE TICARET"
+    ]
+  },
+  "TUPRS": {
+    "search_title": [
+      "TÜPRAŞ",
+      "TUPRAS",
+      "TURKISH PETROLEUM"
+    ],
+    "search_gkg": [
+      "TUPRAS"
+    ],
+    "name_tr": "TÜPRAŞ-TÜRKİYE PETROL RAFİNERİLERİ A.Ş."
+  },
+  "TUREX": {
+    "search_title": [
+      "TUREKS TURİZM",
+      "TUREKS TURIZM"
+    ],
+    "search_gkg": [
+      "TUREKS TURIZM"
+    ],
+    "name_tr": "TUREKS TURİZM TAŞIMACILIK A.Ş."
+  },
+  "TURGG": {
+    "name_tr": "TÜRKER PROJE GAYRİMENKUL VE YATIRIM GELİŞTİRME A.Ş.",
+    "search_title": [
+      "TÜRKER PROJE",
+      "TURKER PROJE GAYRIMENKUL",
+      "TÜRKER PROJE GAYRİMENKUL",
+      "TURKER PROJE"
+    ],
+    "search_gkg": [
+      "TURKER PROJE GAYRIMENKUL VE YATIRIM GELISTIRME"
+    ]
+  },
+  "TURSG": {
+    "search_title": [
+      "TÜRKİYE SİGORTA",
+      "TURKIYE SIGORTA"
+    ],
+    "search_gkg": [
+      "TURKIYE SIGORTA"
+    ],
+    "name_tr": "TÜRKİYE SİGORTA A.Ş."
+  },
+  "TVB": {
+    "name_tr": "TÜRKİYE VAKIFLAR BANKASI T.A.O.",
+    "search_title": [
+      "TURKIYE VAKIFLAR",
+      "TURKIYE VAKIFLAR BANKASI",
+      "TÜRKİYE VAKIFLAR BANKASI",
+      "TÜRKİYE VAKIFLAR"
+    ],
+    "search_gkg": [
+      "TURKIYE VAKIFLAR BANKASI"
+    ]
+  },
+  "UCAYM": {
+    "name_tr": "ÜÇAY MÜHENDİSLİK ENERJİ VE İKLİMLENDİRME TEKNOLOJİLERİ A.Ş.",
+    "search_title": [
+      "UCAY MUHENDISLIK ENERJI",
+      "UCAY MUHENDISLIK",
+      "ÜÇAY MÜHENDİSLİK ENERJİ",
+      "ÜÇAY MÜHENDİSLİK"
+    ],
+    "search_gkg": [
+      "UCAY MUHENDISLIK ENERJI VE IKLIMLENDIRME TEKNOLOJILERI"
+    ]
+  },
+  "UFUKU": {
+    "name_tr": "UFUK YATIRIM YÖNETİM VE GAYRİMENKUL A.Ş.",
+    "search_title": [
+      "UFUK YATIRIM",
+      "UFUK YATIRIM YÖNETİM",
+      "UFUK YATIRIM YONETIM"
+    ],
+    "search_gkg": [
+      "UFUK YATIRIM YONETIM VE GAYRIMENKUL"
+    ]
+  },
+  "ULASU": {
+    "name_tr": "ULAŞLAR TURİZM ENERJİ TARIM GIDA VE İNŞAAT YATIRIMLARI A.Ş.",
+    "search_title": [
+      "ULAŞLAR TURİZM ENERJİ",
+      "ULASLAR TURIZM ENERJI",
+      "ULASLAR TURIZM",
+      "ULAŞLAR TURİZM"
+    ],
+    "search_gkg": [
+      "ULASLAR TURIZM ENERJI TARIM GIDA VE INSAAT YATIRIMLARI"
+    ]
+  },
+  "ULKER": {
+    "search_title": [
+      "ÜLKER",
+      "ULKER",
+      "ÜLKER BİSKÜVİ",
+      "ULKER BISKUVI"
+    ],
+    "search_gkg": [
+      "ULKER"
+    ],
+    "name_tr": "ÜLKER BİSKÜVİ SANAYİ A.Ş."
+  },
+  "ULUFA": {
+    "name_tr": "ULUSAL FAKTORİNG A.Ş.",
+    "search_title": [
+      "ULUSAL FAKTORİNG",
+      "ULUSAL FAKTORING"
+    ],
+    "search_gkg": [
+      "ULUSAL FAKTORING"
+    ]
+  },
+  "ULUSE": {
+    "search_title": [
+      "ULUSOY ELEKTRİK",
+      "ULUSOY ELEKTRIK"
+    ],
+    "search_gkg": [
+      "ULUSOY ELEKTRIK"
+    ],
+    "name_tr": "ULUSOY ELEKTRİK İMALAT TAAHHÜT VE TİCARET A.Ş."
+  },
+  "ULUUN": {
+    "name_tr": "ULUSOY UN SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "ULUSOY UN",
+      "ULUSOY UN SANAYİ",
+      "ULUSOY UN SANAYI"
+    ],
+    "search_gkg": [
+      "ULUSOY UN SANAYI VE TICARET"
+    ]
+  },
+  "UMPAS": {
+    "name_tr": "UMPAŞ HOLDİNG A.Ş.",
+    "search_title": [
+      "UMPAŞ HOLDİNG",
+      "UMPAS HOLDING"
+    ],
+    "search_gkg": [
+      "UMPAS HOLDING"
+    ]
+  },
+  "UNLUU": {
+    "name_tr": "ÜNLÜ YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "UNLU YATIRIM",
+      "UNLU YATIRIM HOLDING",
+      "ÜNLÜ YATIRIM",
+      "ÜNLÜ YATIRIM HOLDİNG"
+    ],
+    "search_gkg": [
+      "UNLU YATIRIM HOLDING"
+    ]
+  },
+  "USAKU": {
+    "name_tr": "UŞAK SERAMİK SANAYİ A.Ş.",
+    "search_title": [
+      "UŞAK SERAMİK",
+      "USAK SERAMIK SANAYI",
+      "USAK SERAMIK",
+      "UŞAK SERAMİK SANAYİ"
+    ],
+    "search_gkg": [
+      "USAK SERAMIK SANAYI"
+    ]
+  },
+  "VAKFA": {
+    "name_tr": "VAKIF FAKTORİNG A.Ş.",
+    "search_title": [
+      "VAKIF FAKTORING",
+      "VAKIF FAKTORİNG"
+    ],
+    "search_gkg": [
+      "VAKIF FAKTORING"
+    ]
+  },
+  "VAKFN": {
+    "name_tr": "VAKIF FİNANSAL KİRALAMA A.Ş.",
+    "search_title": [
+      "VAKIF FINANSAL",
+      "VAKIF FINANSAL KIRALAMA",
+      "VAKIF FİNANSAL",
+      "VAKIF FİNANSAL KİRALAMA"
+    ],
+    "search_gkg": [
+      "VAKIF FINANSAL KIRALAMA"
+    ]
+  },
+  "VAKKO": {
+    "name_tr": "VAKKO TEKSTİL VE HAZIR GİYİM SANAYİ İŞLETMELERİ A.Ş.",
+    "search_title": [
+      "VAKKO TEKSTİL",
+      "VAKKO TEKSTIL VE",
+      "VAKKO TEKSTIL",
+      "VAKKO TEKSTİL VE"
+    ],
+    "search_gkg": [
+      "VAKKO TEKSTIL VE HAZIR GIYIM SANAYI ISLETMELERI"
+    ]
+  },
+  "VANGD": {
+    "name_tr": "VANET GIDA SANAYİ İÇ VE DIŞ TİCARET A.Ş.",
+    "search_title": [
+      "VANET GIDA SANAYİ",
+      "VANET GIDA SANAYI",
+      "VANET GIDA"
+    ],
+    "search_gkg": [
+      "VANET GIDA SANAYI IC VE DIS TICARET"
+    ]
+  },
+  "VBTYZ": {
+    "name_tr": "VBT YAZILIM A.Ş.",
+    "search_title": [
+      "VBT YAZILIM"
+    ],
+    "search_gkg": [
+      "VBT YAZILIM"
+    ]
+  },
+  "VERTU": {
+    "name_tr": "VERUSATURK GİRİŞİM SERMAYESİ YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "VERUSATURK GIRISIM",
+      "VERUSATURK GİRİŞİM",
+      "VERUSATURK GIRISIM SERMAYESI",
+      "VERUSATURK GİRİŞİM SERMAYESİ"
+    ],
+    "search_gkg": [
+      "VERUSATURK GIRISIM SERMAYESI YATIRIM ORTAKLIGI"
+    ]
+  },
+  "VERUS": {
+    "name_tr": "VERUSA HOLDİNG A.Ş.",
+    "search_title": [
+      "VERUSA HOLDING",
+      "VERUSA HOLDİNG"
+    ],
+    "search_gkg": [
+      "VERUSA HOLDING"
+    ]
+  },
+  "VESBE": {
+    "search_title": [
+      "VESTEL BEYAZ",
+      "VESTEL BEYAZ EŞYA"
+    ],
+    "search_gkg": [
+      "VESTEL"
+    ],
+    "name_tr": "VESTEL BEYAZ EŞYA SANAYİ VE TİCARET A.Ş."
+  },
+  "VESTL": {
+    "search_title": [
+      "VESTEL",
+      "VESTEL ELEKTRONİK"
+    ],
+    "search_gkg": [
+      "VESTEL"
+    ],
+    "name_tr": "VESTEL ELEKTRONİK SANAYİ VE TİCARET A.Ş."
+  },
+  "VKFYO": {
+    "name_tr": "VAKIF MENKUL KIYMET YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "VAKIF MENKUL",
+      "VAKIF MENKUL KIYMET"
+    ],
+    "search_gkg": [
+      "VAKIF MENKUL KIYMET YATIRIM ORTAKLIGI"
+    ]
+  },
+  "VKGYO": {
+    "name_tr": "VAKIF GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "VAKIF GAYRIMENKUL",
+      "VAKIF GAYRİMENKUL",
+      "VAKIF GAYRIMENKUL YATIRIM",
+      "VAKIF GAYRİMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "VAKIF GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "VKING": {
+    "name_tr": "VİKİNG KAĞIT VE SELÜLOZ A.Ş.",
+    "search_title": [
+      "VİKİNG KAĞIT VE",
+      "VIKING KAGIT",
+      "VIKING KAGIT VE",
+      "VİKİNG KAĞIT"
+    ],
+    "search_gkg": [
+      "VIKING KAGIT VE SELULOZ"
+    ]
+  },
+  "VRGYO": {
+    "name_tr": "VERA KONSEPT GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "VERA KONSEPT GAYRIMENKUL",
+      "VERA KONSEPT GAYRİMENKUL",
+      "VERA KONSEPT"
+    ],
+    "search_gkg": [
+      "VERA KONSEPT GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "VSNMD": {
+    "name_tr": "VİŞNE MADENCİLİK ÜRETİM SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "VİŞNE MADENCİLİK",
+      "VİŞNE MADENCİLİK ÜRETİM",
+      "VISNE MADENCILIK",
+      "VISNE MADENCILIK URETIM"
+    ],
+    "search_gkg": [
+      "VISNE MADENCILIK URETIM SANAYI VE TICARET"
+    ]
+  },
+  "YAPRK": {
+    "name_tr": "YAPRAK SÜT VE BESİ ÇİFTLİKLERİ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "YAPRAK SUT",
+      "YAPRAK SÜT VE",
+      "YAPRAK SUT VE",
+      "YAPRAK SÜT"
+    ],
+    "search_gkg": [
+      "YAPRAK SUT VE BESI CIFTLIKLERI SANAYI VE TICARET"
+    ]
+  },
+  "YATAS": {
+    "search_title": [
+      "YATAŞ",
+      "YATAS"
+    ],
+    "search_gkg": [
+      "YATAS"
+    ],
+    "name_tr": "YATAŞ YATAK VE YORGAN SANAYİ TİCARET A.Ş."
+  },
+  "YAYLA": {
+    "name_tr": "YAYLA ENERJİ ÜRETİM TURİZM VE İNŞAAT TİCARET A.Ş.",
+    "search_title": [
+      "YAYLA ENERJİ",
+      "YAYLA ENERJI URETIM",
+      "YAYLA ENERJI",
+      "YAYLA ENERJİ ÜRETİM"
+    ],
+    "search_gkg": [
+      "YAYLA ENERJI URETIM TURIZM VE INSAAT TICARET"
+    ]
+  },
+  "YBTAS": {
+    "name_tr": "YİBİTAŞ YOZGAT İŞÇİ BİRLİĞİ İNŞAAT MALZEMELERİ TİCARET VE SANAYİ A.Ş.",
+    "search_title": [
+      "YIBITAS YOZGAT",
+      "YIBITAS YOZGAT ISCI",
+      "YİBİTAŞ YOZGAT İŞÇİ",
+      "YİBİTAŞ YOZGAT"
+    ],
+    "search_gkg": [
+      "YIBITAS YOZGAT ISCI BIRLIGI INSAAT MALZEMELERI TICARET VE SANAYI"
+    ]
+  },
+  "YEOTK": {
+    "search_title": [
+      "YEO TEKNOLOJİ",
+      "YEO TEKNOLOJI"
+    ],
+    "search_gkg": [
+      "YEO TEKNOLOJI"
+    ],
+    "name_tr": "YEO TEKNOLOJİ ENERJİ VE ENDÜSTRİ A.Ş."
+  },
+  "YESIL": {
+    "name_tr": "YEŞİL YATIRIM HOLDİNG A.Ş.",
+    "search_title": [
+      "YESIL YATIRIM HOLDING",
+      "YESIL YATIRIM",
+      "YEŞİL YATIRIM HOLDİNG",
+      "YEŞİL YATIRIM"
+    ],
+    "search_gkg": [
+      "YESIL YATIRIM HOLDING"
+    ]
+  },
+  "YGGYO": {
+    "name_tr": "YENİ GİMAT GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "YENİ GİMAT GAYRİMENKUL",
+      "YENI GIMAT",
+      "YENI GIMAT GAYRIMENKUL",
+      "YENİ GİMAT"
+    ],
+    "search_gkg": [
+      "YENI GIMAT GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "YIGIT": {
+    "name_tr": "YİĞİT AKÜ MALZEMELERİ NAKLİYAT TURİZM İNŞAAT SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "YIGIT AKU MALZEMELERI",
+      "YİĞİT AKÜ MALZEMELERİ",
+      "YIGIT AKU",
+      "YİĞİT AKÜ"
+    ],
+    "search_gkg": [
+      "YIGIT AKU MALZEMELERI NAKLIYAT TURIZM INSAAT SANAYI VE TICARET"
+    ]
+  },
+  "YKB": {
+    "name_tr": "YAPI VE KREDİ BANKASI A.Ş.",
+    "search_title": [
+      "YAPI VE KREDİ",
+      "YAPI VE KREDI",
+      "YAPI VE"
+    ],
+    "search_gkg": [
+      "YAPI VE KREDI BANKASI"
+    ]
+  },
+  "YKSLN": {
+    "name_tr": "YÜKSELEN ÇELİK A.Ş.",
+    "search_title": [
+      "YÜKSELEN ÇELİK",
+      "YUKSELEN CELIK"
+    ],
+    "search_gkg": [
+      "YUKSELEN CELIK"
+    ]
+  },
+  "YONGA": {
+    "name_tr": "YONGA MOBİLYA SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "YONGA MOBİLYA",
+      "YONGA MOBILYA",
+      "YONGA MOBILYA SANAYI",
+      "YONGA MOBİLYA SANAYİ"
+    ],
+    "search_gkg": [
+      "YONGA MOBILYA SANAYI VE TICARET"
+    ]
+  },
+  "YUNSA": {
+    "name_tr": "YÜNSA YÜNLÜ SANAYİ VE TİCARET A.Ş.",
+    "search_title": [
+      "YUNSA YUNLU",
+      "YÜNSA YÜNLÜ",
+      "YÜNSA YÜNLÜ SANAYİ",
+      "YUNSA YUNLU SANAYI"
+    ],
+    "search_gkg": [
+      "YUNSA YUNLU SANAYI VE TICARET"
+    ]
+  },
+  "YYAPI": {
+    "name_tr": "YEŞİL YAPI ENDÜSTRİSİ A.Ş.",
+    "search_title": [
+      "YESIL YAPI",
+      "YEŞİL YAPI",
+      "YEŞİL YAPI ENDÜSTRİSİ",
+      "YESIL YAPI ENDUSTRISI"
+    ],
+    "search_gkg": [
+      "YESIL YAPI ENDUSTRISI"
+    ]
+  },
+  "YYLGD": {
+    "search_title": [
+      "YAYLA AGRO",
+      "YAYLA GIDA"
+    ],
+    "search_gkg": [
+      "YAYLA AGRO"
+    ],
+    "name_tr": "YAYLA AGRO GIDA SANAYİ VE TİCARET A.Ş."
+  },
+  "ZEDUR": {
+    "name_tr": "ZEDUR ENERJİ ELEKTRİK ÜRETİM A.Ş.",
+    "search_title": [
+      "ZEDUR ENERJI ELEKTRIK",
+      "ZEDUR ENERJİ",
+      "ZEDUR ENERJİ ELEKTRİK",
+      "ZEDUR ENERJI"
+    ],
+    "search_gkg": [
+      "ZEDUR ENERJI ELEKTRIK URETIM"
+    ]
+  },
+  "ZERGY": {
+    "name_tr": "ZERAY GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ZERAY GAYRIMENKUL YATIRIM",
+      "ZERAY GAYRİMENKUL",
+      "ZERAY GAYRİMENKUL YATIRIM",
+      "ZERAY GAYRIMENKUL"
+    ],
+    "search_gkg": [
+      "ZERAY GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ZGYOZ": {
+    "name_tr": "Z GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "Z GAYRIMENKUL",
+      "Z GAYRIMENKUL YATIRIM",
+      "Z GAYRİMENKUL YATIRIM",
+      "Z GAYRİMENKUL"
+    ],
+    "search_gkg": [
+      "Z GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  },
+  "ZOREN": {
+    "search_title": [
+      "ZORLU ENERJİ",
+      "ZORLU ENERJI",
+      "ZORLU ENERGY"
+    ],
+    "search_gkg": [
+      "ZORLU ENERJI"
+    ],
+    "name_tr": "ZORLU ENERJİ ELEKTRİK ÜRETİM A.Ş."
+  },
+  "ZRGYO": {
+    "name_tr": "ZİRAAT GAYRİMENKUL YATIRIM ORTAKLIĞI A.Ş.",
+    "search_title": [
+      "ZIRAAT GAYRIMENKUL",
+      "ZİRAAT GAYRİMENKUL",
+      "ZİRAAT GAYRİMENKUL YATIRIM",
+      "ZIRAAT GAYRIMENKUL YATIRIM"
+    ],
+    "search_gkg": [
+      "ZIRAAT GAYRIMENKUL YATIRIM ORTAKLIGI"
+    ]
+  }
+}
