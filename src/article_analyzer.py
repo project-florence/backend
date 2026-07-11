@@ -1,11 +1,11 @@
 from pygments.lexers import q
 
 from article import Article
-from web_scraper import get_text_from_url
-from article_collector import collect_articles
-from llm_client import LLM_client
-from content import Content
-from utils.calender_utils import get_last_quarter_start
+from src.web_scraper import get_text_from_url
+from src.article_collector import collect_articles
+from src.llm_client import LLM_client
+from src.content import Content
+from src.utils.calender_utils import get_last_quarter_start
 from dotenv import load_dotenv
 
 load_dotenv()
