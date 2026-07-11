@@ -1,9 +1,9 @@
 import json
 import pykap
+from src.redis_connection import r
 import redis
 
 company_pull_interval = tickers_pull_interval = 60 * 60 * 24 * 30 # 30 days
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 def get_bist_tickers_as_list():
     return pykap.bist_company_list()
