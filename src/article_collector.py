@@ -1,14 +1,52 @@
-from datetime import datetime, timezone
+import json
+from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
 import pandas as pd
 
-from article import Article
-from generate_bist_mapping import load_bist_mapping
+from src.article import Article
+from src.generate_bist_mapping import load_bist_mapping
 from src.config import get_config
+from src.redis_connection import r
 
 _client: bigquery.Client | None = None
 _mapping: dict[str, dict] | None = None
+
+
+# ISO-8859-9 (Türkçe) olarak kodlanmış metin Windows-1252 ile çözülünce
+# oluşan mojibake karakterlerini düzeltme tablosu
+_TURKISH_MOJIBAKE = str.maketrans({
+    'ý': 'ı', 'ð': 'ğ', 'þ': 'ş',
+    'Ý': 'İ', 'Ð': 'Ğ', 'Þ': 'Ş',
+})
+
+
+def _repair_turkish_text(text: str) -> str:
+    return text.translate(_TURKISH_MOJIBAKE)
+
+
+def _serialize_articles(articles: list[Article]) -> str:
+    return json.dumps([
+        {"url": a.url, "title": a.title, "lang": a.lang, "date": a.date.isoformat() if a.date else None}
+        for a in articles
+    ], ensure_ascii=False)
+
+
+def _deserialize_articles(data: str) -> list[Article]:
+    raw = json.loads(data)
+    return [
+        Article(
+            url=item["url"],
+            title=item["title"],
+            lang=item["lang"],
+            date=datetime.fromisoformat(item["date"]) if item.get("date") else None,
+        )
+        for item in raw
+    ]
+
+
+def _cache_key(ticker: str, amount: int) -> str:
+    return f"news:{ticker.upper()}:{amount}"
 
 
 def _get_client() -> bigquery.Client:
@@ -173,6 +211,8 @@ def collect_articles(
         title_val = row["title"]
         if pd.isna(title_val):
             title_val = ""
+        else:
+            title_val = _repair_turkish_text(title_val)
 
         lang_val = row["lang"]
         if pd.isna(lang_val):
@@ -184,5 +224,20 @@ def collect_articles(
             lang=lang_val,
             date=date_val,
         ))
+
+    return articles
+
+
+def get_latest_news(ticker: str, amount: int) -> list[Article]:
+    key = _cache_key(ticker, amount)
+    cached = r.get(key)
+    if cached:
+        return _deserialize_articles(cached)
+
+    from_date = datetime.now(timezone.utc) - timedelta(days=90)
+    articles = collect_articles(ticker, from_date=from_date, limit=amount, lang=["TURKISH"], diverse=False)
+
+    cfg = get_config()["article_collector"]
+    r.set(key, _serialize_articles(articles), ex=cfg["cache_ttl"])
 
     return articles
