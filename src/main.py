@@ -104,3 +104,7 @@ def symbols():
 @app.get("/economy/currency")
 def currency():
     return economy_utils.get_currency()
+
+@app.get("/macroeconomy/all")
+def macroeconomy_all():
+    return {"henuz implement edilmedi. key value seklinde faiz, gdp, issizlik, cari acik, enflasyon vb. gibi verileri dondurur."}
