@@ -5,6 +5,7 @@ from src.get_bist_companies import get_bist_companies_as_dict_from_redis, get_bi
 from src.article_analyzer import generate_deep_report, generate_quick_report
 from src.search_utils import search_companies_by_text
 from src.config import init_config
+from src.company_info import get_company_info
 import json
 
 app = FastAPI()
@@ -33,6 +34,9 @@ def bist_tickers():
 def search_companies(ticker:str):
     return search_companies_by_text(ticker)
 
+@app.get("/companies/info/{ticker}")
+def company_info(ticker: str):
+    return get_company_info(ticker)
 @app.get("/generate/report/quick/{ticker}")
 def generate_quick_report(ticker: str):
     return """Hizli Rapor: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."""
@@ -41,7 +45,16 @@ def generate_quick_report(ticker: str):
 def generate_deep_report(ticker: str):
     return """Derin Rapor: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."""
 
-@app.get("/montecarlo/{ticker}/{time}")
-def montecarlo(ticker: str):
-    return {f"Sahte tahmin: {ticker} hissesi icin {time} araliginda yukari gitme ihtimali %43"}
+@app.get("/simulations/probability/{ticker}&{time}&{target}")
+def probability(ticker: str, time: str, target: str):
+    return {
+        "percent":0.23
+    }
 
+@app.get("/simulations/confidence-interval/{ticker}&{time}&{bound-percent}")
+def confidence_interval(ticker: str, time: str, bound: int):
+    return {
+        "min":85,
+        "max":140,
+        "type":"tl"
+    }
