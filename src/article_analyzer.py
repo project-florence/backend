@@ -1,6 +1,6 @@
 from pygments.lexers import q
 
-from article import Article
+from src.article import Article
 from src.web_scraper import get_text_from_url
 from src.article_collector import collect_articles
 from src.llm_client import LLM_client
@@ -81,6 +81,5 @@ def generate_deep_report(query: str) -> str:
     cfg = get_config()["article_analyzer"]
     return _generate_report(query, cfg["deep_report_article_limit"])
 
-generate_deep_report("aselsan")
 # TODO kirilganligi fixle
 # TODO yfinanceyi arastir ve ekle ve nasil kullanilabilir rapordan bagimsiz/birlikte etc.
