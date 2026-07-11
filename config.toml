@@ -1,0 +1,47 @@
+[redis]
+host = "localhost"
+port = 6379
+db = 0
+decode_responses = true
+
+[company_info]
+cache_ttl = 86400
+request_delay_min = 0.5
+request_delay_max = 1.5
+batch_size = 10
+batch_delay = 5
+max_retries = 3
+retry_sleep_min = 1
+retry_sleep_max = 3
+
+[article_analyzer]
+quick_report_article_limit = 10
+deep_report_article_limit = 100
+llm_url = "http://localhost:7777/v1"
+llm_model = "gemma-e2b-full-think"
+
+[gdelt_api]
+max_records = 250
+base_url = "https://api.gdeltproject.org/api/v2/doc/doc"
+mode = "ArtList"
+format = "json"
+timeout = 30
+
+[article_collector]
+bigquery_project = "project-florence-1"
+default_limit = 100
+gdelt_gqg_table = "gdelt-bq.gdeltv2.gqg"
+gdelt_gkg_table = "gdelt-bq.gdeltv2.gkg_partitioned"
+
+[get_bist_companies]
+cache_interval = 2592000
+
+[llm_client]
+api_key = "dummy_api_key"
+
+[generate_bist_mapping]
+scrape_url = "https://borsacoo.com/firmalar"
+user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+timeout = 30
+output_dir = "data"
+output_filename = "bist_companies.json"
