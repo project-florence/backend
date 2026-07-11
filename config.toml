@@ -47,6 +47,13 @@ timeout = 30
 output_dir = "data"
 output_filename = "bist_companies.json"
 
+[price_history]
+postgres_host = "localhost"
+postgres_port = 5433
+postgres_user = "postgres"
+postgres_db = "postgres"
+rate_limit_delay = 5.0
+
 [economy]
 api_url = "api.collectapi.com"
 gold_endpoint = "/economy/goldPrice"
