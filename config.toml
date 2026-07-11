@@ -46,3 +46,11 @@ user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
 timeout = 30
 output_dir = "data"
 output_filename = "bist_companies.json"
+
+[economy]
+api_url = "api.collectapi.com"
+gold_endpoint = "/economy/goldPrice"
+silver_endpoint = "/economy/silverPrice"
+currency_symbols_endpoint = "/economy/symbols"
+currency_endpoint = "/economy/allCurrency"
+cache_ttl = 600
