@@ -1,5 +1,5 @@
 import redis
-from src.config import get_config
+from src.core.config import get_config
 
 
 class _RedisProxy:

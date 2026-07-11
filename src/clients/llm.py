@@ -1,18 +1,15 @@
 from openai import OpenAI
-from src.config import get_config
+from src.core.config import get_config
 
 
-class LLM_client():
+class LLM_client:
     client = None
     default_model: str = None
 
     def __init__(self, url, default_model=None, api_key=None):
         if api_key is None:
             api_key = get_config()["llm_client"]["api_key"]
-        client = OpenAI(
-            api_key=api_key,
-            base_url=url,
-        )
+        client = OpenAI(api_key=api_key, base_url=url)
         self.client = client
         self.default_model = default_model
 
@@ -25,11 +22,8 @@ class LLM_client():
 
         response = self.client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": role, "content": prompt}
-            ]
+            messages=[{"role": role, "content": prompt}],
         )
         if response:
             return response.choices[0].message.content
-        else:
-            return None
+        return None

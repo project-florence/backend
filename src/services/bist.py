@@ -1,8 +1,7 @@
 import json
 import pykap
-from src.redis_connection import r
-from src.config import get_config
-import redis
+from src.core.redis import r
+from src.core.config import get_config
 
 
 def _cache_interval():
@@ -72,3 +71,15 @@ def get_bist_companies_as_dict_from_redis():
 def cache_tickers_and_companies():
     get_bist_companies_as_json_from_redis()
     get_bist_tickers_as_json_from_redis()
+
+
+def search_companies_by_text(text):
+    results = pykap.search_companies(text)
+    if not results:
+        return {}
+    return results
+
+
+def is_valid_bist_ticker(ticker: str) -> bool:
+    ticker = ticker.upper()
+    return ticker in get_bist_tickers_as_dict_from_redis()

@@ -4,49 +4,14 @@ from datetime import datetime, timedelta, timezone
 from google.cloud import bigquery
 import pandas as pd
 
-from src.article import Article
-from src.generate_bist_mapping import load_bist_mapping
-from src.config import get_config
-from src.redis_connection import r
+from src.models.article import Article
+from src.utils.mapping import load_bist_mapping
+from src.core.config import get_config
+from src.core.redis import r
+from src.utils.text import repair_turkish_text
 
 _client: bigquery.Client | None = None
 _mapping: dict[str, dict] | None = None
-
-
-# ISO-8859-9 (Türkçe) olarak kodlanmış metin Windows-1252 ile çözülünce
-# oluşan mojibake karakterlerini düzeltme tablosu
-_TURKISH_MOJIBAKE = str.maketrans({
-    'ý': 'ı', 'ð': 'ğ', 'þ': 'ş',
-    'Ý': 'İ', 'Ð': 'Ğ', 'Þ': 'Ş',
-})
-
-
-def _repair_turkish_text(text: str) -> str:
-    return text.translate(_TURKISH_MOJIBAKE)
-
-
-def _serialize_articles(articles: list[Article]) -> str:
-    return json.dumps([
-        {"url": a.url, "title": a.title, "lang": a.lang, "date": a.date.isoformat() if a.date else None}
-        for a in articles
-    ], ensure_ascii=False)
-
-
-def _deserialize_articles(data: str) -> list[Article]:
-    raw = json.loads(data)
-    return [
-        Article(
-            url=item["url"],
-            title=item["title"],
-            lang=item["lang"],
-            date=datetime.fromisoformat(item["date"]) if item.get("date") else None,
-        )
-        for item in raw
-    ]
-
-
-def _cache_key(ticker: str, amount: int) -> str:
-    return f"news:{ticker.upper()}:{amount}"
 
 
 def _get_client() -> bigquery.Client:
@@ -71,13 +36,10 @@ def _resolve_search_terms(query: str) -> dict:
     if upper in mapping:
         return mapping[upper]
 
-    title_terms = [upper]
-    gkg_terms = [upper]
-    name_tr = query
     return {
-        "name_tr": name_tr,
-        "search_title": title_terms,
-        "search_gkg": gkg_terms,
+        "name_tr": query,
+        "search_title": [upper],
+        "search_gkg": [upper],
     }
 
 
@@ -90,15 +52,11 @@ def _build_title_clause(terms: list[str], filter_lang: dict | None, lang: list[s
                 term_langs = [l for l in term_langs if l in [x.upper() for x in lang]]
             if term_langs:
                 langs_str = ", ".join(f"'{li}'" for li in term_langs)
-                clauses.append(
-                    f"(UPPER(title) LIKE '%{term}%' AND UPPER(lang) IN ({langs_str}))"
-                )
+                clauses.append(f"(UPPER(title) LIKE '%{term}%' AND UPPER(lang) IN ({langs_str}))")
             continue
         if lang:
             langs_str = ", ".join(f"'{li.upper()}'" for li in lang)
-            clauses.append(
-                f"(UPPER(title) LIKE '%{term}%' AND UPPER(lang) IN ({langs_str}))"
-            )
+            clauses.append(f"(UPPER(title) LIKE '%{term}%' AND UPPER(lang) IN ({langs_str}))")
         else:
             clauses.append(f"UPPER(title) LIKE '%{term}%'")
     if not clauses:
@@ -123,72 +81,49 @@ def collect_articles(
 
     entry = _resolve_search_terms(query)
     filter_lang = entry.get("filter_lang")
-
     title_clause = _build_title_clause(entry["search_title"], filter_lang, lang)
     gkg_clause = _build_gkg_clause(entry["search_gkg"])
 
     if from_date is None:
-        from_date = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
+        from_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     from_date_str = from_date.strftime("%Y-%m-%d")
 
     if diverse:
         tail_sql = """
     deduped AS (
-      SELECT *, ROW_NUMBER() OVER (PARTITION BY url ORDER BY date DESC NULLS LAST) AS rn
-      FROM combined
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY url ORDER BY date DESC NULLS LAST) AS rn FROM combined
     ),
     unique_articles AS (
-      SELECT url, title, lang, date
-      FROM deduped
-      WHERE rn = 1 AND title IS NOT NULL
+      SELECT url, title, lang, date FROM deduped WHERE rn = 1 AND title IS NOT NULL
     ),
     bucketed AS (
-      SELECT *, NTILE(@limit) OVER (ORDER BY date DESC NULLS LAST) AS bucket
-      FROM unique_articles
+      SELECT *, NTILE(@limit) OVER (ORDER BY date DESC NULLS LAST) AS bucket FROM unique_articles
     ),
     random_pick AS (
-      SELECT *, ROW_NUMBER() OVER (PARTITION BY bucket ORDER BY RAND()) AS pick_rn
-      FROM bucketed
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY bucket ORDER BY RAND()) AS pick_rn FROM bucketed
     )
-    SELECT url, title, lang, date
-    FROM random_pick
-    WHERE pick_rn = 1
-    ORDER BY date DESC NULLS LAST
+    SELECT url, title, lang, date FROM random_pick WHERE pick_rn = 1 ORDER BY date DESC NULLS LAST
     """
     else:
         tail_sql = """
     deduped AS (
-      SELECT *, ROW_NUMBER() OVER (PARTITION BY url ORDER BY date DESC NULLS LAST) AS rn
-      FROM combined
+      SELECT *, ROW_NUMBER() OVER (PARTITION BY url ORDER BY date DESC NULLS LAST) AS rn FROM combined
     )
-    SELECT url, title, lang, date
-    FROM deduped
-    WHERE rn = 1 AND title IS NOT NULL
-    ORDER BY date DESC NULLS LAST
-    LIMIT @limit
+    SELECT url, title, lang, date FROM deduped WHERE rn = 1 AND title IS NOT NULL ORDER BY date DESC NULLS LAST LIMIT @limit
     """
 
     sql = f"""
     WITH
     gqg_rows AS (
-      SELECT url, title, lang, date
-      FROM `{cfg["gdelt_gqg_table"]}`
-      WHERE date >= TIMESTAMP(@from_date)
-        AND ({title_clause})
+      SELECT url, title, lang, date FROM `{cfg["gdelt_gqg_table"]}`
+      WHERE date >= TIMESTAMP(@from_date) AND ({title_clause})
     ),
     gkg_rows AS (
       SELECT DocumentIdentifier AS url, CAST(NULL AS STRING) AS title, CAST(NULL AS STRING) AS lang, CAST(NULL AS TIMESTAMP) AS date
       FROM `{cfg["gdelt_gkg_table"]}`
-      WHERE _PARTITIONTIME >= TIMESTAMP(@from_date)
-        AND ({gkg_clause})
+      WHERE _PARTITIONTIME >= TIMESTAMP(@from_date) AND ({gkg_clause})
     ),
-    combined AS (
-      SELECT * FROM gqg_rows
-      UNION DISTINCT
-      SELECT * FROM gkg_rows
-    ),{tail_sql}
+    combined AS (SELECT * FROM gqg_rows UNION DISTINCT SELECT * FROM gkg_rows),{tail_sql}
     """
 
     job_config = bigquery.QueryJobConfig(
@@ -212,20 +147,34 @@ def collect_articles(
         if pd.isna(title_val):
             title_val = ""
         else:
-            title_val = _repair_turkish_text(title_val)
+            title_val = repair_turkish_text(title_val)
 
         lang_val = row["lang"]
         if pd.isna(lang_val):
             lang_val = None
 
-        articles.append(Article(
-            url=row["url"],
-            title=title_val,
-            lang=lang_val,
-            date=date_val,
-        ))
+        articles.append(Article(url=row["url"], title=title_val, lang=lang_val, date=date_val))
 
     return articles
+
+
+def _serialize_articles(articles: list[Article]) -> str:
+    return json.dumps([
+        {"url": a.url, "title": a.title, "lang": a.lang, "date": a.date.isoformat() if a.date else None}
+        for a in articles
+    ], ensure_ascii=False)
+
+
+def _deserialize_articles(data: str) -> list[Article]:
+    raw = json.loads(data)
+    return [Article(
+        url=item["url"], title=item["title"], lang=item["lang"],
+        date=datetime.fromisoformat(item["date"]) if item.get("date") else None,
+    ) for item in raw]
+
+
+def _cache_key(ticker: str, amount: int) -> str:
+    return f"news:{ticker.upper()}:{amount}"
 
 
 def get_latest_news(ticker: str, amount: int) -> list[Article]:

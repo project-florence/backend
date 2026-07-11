@@ -17,22 +17,14 @@ def scout_best_tickers():
         "overall_score": 87.3,
         "rank": 1,
         "risk_level": "moderate",
-        "expected_return_range": {
-          "low": 12.5,
-          "high": 34.0,
-          "unit": "percent_annual"
-        },
+        "expected_return_range": {"low": 12.5, "high": 34.0, "unit": "percent_annual"},
         "score_breakdown": {
-          "volatility": 0.62,
-          "growth": 0.81,
-          "dividend_yield": 0.30,
-          "valuation": 0.55,
-          "liquidity": 0.90,
-          "news_sentiment": 0.74
+          "volatility": 0.62, "growth": 0.81, "dividend_yield": 0.30,
+          "valuation": 0.55, "liquidity": 0.90, "news_sentiment": 0.74
         },
         "match_reasons": [
           "Risk toleransınıza uygun volatilite aralığında",
-          "Son 3 çeyrekte istikrarlı gelir büyümesi",
+          "Son 3 çeyrekte istikrarlı gelir büyümesi"
         ],
         "confidence": 0.82,
         "last_updated": "2026-07-11T09:30:00Z"
@@ -49,18 +41,10 @@ def scout_best_tickers():
         "overall_score": 79.6,
         "rank": 2,
         "risk_level": "moderate_high",
-        "expected_return_range": {
-          "low": 8.0,
-          "high": 41.0,
-          "unit": "percent_annual"
-        },
+        "expected_return_range": {"low": 8.0, "high": 41.0, "unit": "percent_annual"},
         "score_breakdown": {
-          "volatility": 0.48,
-          "growth": 0.70,
-          "dividend_yield": 0.15,
-          "valuation": 0.62,
-          "liquidity": 0.95,
-          "news_sentiment": 0.58
+          "volatility": 0.48, "growth": 0.70, "dividend_yield": 0.15,
+          "valuation": 0.62, "liquidity": 0.95, "news_sentiment": 0.58
         },
         "match_reasons": [
           "Yüksek işlem hacmi ve likidite",
