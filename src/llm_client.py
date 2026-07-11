@@ -1,11 +1,14 @@
 from openai import OpenAI
+from src.config import get_config
 
 
 class LLM_client():
     client = None
     default_model: str = None
 
-    def __init__(self, url, default_model=None, api_key="dummy_api_key"):
+    def __init__(self, url, default_model=None, api_key=None):
+        if api_key is None:
+            api_key = get_config()["llm_client"]["api_key"]
         client = OpenAI(
             api_key=api_key,
             base_url=url,

@@ -7,13 +7,7 @@ import time
 import random
 from src.get_bist_companies import get_bist_tickers_as_dict_from_redis
 from src.redis_connection import r
-
-CACHE_TTL = 60 * 60 * 24  # 24 saat
-
-REQUEST_DELAY_MIN = 0.5
-REQUEST_DELAY_MAX = 1.5
-BATCH_SIZE = 10
-BATCH_DELAY = 5
+from src.config import get_config
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +20,8 @@ def _get_bist_tickers() -> list[str]:
 
 def _save_company_to_redis(ticker: str, profile: dict) -> bool:
     try:
-        r.set(ticker, json.dumps(profile), ex=CACHE_TTL)
+        cfg = get_config()["company_info"]
+        r.set(ticker, json.dumps(profile), ex=cfg["cache_ttl"])
         return True
     except Exception as e:
         print(f"Redis kaydetme hatasi ({ticker}): {e}")
@@ -38,10 +33,6 @@ def _save_company_to_redis(ticker: str, profile: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 def build_company_profile(raw_info: dict) -> dict:
-    """
-    Ham yfinance info dict'ini alir, kategorize edilmis yapilandirilmis dict dondurur.
-    Herhangi bir kaynaktan gelen benzer yapidaki dict ile calisir.
-    """
     if not raw_info:
         return {}
 
@@ -99,7 +90,11 @@ def build_company_profile(raw_info: dict) -> dict:
 # Veri cekme (sadece yfinance)
 # ---------------------------------------------------------------------------
 
-def fetch_from_yfinance(ticker_symbol: str, max_retries: int = 3) -> dict:
+def fetch_from_yfinance(ticker_symbol: str, max_retries: int | None = None) -> dict:
+    cfg = get_config()["company_info"]
+    if max_retries is None:
+        max_retries = cfg["max_retries"]
+
     for attempt in range(max_retries):
         try:
             info = yf.Ticker(ticker_symbol).info
@@ -109,7 +104,7 @@ def fetch_from_yfinance(ticker_symbol: str, max_retries: int = 3) -> dict:
             print(f"yfinance hatasi ({ticker_symbol}), deneme {attempt + 1}/{max_retries}: {e}")
 
         if attempt < max_retries - 1:
-            time.sleep(random.uniform(1, 3))
+            time.sleep(random.uniform(cfg["retry_sleep_min"], cfg["retry_sleep_max"]))
 
     print(f"MAX RETRY asildi ({ticker_symbol})")
     return {}
@@ -119,7 +114,7 @@ def fetch_from_yfinance(ticker_symbol: str, max_retries: int = 3) -> dict:
 # Ikisini birlestiren wrapper (geriye uyum)
 # ---------------------------------------------------------------------------
 
-def create_company_json(ticker_symbol: str, max_retries: int = 3) -> dict:
+def create_company_json(ticker_symbol: str, max_retries: int | None = None) -> dict:
     raw = fetch_from_yfinance(ticker_symbol, max_retries)
     return build_company_profile(raw)
 
@@ -164,6 +159,8 @@ def cache_all_companies_to_redis(force_update: bool = False, background: bool = 
     }
     start = time.time()
 
+    cfg = get_config()["company_info"]
+
     for idx, ticker in enumerate(tickers, 1):
         was_cached = False
 
@@ -191,11 +188,11 @@ def cache_all_companies_to_redis(force_update: bool = False, background: bool = 
             stats["failed"] += 1
 
         if not was_cached:
-            delay = random.uniform(REQUEST_DELAY_MIN, REQUEST_DELAY_MAX)
-            if idx % BATCH_SIZE == 0 and idx < total:
+            delay = random.uniform(cfg["request_delay_min"], cfg["request_delay_max"])
+            if idx % cfg["batch_size"] == 0 and idx < total:
                 if not background:
-                    print(f"Batch {idx // BATCH_SIZE} tamamlandi, {BATCH_DELAY} sn bekleniyor...")
-                time.sleep(BATCH_DELAY)
+                    print(f"Batch {idx // cfg['batch_size']} tamamlandi, {cfg['batch_delay']} sn bekleniyor...")
+                time.sleep(cfg["batch_delay"])
             else:
                 time.sleep(delay)
 

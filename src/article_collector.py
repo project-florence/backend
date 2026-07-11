@@ -5,6 +5,7 @@ import pandas as pd
 
 from article import Article
 from generate_bist_mapping import load_bist_mapping
+from src.config import get_config
 
 _client: bigquery.Client | None = None
 _mapping: dict[str, dict] | None = None
@@ -13,7 +14,8 @@ _mapping: dict[str, dict] | None = None
 def _get_client() -> bigquery.Client:
     global _client
     if _client is None:
-        _client = bigquery.Client(project="project-florence-1")
+        cfg = get_config()["article_collector"]
+        _client = bigquery.Client(project=cfg["bigquery_project"])
     return _client
 
 
@@ -73,10 +75,14 @@ def _build_gkg_clause(terms: list[str]) -> str:
 def collect_articles(
     query: str,
     from_date: datetime | None = None,
-    limit: int = 100,
+    limit: int | None = None,
     lang: list[str] | None = None,
     diverse: bool = False,
 ) -> list[Article]:
+    cfg = get_config()["article_collector"]
+    if limit is None:
+        limit = cfg["default_limit"]
+
     entry = _resolve_search_terms(query)
     filter_lang = entry.get("filter_lang")
 
@@ -130,13 +136,13 @@ def collect_articles(
     WITH
     gqg_rows AS (
       SELECT url, title, lang, date
-      FROM `gdelt-bq.gdeltv2.gqg`
+      FROM `{cfg["gdelt_gqg_table"]}`
       WHERE date >= TIMESTAMP(@from_date)
         AND ({title_clause})
     ),
     gkg_rows AS (
       SELECT DocumentIdentifier AS url, CAST(NULL AS STRING) AS title, CAST(NULL AS STRING) AS lang, CAST(NULL AS TIMESTAMP) AS date
-      FROM `gdelt-bq.gdeltv2.gkg_partitioned`
+      FROM `{cfg["gdelt_gkg_table"]}`
       WHERE _PARTITIONTIME >= TIMESTAMP(@from_date)
         AND ({gkg_clause})
     ),

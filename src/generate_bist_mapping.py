@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
+from src.config import get_config
 
 TURKISH_CHAR_MAP = str.maketrans({
     "Ü": "U", "ü": "u",
@@ -553,8 +554,9 @@ TICKER_ALIASES = ["THYAO", "ISE", "SISE", "CCOLA", "HALKB", "TUPRS",
 
 
 def scrape_bist_companies(url: str) -> list[dict]:
-    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"}
-    resp = requests.get(url, headers=headers, timeout=30)
+    cfg = get_config()["generate_bist_mapping"]
+    headers = {"User-Agent": cfg["user_agent"]}
+    resp = requests.get(url, headers=headers, timeout=cfg["timeout"])
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "lxml")
 
@@ -648,15 +650,17 @@ def build_companies_dict(companies: list[dict]) -> dict[str, dict]:
 
 
 def generate_bist_mapping() -> dict[str, dict]:
-    url = "https://borsacoo.com/firmalar"
+    url = get_config()["generate_bist_mapping"]["scrape_url"]
     companies = scrape_bist_companies(url)
     return build_companies_dict(companies)
 
 
 def save_bist_mapping(path: str | None = None) -> dict[str, dict]:
     mapping = generate_bist_mapping()
-    out_path = path or str(Path(__file__).parent.parent / "data" / "bist_companies.json")
-    with open(out_path, "w", encoding="utf-8") as f:
+    if path is None:
+        cfg = get_config()["generate_bist_mapping"]
+        path = str(Path(__file__).parent.parent / cfg["output_dir"] / cfg["output_filename"])
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(mapping, f, ensure_ascii=False, indent=2)
     return mapping
 

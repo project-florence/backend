@@ -1,17 +1,21 @@
 import requests
+from src.config import get_config
 
 
 def search_gdelt_articles(
     query: str,
-    max_records: int = 250,
+    max_records: int | None = None,
 ) -> dict:
-    url = "https://api.gdeltproject.org/api/v2/doc/doc"
+    cfg = get_config()["gdelt_api"]
+    if max_records is None:
+        max_records = cfg["max_records"]
+
     params = {
         "query": query,
-        "mode": "ArtList",
-        "format": "json",
+        "mode": cfg["mode"],
+        "format": cfg["format"],
         "maxrecords": max_records,
     }
-    resp = requests.get(url, params=params, timeout=30)
+    resp = requests.get(cfg["base_url"], params=params, timeout=cfg["timeout"])
     resp.raise_for_status()
     return resp.json()
