@@ -32,6 +32,7 @@ bigquery_project = "project-florence-1"
 default_limit = 100
 gdelt_gqg_table = "gdelt-bq.gdeltv2.gqg"
 gdelt_gkg_table = "gdelt-bq.gdeltv2.gkg_partitioned"
+cache_ttl = 3600
 
 [get_bist_companies]
 cache_interval = 2592000

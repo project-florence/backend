@@ -124,7 +124,8 @@ def create_company_json(ticker_symbol: str, max_retries: int | None = None) -> d
 # ---------------------------------------------------------------------------
 
 def get_company_info(ticker: str, use_cache: bool = True) -> dict:
-    if not ticker.endswith(".IS") and ticker.isupper():
+    ticker = ticker.upper()
+    if not ticker.endswith(".IS"):
         ticker = f"{ticker}.IS"
 
     if use_cache:
