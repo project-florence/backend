@@ -1,0 +1,765 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "FastAPI",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/": {
+            "get": {
+                "summary": "Root",
+                "operationId": "root__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "summary": "Health",
+                "operationId": "health_health_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bist/companies": {
+            "get": {
+                "summary": "Bist Companies",
+                "operationId": "bist_companies_api_v1_bist_companies_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/bist/tickers": {
+            "get": {
+                "summary": "Bist Tickers",
+                "operationId": "bist_tickers_api_v1_bist_tickers_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/companies/search/{ticker}": {
+            "get": {
+                "summary": "Search Companies",
+                "operationId": "search_companies_api_v1_companies_search__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/companies/info/{ticker}": {
+            "get": {
+                "summary": "Company Info",
+                "operationId": "company_info_api_v1_companies_info__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/generate/report/quick/{ticker}": {
+            "get": {
+                "summary": "Generate Quick Report",
+                "operationId": "generate_quick_report_api_v1_generate_report_quick__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/generate/report/deep/{ticker}": {
+            "get": {
+                "summary": "Generate Deep Report",
+                "operationId": "generate_deep_report_api_v1_generate_report_deep__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/news/{ticker}": {
+            "get": {
+                "summary": "News",
+                "operationId": "news_api_v1_news__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    },
+                    {
+                        "name": "amount",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "description": "Number of news items",
+                            "default": 10,
+                            "title": "Amount"
+                        },
+                        "description": "Number of news items"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/simulations/probability/{ticker}": {
+            "get": {
+                "summary": "Probability",
+                "operationId": "probability_api_v1_simulations_probability__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    },
+                    {
+                        "name": "time",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Time"
+                        }
+                    },
+                    {
+                        "name": "target",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Target"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/simulations/confidence-interval/{ticker}": {
+            "get": {
+                "summary": "Confidence Interval",
+                "operationId": "confidence_interval_api_v1_simulations_confidence_interval__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    },
+                    {
+                        "name": "time",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Time"
+                        }
+                    },
+                    {
+                        "name": "bound",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Bound"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/economy/gold-prices": {
+            "get": {
+                "summary": "Gold Prices",
+                "operationId": "gold_prices_api_v1_economy_gold_prices_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/economy/silver-prices": {
+            "get": {
+                "summary": "Silver Prices",
+                "operationId": "silver_prices_api_v1_economy_silver_prices_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/economy/symbols": {
+            "get": {
+                "summary": "Symbols",
+                "operationId": "symbols_api_v1_economy_symbols_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/economy/currency": {
+            "get": {
+                "summary": "Currency",
+                "operationId": "currency_api_v1_economy_currency_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/macroeconomy/all": {
+            "get": {
+                "summary": "Macroeconomy All",
+                "operationId": "macroeconomy_all_api_v1_macroeconomy_all_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ipos/upcoming": {
+            "get": {
+                "summary": "Ipos Upcoming",
+                "operationId": "ipos_upcoming_api_v1_ipos_upcoming_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/scout/best-tickers": {
+            "get": {
+                "summary": "Best Tickers",
+                "operationId": "best_tickers_api_v1_scout_best_tickers_get",
+                "parameters": [
+                    {
+                        "name": "investment_budget",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Investment Budget"
+                        }
+                    },
+                    {
+                        "name": "investment_horizon",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Investment Horizon"
+                        }
+                    },
+                    {
+                        "name": "risk_tolerance",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Risk Tolerance"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/price/history/{ticker}": {
+            "get": {
+                "summary": "Price History",
+                "operationId": "price_history_api_v1_price_history__ticker__get",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    },
+                    {
+                        "name": "period",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "1mo",
+                            "title": "Period"
+                        }
+                    },
+                    {
+                        "name": "interval",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "1d",
+                            "title": "Interval"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/register": {
+            "post": {
+                "summary": "Auth Register",
+                "operationId": "auth_register_api_v1_auth_register_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "summary": "Auth Login",
+                "operationId": "auth_login_api_v1_auth_login_post",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/favorites/{ticker}": {
+            "post": {
+                "summary": "Add Favorite",
+                "operationId": "add_favorite_api_v1_favorites__ticker__post",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Remove Favorite",
+                "operationId": "remove_favorite_api_v1_favorites__ticker__delete",
+                "parameters": [
+                    {
+                        "name": "ticker",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Ticker"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/favorites": {
+            "get": {
+                "summary": "Get Favorites",
+                "operationId": "get_favorites_api_v1_favorites_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}
