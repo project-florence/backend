@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from typing import Optional
 from src.get_bist_companies import get_bist_companies_as_dict_from_redis, get_bist_tickers_as_dict_from_redis, cache_tickers_and_companies
+from src.article_collector import get_latest_news
 from src.article_analyzer import generate_deep_report, generate_quick_report
 from src.search_utils import search_companies_by_text
 from src.config import init_config
@@ -58,3 +59,7 @@ def confidence_interval(ticker: str, time: str, bound: int):
         "max":140,
         "type":"tl"
     }
+
+@app.get("/news/{ticker}")
+def news(ticker: str, amount: int = Query(default=10, description="Number of news items")):
+    return get_latest_news(ticker, amount)
