@@ -28,7 +28,7 @@ from src.services.economy import (
     get_currency_symbols,
     get_currency,
 )
-from src.services.ipo import get_upcoming_ipos
+from src.services.ipo import get_upcoming_ipos, get_draft_ipos, get_ipo_detail_by_slug
 from src.services.scout import scout_best_tickers
 from src.services.price import get_price_history
 import src.simulation.montecarlo as montecarlo
@@ -172,8 +172,19 @@ def macroeconomy_all():
 # ---------------------------------------------------------------------------
 
 @router.get("/ipos/upcoming")
-def ipos_upcoming():
-    return json.loads(get_upcoming_ipos())
+def ipos_upcoming(after: str | None = Query(default=None, description="ISO date filter (e.g. 2026-06-01T00:00:00). Defaults to last 30 days.")):
+    return json.loads(get_upcoming_ipos(after=after))
+
+@router.get("/ipos/draft")
+def ipos_draft(after: str | None = Query(default=None, description="ISO date filter. Defaults to last 30 days.")):
+    return json.loads(get_draft_ipos(after=after))
+
+@router.get("/ipos/{slug}")
+def ipos_detail(slug: str):
+    data = json.loads(get_ipo_detail_by_slug(slug))
+    if data is None:
+        raise HTTPException(status_code=404, detail="IPO not found")
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -261,15 +272,47 @@ def auth_delete(current_user_id: int = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 @router.post("/favorites/{ticker}")
-def add_favorite(ticker: str):
+def add_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
     _validate_ticker(ticker)
-    return {"message": f"{ticker} favorilere eklendi!"}
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+                INSERT INTO favorites (user_id, ticker_code)
+                VALUES (%s, %s)
+                ON CONFLICT (user_id, ticker_code) DO NOTHING
+            """, (current_user_id, ticker))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Could not add to favorites")
 
+    return {"message": f"Added favorite {ticker} or already been added"}
 @router.delete("/favorites/{ticker}")
-def remove_favorite(ticker: str):
+def remove_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
     _validate_ticker(ticker)
-    return {"message": f"{ticker} favorilerden cikarildi!"}
+
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+            DELETE FROM favorites
+            WHERE user_id = %s AND ticker_code = %s
+            """, (current_user_id, ticker))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+
+    return {"message": f"Removed {ticker} from favorites"}
 
 @router.get("/favorites")
-def get_favorites():
-    return {"favorites": ["ASELS", "THYAO", "GARAN", "KCHOL", "SISE"]}
+def get_favorites(current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+                SELECT ticker_code FROM favorites WHERE user_id = %s
+            """, (current_user_id,))
+            rows = cur.fetchall()
+            favorites_list = [row[0] for row in rows]
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {"favorites": favorites_list}
