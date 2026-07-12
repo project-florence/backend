@@ -31,6 +31,7 @@ from src.services.economy import (
 from src.services.ipo import get_upcoming_ipos, get_draft_ipos, get_ipo_detail_by_slug
 from src.services.scout import scout_best_tickers
 from src.services.price import get_price_history
+from src.services.stats import increment_stat, get_top_tickers, get_ticker_stats, get_all_stats
 import src.simulation.montecarlo as montecarlo
 
 router = APIRouter(prefix="/api/v1")
@@ -78,12 +79,22 @@ def _validate_ticker(ticker: str):
 # ---------------------------------------------------------------------------
 
 @router.get("/bist/companies")
-def bist_companies():
-    return get_bist_companies_as_dict_from_redis()
+def bist_companies(sort: str = Query(default="alphabetical", description="Sort order: alphabetical or popular")):
+    companies = get_bist_companies_as_dict_from_redis()
+    if sort == "popular":
+        stats = get_all_stats()
+        ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
+        companies.sort(key=lambda c: (ticker_order.get(c["ticker"], 999), c["ticker"]))
+    return companies
 
 @router.get("/bist/tickers")
-def bist_tickers():
-    return get_bist_tickers_as_dict_from_redis()
+def bist_tickers(sort: str = Query(default="alphabetical", description="Sort order: alphabetical or popular")):
+    tickers = get_bist_tickers_as_dict_from_redis()
+    if sort == "popular":
+        stats = get_all_stats()
+        ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
+        tickers.sort(key=lambda t: (ticker_order.get(t, 999), t))
+    return tickers
 
 @router.get("/companies/search")
 def search_companies(query: str = Query(...)):
@@ -92,7 +103,9 @@ def search_companies(query: str = Query(...)):
 @router.get("/companies/info/{ticker}")
 def company_info(ticker: str):
     _validate_ticker(ticker)
-    return get_company_info(ticker)
+    result = get_company_info(ticker)
+    increment_stat(ticker, "info_count")
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -102,11 +115,13 @@ def company_info(ticker: str):
 @router.get("/generate/report/quick/{ticker}")
 def generate_quick_report_mock(ticker: str):
     _validate_ticker(ticker)
+    increment_stat(ticker, "report_count")
     return "Hizli Rapor: Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
 @router.get("/generate/report/deep/{ticker}")
 def generate_deep_report_mock(ticker: str):
     _validate_ticker(ticker)
+    increment_stat(ticker, "report_count")
     return "Derin Rapor: Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 
 
@@ -117,7 +132,9 @@ def generate_deep_report_mock(ticker: str):
 @router.get("/news/{ticker}")
 def news(ticker: str, amount: int = Query(default=10, description="Number of news items")):
     _validate_ticker(ticker)
-    return get_latest_news(ticker, amount)
+    result = get_latest_news(ticker, amount)
+    increment_stat(ticker, "news_count")
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -128,12 +145,15 @@ def news(ticker: str, amount: int = Query(default=10, description="Number of new
 def probability(ticker: str, days: int = Query(...), target: str = Query(...)):
     _validate_ticker(ticker)
     percent = montecarlo.probability(ticker, days, target)
+    increment_stat(ticker, "simulation_count")
     return {"percent": percent, "ticker": ticker, "days": days, "target": target}
 
 @router.get("/simulations/confidence-interval/{ticker}")
 def confidence_interval(ticker: str, days: int = Query(...), bounds: str = Query(...)):
     _validate_ticker(ticker)
-    return montecarlo.confidence_interval(ticker, days, bounds)
+    result = montecarlo.confidence_interval(ticker, days, bounds)
+    increment_stat(ticker, "simulation_count")
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +207,22 @@ def ipos_detail(slug: str):
 
 
 # ---------------------------------------------------------------------------
+# Stats
+# ---------------------------------------------------------------------------
+
+@router.get("/stats/top")
+def stats_top(limit: int = Query(default=50, description="Number of top tickers")):
+    return get_top_tickers(limit=limit)
+
+@router.get("/stats/{ticker}")
+def stats_ticker(ticker: str):
+    _validate_ticker(ticker)
+    stats = get_ticker_stats(ticker)
+    stats["ticker"] = ticker.upper()
+    return stats
+
+
+# ---------------------------------------------------------------------------
 # Scout / Stock Picker
 # ---------------------------------------------------------------------------
 
@@ -206,7 +242,9 @@ def best_tickers(
 @router.get("/price/history/{ticker}")
 def price_history(ticker: str, period: str = Query("1mo"), interval: str = Query("1d")):
     _validate_ticker(ticker)
-    return get_price_history(ticker, period, interval)
+    result = get_price_history(ticker, period, interval)
+    increment_stat(ticker, "history_count")
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -285,6 +323,7 @@ def add_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
             db.rollback()
             raise HTTPException(status_code=400, detail="Could not add to favorites")
 
+    increment_stat(ticker, "favorite_count")
     return {"message": f"Added favorite {ticker} or already been added"}
 @router.delete("/favorites/{ticker}")
 def remove_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):

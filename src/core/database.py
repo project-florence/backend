@@ -97,6 +97,19 @@ def init_db():
         """)
 
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS ticker_stats (
+                ticker TEXT PRIMARY KEY,
+                info_count INTEGER NOT NULL DEFAULT 0,
+                report_count INTEGER NOT NULL DEFAULT 0,
+                news_count INTEGER NOT NULL DEFAULT 0,
+                history_count INTEGER NOT NULL DEFAULT 0,
+                simulation_count INTEGER NOT NULL DEFAULT 0,
+                favorite_count INTEGER NOT NULL DEFAULT 0,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS favorites (
                 user_id INT REFERENCES users(id) ON DELETE CASCADE,
                 ticker_code TEXT REFERENCES tickers(code) ON DELETE CASCADE,
