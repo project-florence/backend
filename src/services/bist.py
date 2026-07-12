@@ -121,11 +121,9 @@ def sync_tickers_and_companies():
     _fetch_and_persist_all()
 
 
-def search_companies_by_text(text):
-    results = pykap.search_companies(text)
-    if not results:
-        return {}
-    return results
+def search_companies_by_text(text, limit: int = 20):
+    from src.services.search import search_companies as _search
+    return _search(text, limit=limit)
 
 
 def is_valid_bist_ticker(ticker: str) -> bool:
