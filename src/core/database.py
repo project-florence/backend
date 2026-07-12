@@ -74,7 +74,7 @@ def init_db():
                 username VARCHAR(255) UNIQUE NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 hashed_pw TEXT NOT NULL
-            )
+            );
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tickers (
@@ -82,7 +82,7 @@ def init_db():
                 name TEXT,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
+            );
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS companies (
@@ -93,7 +93,19 @@ def init_db():
                 auditor TEXT,
                 company_id TEXT,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS favorites (
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                ticker_code TEXT REFERENCES tickers(code) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                
+                -- Bir kullanıcı aynı ticker'ı iki kez favorilemesin! 
+                -- Bu ikisinin birleşimi Primary Key olur:
+                PRIMARY KEY (user_id, ticker_code)
+            );
         """)
     conn.close()
 
