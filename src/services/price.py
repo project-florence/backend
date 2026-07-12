@@ -1,59 +1,33 @@
 import math
-import psycopg2
 import psycopg2.extras
-import threading
 from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
-import os
 
-from src.core.config import get_config
 from src.clients.yfinance import fetch_price_history
+from src.core.database import db
 
-load_dotenv()
-
-_conn = None
-_conn_lock = threading.Lock()
 _db_initialized = False
-
-
-def _get_conn():
-    global _conn
-    if _conn is None:
-        cfg = get_config()["price_history"]
-        _conn = psycopg2.connect(
-            host=cfg["postgres_host"],
-            port=cfg["postgres_port"],
-            user=cfg["postgres_user"],
-            password=os.getenv("POSTGRES_PASSWORD"),
-            dbname=cfg["postgres_db"],
-        )
-        _conn.autocommit = True
-    return _conn
 
 
 def _init_db():
     global _db_initialized
     if _db_initialized:
         return
-    with _conn_lock:
-        if _db_initialized:
-            return
-        conn = _get_conn()
-        with conn.cursor() as cur:
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS price_candles (
-                    ticker    TEXT NOT NULL,
-                    interval  TEXT NOT NULL,
-                    ts        TIMESTAMPTZ NOT NULL,
-                    open      DOUBLE PRECISION,
-                    high      DOUBLE PRECISION,
-                    low       DOUBLE PRECISION,
-                    close     DOUBLE PRECISION,
-                    volume    BIGINT,
-                    PRIMARY KEY (ticker, interval, ts)
-                );
-            """)
-        _db_initialized = True
+    conn = db.get_connection()
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS price_candles (
+                ticker    TEXT NOT NULL,
+                interval  TEXT NOT NULL,
+                ts        TIMESTAMPTZ NOT NULL,
+                open      DOUBLE PRECISION,
+                high      DOUBLE PRECISION,
+                low       DOUBLE PRECISION,
+                close     DOUBLE PRECISION,
+                volume    BIGINT,
+                PRIMARY KEY (ticker, interval, ts)
+            );
+        """)
+    _db_initialized = True
 
 
 def _parse_period(period: str) -> tuple[datetime, datetime]:
@@ -108,7 +82,7 @@ def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
         ticker = f"{ticker}.IS"
 
     start, end = _parse_period(period)
-    conn = _get_conn()
+    conn = db.get_connection()
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(

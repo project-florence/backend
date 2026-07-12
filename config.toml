@@ -4,6 +4,12 @@ port = 6379
 db = 0
 decode_responses = true
 
+[postgres]
+host = "localhost"
+port = 5433
+user = "postgres"
+default_db = "postgres"
+
 [company_info]
 cache_ttl = 86400
 request_delay_min = 0.5
@@ -48,10 +54,6 @@ output_dir = "data"
 output_filename = "bist_companies.json"
 
 [price_history]
-postgres_host = "localhost"
-postgres_port = 5433
-postgres_user = "postgres"
-postgres_db = "postgres"
 rate_limit_delay = 5.0
 
 [economy]

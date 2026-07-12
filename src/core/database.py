@@ -1,0 +1,55 @@
+import psycopg2
+import threading
+import os
+from dotenv import load_dotenv
+from src.core.config import get_config
+
+load_dotenv()
+
+
+class _DatabaseProxy:
+    _conns = {}
+    _lock = threading.Lock()
+
+    def _ensure_db_exists(self, db_name: str):
+        if db_name == get_config()["postgres"]["default_db"]:
+            return
+        conn = psycopg2.connect(
+            host=get_config()["postgres"]["host"],
+            port=get_config()["postgres"]["port"],
+            user=get_config()["postgres"]["user"],
+            password=os.getenv("POSTGRES_PASSWORD"),
+            dbname=get_config()["postgres"]["default_db"],
+        )
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+            if not cur.fetchone():
+                cur.execute(f'CREATE DATABASE "{db_name}"')
+        conn.close()
+
+    def get_connection(self, db_name=None):
+        key = db_name or "default"
+        if key not in self._conns:
+            with self._lock:
+                if key not in self._conns:
+                    cfg = get_config()["postgres"]
+                    actual_db = db_name or cfg["default_db"]
+                    if db_name:
+                        self._ensure_db_exists(db_name)
+                    conn = psycopg2.connect(
+                        host=cfg["host"],
+                        port=cfg["port"],
+                        user=cfg["user"],
+                        password=os.getenv("POSTGRES_PASSWORD"),
+                        dbname=actual_db,
+                    )
+                    conn.autocommit = True
+                    self._conns[key] = conn
+        return self._conns.get(key)
+
+    def cursor(self, db_name=None, **kwargs):
+        return self.get_connection(db_name).cursor(**kwargs)
+
+
+db = _DatabaseProxy()
