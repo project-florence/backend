@@ -76,6 +76,25 @@ def init_db():
                 hashed_pw TEXT NOT NULL
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tickers (
+                code TEXT PRIMARY KEY,
+                name TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS companies (
+                ticker TEXT PRIMARY KEY REFERENCES tickers(code),
+                name TEXT,
+                summary_page TEXT,
+                city TEXT,
+                auditor TEXT,
+                company_id TEXT,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
     conn.close()
 
 
