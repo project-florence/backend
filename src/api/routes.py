@@ -85,10 +85,9 @@ def bist_companies():
 def bist_tickers():
     return get_bist_tickers_as_dict_from_redis()
 
-@router.get("/companies/search/{ticker}")
-def search_companies(ticker: str):
-    _validate_ticker(ticker)
-    return search_companies_by_text(ticker)
+@router.get("/companies/search")
+def search_companies(query: str = Query(...)):
+    return search_companies_by_text(query)
 
 @router.get("/companies/info/{ticker}")
 def company_info(ticker: str):
