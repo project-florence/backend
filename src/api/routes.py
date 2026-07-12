@@ -19,6 +19,7 @@ from src.services.economy import (
 from src.services.ipo import get_upcoming_ipos
 from src.services.scout import scout_best_tickers
 from src.services.price import get_price_history
+import src.simulation.montecarlo as montecarlo
 
 router = APIRouter(prefix="/api/v1")
 
@@ -81,14 +82,15 @@ def news(ticker: str, amount: int = Query(default=10, description="Number of new
 # ---------------------------------------------------------------------------
 
 @router.get("/simulations/probability/{ticker}")
-def probability(ticker: str, time: str = Query(...), target: str = Query(...)):
+def probability(ticker: str, days: int = Query(...), target: str = Query(...)):
     _validate_ticker(ticker)
-    return {"percent": 0.23, "ticker": ticker, "time": time, "target": target}
+    percent = montecarlo.probability(ticker, days, target)
+    return {"percent": percent, "ticker": ticker, "days": days, "target": target}
 
 @router.get("/simulations/confidence-interval/{ticker}")
-def confidence_interval(ticker: str, time: str = Query(...), bound: int = Query(...)):
+def confidence_interval(ticker: str, days: int = Query(...), bounds: str = Query(...)):
     _validate_ticker(ticker)
-    return {"min": 85, "max": 140, "currency": "TRY", "ticker": ticker, "time": time, "bound": bound}
+    return montecarlo.confidence_interval(ticker, days, bounds)
 
 
 # ---------------------------------------------------------------------------
