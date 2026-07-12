@@ -44,12 +44,39 @@ class _DatabaseProxy:
                         password=os.getenv("POSTGRES_PASSWORD"),
                         dbname=actual_db,
                     )
-                    conn.autocommit = True
+                    conn.autocommit = False
                     self._conns[key] = conn
         return self._conns.get(key)
 
     def cursor(self, db_name=None, **kwargs):
         return self.get_connection(db_name).cursor(**kwargs)
+
+    def commit(self, db_name=None):
+        self.get_connection(db_name).commit()
+
+    def rollback(self, db_name=None):
+        self.get_connection(db_name).rollback()
+
+
+def init_db():
+    conn = psycopg2.connect(
+        host=get_config()["postgres"]["host"],
+        port=get_config()["postgres"]["port"],
+        user=get_config()["postgres"]["user"],
+        password=os.getenv("POSTGRES_PASSWORD"),
+        dbname=get_config()["postgres"]["default_db"],
+    )
+    conn.autocommit = True
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                hashed_pw TEXT NOT NULL
+            )
+        """)
+    conn.close()
 
 
 db = _DatabaseProxy()
