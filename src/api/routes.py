@@ -1,5 +1,17 @@
-from fastapi import APIRouter, Query, HTTPException
+import os
+
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
+import psycopg2
+from psycopg2 import errors
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, VerificationError
+import jwt
+import datetime
 import json
+import os
+from src.core.database import db
 
 from src.services.bist import (
     get_bist_companies_as_dict_from_redis,
@@ -23,6 +35,38 @@ import src.simulation.montecarlo as montecarlo
 
 router = APIRouter(prefix="/api/v1")
 
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+
+ph = PasswordHasher()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+
+class UserRegister(BaseModel):
+    username: str
+    email: str
+    password: str
+
+def create_jwt_token(user_id: int):
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            raise credentials_exception
+        return user_id
+    except jwt.PyJWTError:
+        raise credentials_exception
 
 def _validate_ticker(ticker: str):
     if not is_valid_bist_ticker(ticker):
@@ -156,16 +200,60 @@ def price_history(ticker: str, period: str = Query("1mo"), interval: str = Query
 
 
 # ---------------------------------------------------------------------------
-# Auth (Mock)
+# Auth
 # ---------------------------------------------------------------------------
 
 @router.post("/auth/register")
-def auth_register():
-    return {"message": "Kayit olundu! Burada daha sonradan JWT alisverisi olacak."}
+def auth_register(user: UserRegister):
+    with db.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE username = %s OR email = %s", (user.username, user.email))
+        if cur.fetchone() is not None:
+            raise HTTPException(status_code=400, detail="Email or username already in use")
 
+        hashed_pw = ph.hash(user.password)
+
+        try:
+            cur.execute(
+                "INSERT INTO users (username, email, hashed_pw) VALUES (%s, %s, %s) RETURNING id",
+                (user.username, user.email, hashed_pw)
+            )
+            new_user_id = cur.fetchone()[0]
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {"message": "Register successful", "user_id": new_user_id}
 @router.post("/auth/login")
-def auth_login():
-    return {"message": "Giris yapildi! Burada daha sonradan JWT alisverisi olacak."}
+def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
+    cur = db.cursor()
+
+    cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
+    user_row = cur.fetchone()
+
+    if not user_row:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    user_id, db_password_hash = user_row
+    try:
+        ph.verify(db_password_hash, form_data.password)
+    except VerificationError:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    access_token = create_jwt_token(user_id)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.delete("/auth/delete")
+def auth_delete(current_user_id: int = Depends(get_current_user)):
+    cur = db.cursor()
+    try:
+        cur.execute("DELETE FROM users WHERE id = %s", (current_user_id,))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        cur.close()
+        raise HTTPException(status_code=400, detail="Database error")
+    return {"message": f"Deleted user {current_user_id}"}
 
 
 # ---------------------------------------------------------------------------
