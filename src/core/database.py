@@ -74,7 +74,7 @@ def init_db():
                 username VARCHAR(255) UNIQUE NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
                 hashed_pw TEXT NOT NULL,
-                credits INT NOT NULL DEFAULT 5
+                credits DOUBLE PRECISION NOT NULL DEFAULT 5
             );
         """)
         cur.execute("""
