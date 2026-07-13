@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from src.core.config import init_config
 from src.core.database import init_db
 from src.services.bist import cache_tickers_and_companies
-from src.api.routes import router
+from src.api.router import router
 
 app = FastAPI()
 
