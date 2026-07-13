@@ -132,7 +132,7 @@ def init_db():
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
-        CREATE INDEX idx_reports_user_id ON reports(user_id);
+        CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
         """)
 
     conn.close()
