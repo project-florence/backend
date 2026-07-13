@@ -15,6 +15,7 @@ CRON_ENTRIES=(
     "*/10 * * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier bist30 > /dev/null 2>&1"
     "0 * * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier popular > /dev/null 2>&1"
     "0 */12 * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier rest > /dev/null 2>&1"
+    "0 0 * * * cd $PROJECT_DIR && $PYTHON scripts/credit_refiller.py > /dev/null 2>&1"
 )
 
 TEMP_CRON=$(mktemp)
