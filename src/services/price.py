@@ -132,4 +132,5 @@ def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
         {"ts": row["ts"].isoformat(), "open": _clean(row["open"]), "high": _clean(row["high"]),
          "low": _clean(row["low"]), "close": _clean(row["close"]), "volume": row["volume"]}
         for row in rows
+        if _clean(row["close"]) is not None
     ]
