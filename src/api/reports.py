@@ -11,7 +11,7 @@ from pydantic import BaseModel
 router = APIRouter()
 
 
-@router.post("/generate/report")
+@router.post("/reports/generate")
 def generate_report(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user)):
     validate_ticker(ticker)
 
@@ -83,7 +83,7 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id: int = 
     }
 
 
-@router.get("/generate/report/info")
+@router.get("/reports/info")
 def report_info():
     return {
         "quick_report": {
