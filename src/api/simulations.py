@@ -3,6 +3,7 @@ from src.core.database import db
 import src.simulation.montecarlo as montecarlo
 from src.services.stats import increment_stat
 from src.api.deps import get_current_user, validate_ticker
+from src.core.config import get_config
 
 router = APIRouter()
 
@@ -10,7 +11,7 @@ router = APIRouter()
 @router.get("/simulations/probability/{ticker}")
 def probability(ticker: str, days: int = Query(...), target: str = Query(...), current_user_id: int = Depends(get_current_user)):
     validate_ticker(ticker)
-    cost = round(days * 0.005, 3)
+    cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
 
     with db.cursor() as cur:
         try:
@@ -49,7 +50,7 @@ def probability(ticker: str, days: int = Query(...), target: str = Query(...), c
 @router.get("/simulations/confidence-interval/{ticker}")
 def confidence_interval(ticker: str, days: int = Query(...), bounds: str = Query(...), current_user_id: int = Depends(get_current_user)):
     validate_ticker(ticker)
-    cost = round(days * 0.005, 3)
+    cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
 
     with db.cursor() as cur:
         try:

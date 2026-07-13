@@ -74,3 +74,6 @@ detail_cache_ttl = 3600
 [report]
 quick_report_cost = 1
 deep_report_cost = 5
+
+[simulation]
+per_day_cost = 0.005
