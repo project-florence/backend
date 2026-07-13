@@ -14,23 +14,31 @@ router = APIRouter()
 
 
 @router.get("/bist/companies")
-def bist_companies(sort: str = Query(default="alphabetical", description="Sort order: alphabetical or popular")):
+def bist_companies(
+    sort: str = Query(default="alphabetical", description="Sort order: alphabetical or popular"),
+    offset: int = Query(default=0, ge=0, description="Number of items to skip"),
+    limit: int = Query(default=50, ge=1, le=500, description="Max items to return"),
+):
     companies = get_bist_companies_as_dict_from_redis()
     if sort == "popular":
         stats = get_all_stats()
         ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
         companies.sort(key=lambda c: (ticker_order.get(c["ticker"], 999), c["ticker"]))
-    return companies
+    return companies[offset: offset + limit]
 
 
 @router.get("/bist/tickers")
-def bist_tickers(sort: str = Query(default="alphabetical", description="Sort order: alphabetical or popular")):
+def bist_tickers(
+    sort: str = Query(default="alphabetical", description="Sort order: alphabetical or popular"),
+    offset: int = Query(default=0, ge=0, description="Number of items to skip"),
+    limit: int = Query(default=50, ge=1, le=500, description="Max items to return"),
+):
     tickers = get_bist_tickers_as_dict_from_redis()
     if sort == "popular":
         stats = get_all_stats()
         ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
         tickers.sort(key=lambda t: (ticker_order.get(t, 999), t))
-    return tickers
+    return tickers[offset: offset + limit]
 
 
 @router.get("/companies/search")
@@ -48,12 +56,13 @@ def company_info(ticker: str):
 
 @router.get("/companies/summary")
 def companies_summary(
-    limit: int = Query(default=50, description="Number of companies"),
+    limit: int = Query(default=50, ge=1, le=500, description="Number of companies"),
+    offset: int = Query(default=0, ge=0, description="Number of items to skip"),
     sort: str = Query(default="popular", description="Sort order: popular or alphabetical"),
     tickers: str | None = Query(default=None, description="Comma-separated ticker filter"),
 ):
     ticker_list = [t.strip().upper() for t in tickers.split(",")] if tickers else None
-    return get_companies_summary(limit=limit, sort=sort, tickers_filter=ticker_list)
+    return get_companies_summary(limit=limit, offset=offset, sort=sort, tickers_filter=ticker_list)
 
 
 @router.get("/news/{ticker}")

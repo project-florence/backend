@@ -95,7 +95,7 @@ def get_company_info(ticker: str, use_cache: bool = True) -> dict:
     return profile
 
 
-def get_companies_summary(limit: int = 50, sort: str = "popular", tickers_filter: list[str] | None = None) -> list[dict]:
+def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular", tickers_filter: list[str] | None = None) -> list[dict]:
     bist_companies = get_bist_companies_as_dict_from_redis()
     company_map = {c["ticker"]: c.get("name", "") for c in bist_companies}
 
@@ -103,9 +103,9 @@ def get_companies_summary(limit: int = 50, sort: str = "popular", tickers_filter
         ticker_list = [t.upper() for t in tickers_filter if t.upper() in company_map]
     elif sort == "popular":
         stats = get_all_stats()
-        ticker_list = [s["ticker"] for s in stats[:limit]]
+        ticker_list = [s["ticker"] for s in stats[offset:offset + limit]]
     else:
-        ticker_list = sorted(company_map.keys())[:limit]
+        ticker_list = sorted(company_map.keys())[offset:offset + limit]
 
     if not ticker_list:
         return []
