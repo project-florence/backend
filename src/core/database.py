@@ -73,7 +73,8 @@ def init_db():
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
-                hashed_pw TEXT NOT NULL
+                hashed_pw TEXT NOT NULL,
+                credits INT NOT NULL DEFAULT 5
             );
         """)
         cur.execute("""

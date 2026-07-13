@@ -70,3 +70,7 @@ wp_api = "https://halkarz.com/wp-json/wp/v2/posts"
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 list_cache_ttl = 3600
 detail_cache_ttl = 3600
+
+[report]
+quick_report_cost = 1
+deep_report_cost = 5
