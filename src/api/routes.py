@@ -19,7 +19,7 @@ from src.services.bist import (
     search_companies_by_text,
     is_valid_bist_ticker,
 )
-from src.services.company import get_company_info
+from src.services.company import get_company_info, get_companies_summary
 from src.services.news import get_latest_news
 from src.services.report import generate_quick_report, generate_deep_report
 from src.services.economy import (
@@ -106,6 +106,15 @@ def company_info(ticker: str):
     result = get_company_info(ticker)
     increment_stat(ticker, "info_count")
     return result
+
+@router.get("/companies/summary")
+def companies_summary(
+    limit: int = Query(default=50, description="Number of companies"),
+    sort: str = Query(default="popular", description="Sort order: popular or alphabetical"),
+    tickers: str | None = Query(default=None, description="Comma-separated ticker filter"),
+):
+    ticker_list = [t.strip().upper() for t in tickers.split(",")] if tickers else None
+    return get_companies_summary(limit=limit, sort=sort, tickers_filter=ticker_list)
 
 
 # ---------------------------------------------------------------------------
