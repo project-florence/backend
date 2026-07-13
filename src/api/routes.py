@@ -421,3 +421,37 @@ def get_favorites(current_user_id: int = Depends(get_current_user)):
             raise HTTPException(status_code=500, detail="Database error")
 
     return {"favorites": favorites_list}
+
+@router.get("/profile")
+def get_profile(current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+                SELECT username, email, credits FROM users WHERE id = %s
+            """, (current_user_id,))
+            rows = cur.fetchone()
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {
+        "username": rows[0],
+        "email": rows[1],
+        "credits": rows[2]
+    }
+
+@router.get("/credits")
+def get_credits(current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+                SELECT credits FROM users WHERE id = %s
+            """, (current_user_id,))
+            rows = cur.fetchone()
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {
+        "credits": rows[0]
+    }
