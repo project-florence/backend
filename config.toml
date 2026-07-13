@@ -57,11 +57,7 @@ output_filename = "bist_companies.json"
 rate_limit_delay = 5.0
 
 [economy]
-api_url = "api.collectapi.com"
-gold_endpoint = "/economy/goldPrice"
-silver_endpoint = "/economy/silverPrice"
-currency_symbols_endpoint = "/economy/symbols"
-currency_endpoint = "/economy/allCurrency"
+api_url = "https://finans.truncgil.com/v3/today.json"
 cache_ttl = 600
 
 [halkarz]
