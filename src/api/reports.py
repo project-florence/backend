@@ -5,6 +5,8 @@ from src.core.database import db
 from src.services.report import generate_quick_report, generate_deep_report
 from src.services.scout import scout_best_tickers
 from src.api.deps import get_current_user, validate_ticker
+from datetime import datetime
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -53,13 +55,31 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id: int = 
                 db.commit()
             raise HTTPException(status_code=500, detail="Report generation failed, credits refunded.")
 
+        try:
+            cur.execute("""
+                        INSERT INTO reports (user_id, ticker, type, content)
+                        VALUES (%s, %s, %s, %s) RETURNING id, created_at
+                        """, (current_user_id, ticker, type, report_text))
+
+            report_row = cur.fetchone()
+            db.commit()
+
+            report_id = report_row[0]
+            created_at = report_row[1].isoformat()
+        except Exception as e:
+            db.rollback()
+            report_id = None
+            created_at = None
+
     return {
         "success": True,
+        "report_id": report_id,
         "credits_spend": cost,
         "remaining_credits": remaining_credits,
         "about": ticker,
         "type": type,
         "report": report_text,
+        "created_at": created_at
     }
 
 
@@ -85,6 +105,66 @@ def report_info():
         }
     }
 
+# Frontend'in ne alacağını netleştirmek için response model tanımlayalım
+class ReportHistoryItem(BaseModel):
+    id: int
+    ticker: str
+    type: str
+    created_at: str
+
+
+@router.get("/reports/history", response_model=list[ReportHistoryItem])
+def get_report_history(current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+                        SELECT id, ticker, type, created_at
+                        FROM reports
+                        WHERE user_id = %s
+                        ORDER BY created_at DESC
+                        """, (current_user_id,))
+            rows = cur.fetchall()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    history = [
+        ReportHistoryItem(
+            id=row[0],
+            ticker=row[1],
+            type=row[2],
+            created_at=row[3].isoformat()
+        ) for row in rows
+    ]
+
+    return history
+
+
+@router.get("/reports/{report_id}")
+def get_single_report(report_id: int, current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        try:
+            cur.execute("""
+                        SELECT ticker, type, content, created_at
+                        FROM reports
+                        WHERE id = %s
+                          AND user_id = %s
+                        """, (report_id, current_user_id))
+            row = cur.fetchone()
+
+            if not row:
+                raise HTTPException(status_code=404,
+                                    detail="Report not found or you do not have permission to view it.")
+
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {
+        "id": report_id,
+        "ticker": row[0],
+        "type": row[1],
+        "content": row[2],
+        "created_at": row[3].isoformat()
+    }
 
 @router.get("/scout/best-tickers")
 def best_tickers(

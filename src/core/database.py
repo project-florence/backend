@@ -121,6 +121,20 @@ def init_db():
                 PRIMARY KEY (user_id, ticker_code)
             );
         """)
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS reports (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            ticker TEXT NOT NULL,
+            type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX idx_reports_user_id ON reports(user_id);
+        """)
+
     conn.close()
 
 
