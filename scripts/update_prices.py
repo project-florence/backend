@@ -6,10 +6,12 @@ Cron ile kullanım için tasarlanmıştır. Üç kademeli güncelleme:
   - Kalanlar: her 12 saatte bir
 
 Kullanım:
-  python scripts/update_prices.py              # tüm kademeleri kontrol eder
-  python scripts/update_prices.py --tier bist30   # sadece BIST30
-  python scripts/update_prices.py --tier popular  # sadece popüler
-  python scripts/update_prices.py --tier rest     # sadece kalanlar
+  python scripts/update_prices.py                      # tüm kademeleri kontrol eder
+  python scripts/update_prices.py --tier bist30         # sadece BIST30
+  python scripts/update_prices.py --tier popular        # sadece popüler
+  python scripts/update_prices.py --tier rest           # sadece kalanlar
+  python scripts/update_prices.py --info                # fiyat + company info (popular, 5s aralikla)
+  python scripts/update_prices.py --tier popular --info # sadece popular'in fiyat + info'su
 """
 
 import sys
@@ -27,6 +29,7 @@ import pandas as pd
 from src.core.config import init_config
 from src.core.database import db
 from src.utils.mapping import load_bist_mapping
+from src.services.company import get_company_info
 
 BIST30_TICKERS = [
     "AKBNK", "ARCLK", "ASELS", "BIMAS", "CCOLA",
@@ -39,12 +42,15 @@ BIST30_TICKERS = [
 
 BATCH_SIZE = 50
 BATCH_DELAY = 10
+INFO_TICKER_DELAY = 5
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--tier", choices=["bist30", "popular", "rest"], default=None,
                         help="Sadece belirli kademeyi güncelle")
+    parser.add_argument("--info", action="store_true",
+                        help="Fiyat güncellemesinden sonra company info'yu da tazele (popular kademesi, 5s aralikla)")
     args = parser.parse_args()
 
     init_config()
@@ -89,6 +95,9 @@ def main():
             if i + BATCH_SIZE < len(tickers_is):
                 print(f"  {BATCH_DELAY}s bekleniyor...")
                 time.sleep(BATCH_DELAY)
+
+    if args.info:
+        _refresh_company_info(tiers)
 
     print(f"\nToplam {total_updated} ticker güncellendi.")
 
@@ -172,6 +181,42 @@ def _update_batch(batch_tickers: list[str], tier_name: str, offset: int, total: 
                 continue
     db.commit()
     print(f"{count} kaydedildi")
+
+
+def _refresh_company_info(tiers: list[tuple[str, list[str], timedelta]]):
+    """Popular kademesindeki ticker'larin company info'sunu tazeler.
+
+    use_cache=False ile Redis'e yazilan eski profili ezer,
+    yeni alanlarla (beta, sharesOutstanding, bookValue, averageVolume vb.) gunceller.
+    """
+    print("\n[INFO] Company info tazeleniyor...")
+
+    popular_tickers = None
+    for tier_name, ticker_list, _ in tiers:
+        if "POPÜLER" in tier_name:
+            popular_tickers = ticker_list
+            break
+
+    if not popular_tickers:
+        print("[INFO] Popular kademesi bulunamadi, atlaniyor.")
+        return
+
+    total = len(popular_tickers)
+    for i, ticker in enumerate(popular_tickers, 1):
+        print(f"  [{i}/{total}] {ticker}...", end=" ", flush=True)
+        try:
+            profile = get_company_info(ticker, use_cache=False)
+            if profile:
+                print(f"OK ({len(profile)} alan)")
+            else:
+                print("veri yok")
+        except Exception as e:
+            print(f"hata: {e}")
+
+        if i < total:
+            time.sleep(INFO_TICKER_DELAY)
+
+    print("[INFO] Company info tazeleme tamamlandi.")
 
 
 if __name__ == "__main__":

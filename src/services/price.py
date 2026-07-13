@@ -5,6 +5,16 @@ from datetime import datetime, timedelta, timezone
 from src.clients.yfinance import fetch_price_history
 from src.core.database import db
 
+
+def _clean(val):
+    if val is None:
+        return None
+    if hasattr(val, "item"):
+        val = val.item()
+    if isinstance(val, float):
+        return None if math.isnan(val) else val
+    return val
+
 _db_initialized = False
 
 
@@ -58,9 +68,9 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
 
     with conn.cursor() as cur:
         for ts, row in data.iterrows():
-            if row["Open"] is None or row["Close"] is None:
+            if _clean(row.get("Open")) is None or _clean(row.get("Close")) is None:
                 continue
-            volume = row["Volume"]
+            volume = row.get("Volume")
             if isinstance(volume, (float, int)) and not math.isnan(volume):
                 volume = int(volume)
             else:
@@ -70,8 +80,8 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
                 "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (ticker, interval, ts) DO NOTHING",
                 (ticker, interval, ts.to_pydatetime(),
-                 float(row["Open"]), float(row["High"]), float(row["Low"]),
-                 float(row["Close"]), volume),
+                 _clean(row.get("Open")), _clean(row.get("High")),
+                 _clean(row.get("Low")), _clean(row.get("Close")), volume),
             )
 
 
@@ -119,7 +129,7 @@ def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
         rows = cur.fetchall()
 
     return [
-        {"ts": row["ts"].isoformat(), "open": row["open"], "high": row["high"],
-         "low": row["low"], "close": row["close"], "volume": row["volume"]}
+        {"ts": row["ts"].isoformat(), "open": _clean(row["open"]), "high": _clean(row["high"]),
+         "low": _clean(row["low"]), "close": _clean(row["close"]), "volume": row["volume"]}
         for row in rows
     ]
