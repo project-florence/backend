@@ -2,7 +2,7 @@ import os
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 import psycopg2
 from psycopg2 import errors
 from argon2 import PasswordHasher
@@ -124,21 +124,25 @@ def companies_summary(
 # ---------------------------------------------------------------------------
 
 @router.post("/generate/report")
-def generate_report(ticker: str, type: str = Query(...), current_user_id = Depends(get_current_user())):
+def generate_report(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user)):
     _validate_ticker(ticker)
-    if not type == "quick_report" or type == "deep_report":
-        raise HTTPException(status_code=400, detail="Invalid type")
-    cost = get_config()["report"]["quick_report_cost"] if type == "quick_report" else get_config()["report"]["deep_report_cost"]
 
-    with db.cursor as cur:
+    if type not in ("quick_report", "deep_report"):
+        raise HTTPException(status_code=400, detail="Invalid type")
+
+    cost = get_config()["report"]["quick_report_cost"] if type == "quick_report" else get_config()["report"][
+        "deep_report_cost"]
+
+    with db.cursor() as cur:
         try:
             cur.execute("""
-                UPDATE users
-                SET credits = credits - %s
-                WHERE id = %s AND credits >= %s
-                RETURNING credits
-            """, (cost, current_user_id, cost))
+                        UPDATE users
+                        SET credits = credits - %s
+                        WHERE id = %s
+                          AND credits >= %s RETURNING credits
+                        """, (cost, current_user_id, cost))
             row = cur.fetchone()
+
             if row is None:
                 db.rollback()
                 raise HTTPException(status_code=402, detail="insufficient credit")
@@ -155,20 +159,22 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id = Depen
             if type == "quick_report":
                 report_text = generate_quick_report(ticker)
             elif type == "deep_report":
-                report_text = generate_deep_report(ticker) # ileride burada report_text, result ile sonuc al. eger yeterli veri yoksa rollback yap ve bunu result olarak dondur.
+                report_text = generate_deep_report(ticker)
 
         except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Internal server error")
+            with db.cursor() as refund_cur:
+                refund_cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
+                db.commit()
+            raise HTTPException(status_code=500, detail="Report generation failed, credits refunded.")
 
-        return {
-            "success": True,
-            "credits_spend": cost,
-            "remaining_credits": remaining_credits,
-            "about": {ticker},
-            "type": "quick_report",
-            "report": report_text,
-        }
+    return {
+        "success": True,
+        "credits_spend": cost,
+        "remaining_credits": remaining_credits,
+        "about": ticker,
+        "type": type,
+        "report": report_text,
+    }
 
 @router.get("/generate/report/info")
 def report_info():
@@ -455,3 +461,97 @@ def get_credits(current_user_id: int = Depends(get_current_user)):
     return {
         "credits": rows[0]
     }
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class UpdateEmail(BaseModel):
+    new_email: EmailStr
+    current_password: str
+
+
+class UpdateUsername(BaseModel):
+    new_username: str
+    current_password: str
+
+@router.put("/auth/change-password")
+def change_password(payload: ChangePassword, current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
+        user_row = cur.fetchone()
+
+        if not user_row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        db_password_hash = user_row[0]
+
+        try:
+            ph.verify(db_password_hash, payload.current_password)
+        except VerificationError:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        new_hashed_pw = ph.hash(payload.new_password)
+        try:
+            cur.execute("UPDATE users SET hashed_pw = %s WHERE id = %s", (new_hashed_pw, current_user_id))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {"message": "Password changed successfully"}
+
+
+@router.put("/auth/change-email")
+def change_email(payload: UpdateEmail, current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
+        user_row = cur.fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        try:
+            ph.verify(user_row[0], payload.current_password)
+        except VerificationError:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        cur.execute("SELECT id FROM users WHERE email = %s AND id != %s", (payload.new_email, current_user_id))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="Email already in use")
+
+        try:
+            cur.execute("UPDATE users SET email = %s WHERE id = %s", (payload.new_email, current_user_id))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {"message": "Email changed successfully", "new_email": payload.new_email}
+
+
+@router.put("/auth/change-username")
+def change_username(payload: UpdateUsername, current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
+        user_row = cur.fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        try:
+            ph.verify(user_row[0], payload.current_password)
+        except VerificationError:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        cur.execute("SELECT id FROM users WHERE username = %s AND id != %s", (payload.new_username, current_user_id))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="Username already in use")
+
+        try:
+            cur.execute("UPDATE users SET username = %s WHERE id = %s", (payload.new_username, current_user_id))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {"message": "Username changed successfully", "new_username": payload.new_username}
