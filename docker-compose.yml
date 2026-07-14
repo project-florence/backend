@@ -19,6 +19,18 @@ services:
       - redisdata:/data
     restart: unless-stopped
 
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    ports:
+      - "5435:8080"
+    volumes:
+      - searxng:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
+  searxng:
