@@ -11,3 +11,8 @@ def init_config():
 
 def get_config():
     return config
+
+def reload_config():
+    global config
+    config = None
+    init_config()
