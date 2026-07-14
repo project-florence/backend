@@ -67,9 +67,19 @@ user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 list_cache_ttl = 3600
 detail_cache_ttl = 3600
 
+[embedding]
+base_url = "http://127.0.0.1:11434/v1"
+api_key = "ollama"
+model = "mxbai-embed-large"
+
 [report]
 quick_report_cost = 1
 deep_report_cost = 5
 
 [simulation]
 per_day_cost = 0.005
+
+[news_search]
+search_url = "http://localhost:5435/search"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+categories = "news"
