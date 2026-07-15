@@ -1,60 +1,103 @@
-from src.models.article import Article
-from src.models.content import Content
-from src.clients.scraping import get_text_from_url
-from src.clients.llm import get_response
-from src.services.news import collect_articles
-from src.utils.dates import get_last_quarter_start
+from datetime import datetime, timezone
+from pydantic import BaseModel
 from src.core.config import get_config
-from src.services.report.prompts import article_selection_prompt, article_analyze_prompt, report_generation_prompt
 
 
-def _generate_report(query: str, article_limit: int):
-    articles = collect_articles(query, get_last_quarter_start(), article_limit, lang=["TURKISH"])
-    if not articles:
-        raise Exception("No articles found")
-
-    selection_list = ""
-    for i, article in enumerate(articles):
-        selection_list += "{} -- {}\n".format(i + 1, article.title)
-    selection_prompt = article_selection_prompt.format(query, article_limit) + "\n" + selection_list
-
-    res = get_response(selection_prompt)
-    if not res:
-        raise Exception("No articles selected")
-
-    selected_articles_idxes = res.split(",")
-    selected_articles = []
-    for idx in selected_articles_idxes:
-        idx = int(idx.strip()) - 1
-        if 0 <= idx < len(articles):
-            selected_articles.append(articles[idx])
-
-    contents = []
-    for article in selected_articles:
-        txt = ""
-        try:
-            txt = get_text_from_url(article.url)
-        except Exception as e:
-            print(e)
-        contents.append(Content(article.title, article.date, txt))
-
-    summaries = []
-    for content in contents:
-        res = get_response(article_analyze_prompt.format(query, content.to_string()))
-        if not res:
-            print("No output generated")
-        summaries.append(res)
-
-    all_contents = "".join(summaries)
-    report = get_response(report_generation_prompt.format(query, "TURKISH", all_contents))
-    return report or "No output generated"
+class Report(BaseModel):
+    title: str
+    about: str
+    date: str
+    report: str
+    sentiments: list[dict]
+    token_usage: dict = {"prompt": 0, "completion": 0, "total": 0}
 
 
-def generate_quick_report(query: str) -> str:
+def _mode_config(mode: str) -> tuple[int, str, str]:
     cfg = get_config()["article_analyzer"]
-    return _generate_report(query, cfg["quick_report_article_limit"])
+    if mode == "quick":
+        return (
+            cfg["quick_report_article_limit"],
+            "kisa",
+            "Bir kac paragraf (maksimum 500 kelime).",
+        )
+    return (
+        cfg["deep_report_article_limit"],
+        "detayli",
+        "Kapsamli, uzun format (1500+ kelime). Birden cok bakis acisi, risk analizi, finansal degerlendirme.",
+    )
 
 
-def generate_deep_report(query: str) -> str:
-    cfg = get_config()["article_analyzer"]
-    return _generate_report(query, cfg["deep_report_article_limit"])
+def _build_system_prompt(ticker: str, mode: str) -> str:
+    max_articles, mode_label, length_desc = _mode_config(mode)
+
+    return f"""Sen bir finans analistsin. Asagidaki araclari kullanarak "{ticker}" hakkinda kapsamli bir arastirma yap ve bir rapor hazirla.
+
+## Kullanabilecegin araclar
+
+1. **news_search(query)**: "{ticker}" ile ilgili haberleri getirir. Ihtiyacin kadar tekrar tekrar kullanabilirsin.
+2. **content_fetch(indices)**: news_search ile buldugun haberlerden secilen index'lerin tam metnini okur. Bazi URL'lerden icerik cekilemeyebilir, bu durumda **news_search'teki ozet (content) bilgisini kullan**.
+3. **economic_data(ticker)**: Sirketin finansal verilerini, fiyatini, sektor bilgilerini, doviz/altin piyasasini getirir.
+
+## Rapor modu: {mode_label}
+
+Okuma siniri: En fazla **{max_articles} haber** degerlendirebilirsin (ozet veya tam metin).
+Rapor uzunlugu: {length_desc}
+
+## Calisma akisi
+
+1. **news_search** ile en az 2-3 farkli arama yap (farkli terimler dene: ticker, sirket adi, sektor). Arama sonuclarindaki **content (ozet)** bilgisi genellikle yeterlidir.
+2. Arama sonuclarini birlestir, en onemli haberleri **content_fetch** ile acip oku. Icerik cekilemezse, news_search'teki ozet bilgisini kullan.
+3. **economic_data** ile finansal verileri kontrol et. Bu arac henuz kullanilamiyorsa, mevcut bilgilerle raporu olustur.
+4. Tum bilgileri sentezle ve **generate_report** tool'unu cagirarak raporu olustur.
+
+## Kurallar
+
+- **Kesinlikle uydurma bilgi ekleme.** Sadece okudugun haberlerden ve economic_data'dan gelen bilgileri kullan. Eger bazi veriler eksikse (economic_data calismiyorsa, icerik cekilemiyorsa), **mevcut verilerle en iyi raporu olustur** ve eksik oldugunu belirt. Eksik bilgi nedeniyle raporu reddetme.
+- Kullandigin her haber icin **sentiment** belirt (positive/neutral/negative) ve nedenini acikla.
+- Raporu **markdown** formatinda yaz. Baslik, alt basliklar, maddeler ve vurgular kullan.
+- Raporun bir **title** (baslik) olsun. "{ticker}" icin bir analiz basligi belirle.
+- Finansal terimleri gerektigi yerde kullan ama karmasiklastirma. Basit yatirimcilar da anlasin.
+- Tum arastirma bitince **generate_report** cagir. Ondan once bu tool'u kullanma."""
+
+
+def _generate_report(ticker: str, mode: str) -> Report | None:
+    from src.services.report.tools import load_tool_definitions, run_tool_loop
+
+    tools = load_tool_definitions()
+    prompt = _build_system_prompt(ticker, mode)
+    result = run_tool_loop(prompt, tools=tools, endpoint=f"{mode}_report")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    usage = result.get("usage", {"prompt": 0, "completion": 0, "total": 0})
+
+    if result["type"] == "report":
+        content = result["content"]
+        return Report(
+            title=content.get("title", f"{ticker} Analizi"),
+            about=ticker,
+            date=now,
+            report=content.get("report", ""),
+            sentiments=content.get("sentiments", []),
+            token_usage=usage,
+        )
+
+    if result["type"] == "text":
+        return Report(
+            title=f"{ticker} Analizi",
+            about=ticker,
+            date=now,
+            report=result["content"],
+            sentiments=[],
+            token_usage=usage,
+        )
+
+    return None
+
+
+def generate_quick_report(ticker: str) -> Report | None:
+    return _generate_report(ticker, "quick")
+
+
+def generate_deep_report(ticker: str) -> Report | None:
+    return _generate_report(ticker, "deep")
