@@ -5,6 +5,8 @@ from src.core.database import db
 from src.core.config import reload_config
 from src.core.redis import r
 from src.clients.llm import health_check
+from src.clients.search import news_search
+import yfinance as yf
 
 admin_app = FastAPI()
 
@@ -50,6 +52,8 @@ def healthcheck():
     db_health : bool = True
     redis_health : bool = True
     llm_health : bool = True
+    news_health : bool = False
+    yfinance_health : bool = False
 
     # db check
     with db.cursor() as cur:
@@ -69,9 +73,20 @@ def healthcheck():
     # llm check
     llm_health = health_check()
 
+    # news health
+    news = news_search("news", 1)
+    if len(news) > 0:
+        news_health = True
+
+    # yfinance health
+    info = yf.Ticker("ASELS.IS").info
+    if info is not None:
+        yfinance_health = True
+
     return {
         "db_health": db_health,
         "redis_health": redis_health,
         "llm_health": llm_health,
-        "status": "OK" if (db_health and redis_health and llm_health) else "ERROR"
+        "news_health": news_health,
+        "status": "OK" if (db_health and redis_health and llm_health and news_health and yfinance_health) else "ERROR"
     }
