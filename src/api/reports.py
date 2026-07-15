@@ -1,3 +1,5 @@
+import math
+import json
 from fastapi import APIRouter, Depends, Query, HTTPException
 from src.core.config import get_config
 from src.core.database import db
@@ -8,6 +10,12 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
+TOKEN_COST_PER_1K = get_config()["report"]["token_cost_per_1k"]
+
+
+def _compute_cost(total_tokens: int) -> int:
+    return max(1, math.ceil(total_tokens / 1000 * TOKEN_COST_PER_1K))
+
 
 @router.post("/reports/generate")
 def generate_report(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user)):
@@ -16,8 +24,19 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id: int = 
     if type not in ("quick_report", "deep_report"):
         raise HTTPException(status_code=400, detail="Invalid type")
 
-    cost = get_config()["report"]["quick_report_cost"] if type == "quick_report" else get_config()["report"][
-        "deep_report_cost"]
+    try:
+        if type == "quick_report":
+            report_obj = generate_quick_report(ticker)
+        else:
+            report_obj = generate_deep_report(ticker)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
+
+    if report_obj is None:
+        raise HTTPException(status_code=500, detail="Report generation returned no result")
+
+    total_tokens = report_obj.token_usage.get("total", 0)
+    cost = _compute_cost(total_tokens)
 
     with db.cursor() as cur:
         try:
@@ -42,22 +61,15 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id: int = 
             raise HTTPException(status_code=500, detail="Database error")
 
         try:
-            if type == "quick_report":
-                report_text = generate_quick_report(ticker)
-            elif type == "deep_report":
-                report_text = generate_deep_report(ticker)
-
-        except Exception as e:
-            with db.cursor() as refund_cur:
-                refund_cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
-                db.commit()
-            raise HTTPException(status_code=500, detail="Report generation failed, credits refunded.")
-
-        try:
             cur.execute("""
-                        INSERT INTO reports (user_id, ticker, type, content)
-                        VALUES (%s, %s, %s, %s) RETURNING id, created_at
-                        """, (current_user_id, ticker, type, report_text))
+                        INSERT INTO reports (user_id, ticker, type, title, token_usage, content)
+                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, created_at
+                        """, (
+                current_user_id, ticker, type,
+                report_obj.title,
+                json.dumps(report_obj.token_usage),
+                report_obj.report,
+            ))
 
             report_row = cur.fetchone()
             db.commit()
@@ -76,13 +88,17 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id: int = 
         "remaining_credits": remaining_credits,
         "about": ticker,
         "type": type,
-        "report": report_text,
-        "created_at": created_at
+        "title": report_obj.title,
+        "report": report_obj.report,
+        "sentiments": report_obj.sentiments,
+        "token_usage": report_obj.token_usage,
+        "created_at": created_at,
     }
 
 
 @router.get("/reports/info")
 def report_info():
+    token_cost = get_config()["report"]["token_cost_per_1k"]
     return {
         "quick_report": {
             "type": "quick_report",
@@ -90,8 +106,7 @@ def report_info():
             "name_tr": "Hızlı Rapor",
             "description": "Analyzes a stock based on recent news and market data, providing a concise summary of key insights, sentiment, and price action in seconds.",
             "description_tr": "Bir hisse senedi hakkında son haberler ve piyasa verileri ışığında hızlı bir analiz yapar; önemli gelişmeleri, piyasa duyarlılığını ve fiyat hareketlerini kısa ve öz bir şekilde özetler.",
-            "cost": get_config()["report"]["quick_report_cost"],
-
+            "est_cost": _compute_cost(20000),
         },
         "deep_report": {
             "type": "deep_report",
@@ -99,15 +114,18 @@ def report_info():
             "name_tr": "Derin Rapor",
             "description": "Performs an in-depth research on a stock by scanning a large volume of news, financial statements, and market indicators to produce a comprehensive investment analysis.",
             "description_tr": "Bir hisse senedi hakkında geniş bir haber ve veri taraması yaparak finansalları, piyasa göstergelerini ve haber akışını derinlemesine analiz eder; kapsamlı bir yatırım değerlendirmesi sunar.",
-            "cost": get_config()["report"]["deep_report_cost"],
-        }
+            "est_cost": _compute_cost(30000),
+        },
+        "token_cost_per_1k": token_cost,
     }
 
-# Frontend'in ne alacağını netleştirmek için response model tanımlayalım
+
 class ReportHistoryItem(BaseModel):
     id: int
     ticker: str
     type: str
+    title: str | None = None
+    token_usage: dict | None = None
     created_at: str
 
 
@@ -116,7 +134,7 @@ def get_report_history(current_user_id: int = Depends(get_current_user)):
     with db.cursor() as cur:
         try:
             cur.execute("""
-                        SELECT id, ticker, type, created_at
+                        SELECT id, ticker, type, title, token_usage, created_at
                         FROM reports
                         WHERE user_id = %s
                         ORDER BY created_at DESC
@@ -125,15 +143,20 @@ def get_report_history(current_user_id: int = Depends(get_current_user)):
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
-    history = [
-        ReportHistoryItem(
+    history = []
+    for row in rows:
+        tu = row[4]
+        if isinstance(tu, str):
+            tu = json.loads(tu) if tu else None
+        item = ReportHistoryItem(
             id=row[0],
             ticker=row[1],
             type=row[2],
-            created_at=row[3].isoformat()
-        ) for row in rows
-    ]
-
+            title=row[3],
+            token_usage=tu,
+            created_at=row[5].isoformat(),
+        )
+        history.append(item)
     return history
 
 
@@ -142,7 +165,7 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
     with db.cursor() as cur:
         try:
             cur.execute("""
-                        SELECT ticker, type, content, created_at
+                        SELECT ticker, type, title, token_usage, content, created_at
                         FROM reports
                         WHERE id = %s
                           AND user_id = %s
@@ -156,12 +179,17 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
+    tu = row[3]
+    if isinstance(tu, str):
+        tu = json.loads(tu) if tu else None
     return {
         "id": report_id,
         "ticker": row[0],
         "type": row[1],
-        "content": row[2],
-        "created_at": row[3].isoformat()
+        "title": row[2],
+        "token_usage": tu,
+        "content": row[4],
+        "created_at": row[5].isoformat(),
     }
 
 
