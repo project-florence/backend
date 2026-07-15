@@ -79,6 +79,24 @@ deep_report_cost = 5
 [simulation]
 per_day_cost = 0.005
 
+[stock_vector]
+ttl = 86400
+
+[stock_vector.risk_tolerance_map]
+low = 0.10
+medium = 0.50
+high = 0.90
+
+[stock_vector.horizon_map]
+short = 0.15
+medium = 0.40
+long = 0.70
+
+[stock_vector.profitability_map]
+low = 0.10
+medium = 0.35
+high = 0.70
+
 [news_search]
 search_url = "http://localhost:5435/search"
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
