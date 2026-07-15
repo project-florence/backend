@@ -1,0 +1,17 @@
+{
+  "name": "content_fetch",
+  "description": "news_search ile bulunan haberlerden secilen indekslerin tam metin icerigini URL'den kaziyarak getirir.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "indices": {
+        "type": "array",
+        "items": {
+          "type": "integer"
+        },
+        "description": "Icerigi cekilecek haber indeksleri. Orn: [1, 3, 5]"
+      }
+    },
+    "required": ["indices"]
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "generate_report",
+  "description": "Analiz sonucunu yapilandirilmis rapor formatinda dondurur. Baslik, markdown rapor ve haber sentiment'lerini icermelidir.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Rapor basligi"
+      },
+      "report": {
+        "type": "string",
+        "description": "Markdown formatinda rapor icerigi"
+      },
+      "sentiments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "index": {
+              "type": "integer",
+              "description": "news_search'ten gelen haber index numarasi"
+            },
+            "sentiment": {
+              "type": "string",
+              "enum": ["positive", "neutral", "negative"]
+            },
+            "reasoning": {
+              "type": "string",
+              "description": "Bu sentiment'e neden varildigina dair kisa aciklama"
+            }
+          },
+          "required": ["index", "sentiment", "reasoning"]
+        }
+      }
+    },
+    "required": ["title", "report", "sentiments"]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "economic_data",
+  "description": "Bir hisse icin sirket profili, finansal metrikler, guncel fiyat, doviz kurlari ve altin fiyatlarini tek seferde getirir.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "ticker": {
+        "type": "string",
+        "description": "Hisse ticker kodu. Orn: THYAO"
+      }
+    },
+    "required": ["ticker"]
+  }
+}

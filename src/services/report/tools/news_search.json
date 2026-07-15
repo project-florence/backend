@@ -1,0 +1,14 @@
+{
+  "name": "news_search",
+  "description": "SearXNG uzerinden bir ticker veya sirket icin son haberleri getirir. Her haber title, content (ozet), url ve kaynak motor bilgisi icerir.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Haber aranacak terim. Orn: THYAO, Aselsan"
+      }
+    },
+    "required": ["query"]
+  }
+}
