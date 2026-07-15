@@ -11,8 +11,8 @@ app = FastAPI()
 init_config()
 init_db()
 init_llm_client(
-    url=get_config()["article_analyzer"]["llm_url"],
-    default_model=get_config()["article_analyzer"]["llm_model"],
+    url=get_config()["llm_client"]["url"],
+    default_model=get_config()["llm_client"]["model"],
 )
 init_embedding_client()
 cache_tickers_and_companies()
