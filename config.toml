@@ -73,8 +73,7 @@ api_key = "ollama"
 model = "mxbai-embed-large"
 
 [report]
-quick_report_cost = 1
-deep_report_cost = 5
+token_cost_per_1k = 0.05
 
 [simulation]
 per_day_cost = 0.005
