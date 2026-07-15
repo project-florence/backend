@@ -240,3 +240,22 @@ def build_query(
         "profitability_target": PROFITABILITY_MAP[profitability],
         "risk_tolerance": RISK_TOLERANCE_MAP[risk_tolerance],
     }
+
+
+def average_vector(vectors: list[list[float]]) -> list[float]:
+    if not vectors:
+        return [0.0, 0.0, 0.0]
+    n = len(vectors)
+    return [round(sum(vals) / n, 4) for vals in zip(*vectors)]
+
+
+def _closest_key(value: float, mapping: dict[str, float]) -> str:
+    return min(mapping, key=lambda k: abs(mapping[k] - value))
+
+
+def estimate_profile(vec: list[float]) -> dict[str, str]:
+    return {
+        "risk": _closest_key(vec[0], RISK_TOLERANCE_MAP),
+        "horizon": _closest_key(vec[1], HORIZON_MAP),
+        "profitability": _closest_key(vec[2], PROFITABILITY_MAP),
+    }
