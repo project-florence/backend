@@ -7,7 +7,7 @@ from src.services.bist import (
 from src.services.company import get_company_info, get_companies_summary
 from src.services.news import get_latest_news
 from src.services.price import get_price_history
-from src.services.stats import increment_stat, get_all_stats
+from src.services.stats import increment_stat, get_popular_companies, get_popular_tickers
 from src.api.deps import validate_ticker
 
 router = APIRouter()
@@ -19,11 +19,10 @@ def bist_companies(
     offset: int = Query(default=0, ge=0, description="Number of items to skip"),
     limit: int = Query(default=50, ge=1, le=500, description="Max items to return"),
 ):
-    companies = get_bist_companies_as_dict_from_redis()
     if sort == "popular":
-        stats = get_all_stats()
-        ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
-        companies.sort(key=lambda c: (ticker_order.get(c["ticker"], 999), c["ticker"]))
+        return get_popular_companies(n=offset + limit)[offset:]
+
+    companies = get_bist_companies_as_dict_from_redis()
     return companies[offset: offset + limit]
 
 
@@ -33,11 +32,10 @@ def bist_tickers(
     offset: int = Query(default=0, ge=0, description="Number of items to skip"),
     limit: int = Query(default=50, ge=1, le=500, description="Max items to return"),
 ):
-    tickers = get_bist_tickers_as_dict_from_redis()
     if sort == "popular":
-        stats = get_all_stats()
-        ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
-        tickers.sort(key=lambda t: (ticker_order.get(t, 999), t))
+        return get_popular_tickers(n=offset + limit)[offset:]
+
+    tickers = get_bist_tickers_as_dict_from_redis()
     return tickers[offset: offset + limit]
 
 

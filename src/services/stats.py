@@ -99,6 +99,25 @@ def get_all_stats() -> list[dict]:
     return results
 
 
+def get_popular_tickers(n: int = 10) -> list[str]:
+    stats = get_all_stats()
+    return [s["ticker"] for s in stats[:n]]
+
+
+def get_popular_companies(n: int = 10) -> list[dict]:
+    companies = get_bist_companies_as_dict_from_redis()
+    stats = get_all_stats()
+    ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
+    companies.sort(key=lambda c: (ticker_order.get(c["ticker"], 999), c["ticker"]))
+    return companies[:n]
+
+
+def get_popular_company_summaries(n: int = 10) -> list[dict]:
+    from src.services.company import get_companies_summary
+    tickers = get_popular_tickers(n)
+    return get_companies_summary(limit=n, tickers_filter=tickers)
+
+
 def _get_ticker_name_map() -> dict[str, str]:
     try:
         companies = get_bist_companies_as_dict_from_redis()
