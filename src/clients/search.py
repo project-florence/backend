@@ -8,7 +8,7 @@ class NewsItem(BaseModel):
     title: str
     content: str
     url: str
-    source_engine: str
+    source_engine: str = "web"
 
 
 def news_search(query: str, limit: int = 10) -> List[NewsItem]:
@@ -31,7 +31,12 @@ def news_search(query: str, limit: int = 10) -> List[NewsItem]:
         data = response.json()
         results = data.get("results", [])[:limit]
 
-        news_items = [NewsItem(**result) for result in results]
+        def _to_item(r: dict) -> dict:
+            if "engine" in r and "source_engine" not in r:
+                r["source_engine"] = r.pop("engine")
+            return r
+
+        news_items = [NewsItem(**_to_item(result)) for result in results]
         return news_items
     else:
         print("Error:", response.status_code, response.text)
