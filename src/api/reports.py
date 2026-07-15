@@ -1,9 +1,7 @@
-import json
 from fastapi import APIRouter, Depends, Query, HTTPException
 from src.core.config import get_config
 from src.core.database import db
 from src.services.report import generate_quick_report, generate_deep_report
-from src.services.scout import scout_best_tickers
 from src.api.deps import get_current_user, validate_ticker
 from datetime import datetime
 from pydantic import BaseModel
@@ -166,10 +164,4 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
         "created_at": row[3].isoformat()
     }
 
-@router.get("/scout/best-tickers")
-def best_tickers(
-    investment_budget: int = Query(...),
-    investment_horizon: str = Query(...),
-    risk_tolerance: str = Query(...),
-):
-    return json.loads(scout_best_tickers())
+
