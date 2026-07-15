@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from src.core.redis import r
 from src.core.config import get_config
-from src.clients.halkarz import list_ipos, get_ipo_detail
+from src.clients.ipo import list_ipos, get_ipo_detail
 
 
 def _default_after() -> str:
