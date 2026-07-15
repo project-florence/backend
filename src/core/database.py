@@ -128,11 +128,31 @@ def init_db():
             user_id INT REFERENCES users(id) ON DELETE CASCADE,
             ticker TEXT NOT NULL,
             type TEXT NOT NULL,
+            title TEXT,
+            token_usage JSONB,
             content TEXT NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
         CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
+        """)
+
+        cur.execute("""
+        ALTER TABLE reports ADD COLUMN IF NOT EXISTS title TEXT;
+        ALTER TABLE reports ADD COLUMN IF NOT EXISTS token_usage JSONB;
+        """)
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS token_usage (
+            id SERIAL PRIMARY KEY,
+            model TEXT NOT NULL,
+            prompt_tokens INTEGER NOT NULL DEFAULT 0,
+            completion_tokens INTEGER NOT NULL DEFAULT 0,
+            total_tokens INTEGER NOT NULL DEFAULT 0,
+            endpoint TEXT DEFAULT 'unknown',
+            user_id INT REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
         """)
 
     conn.close()
