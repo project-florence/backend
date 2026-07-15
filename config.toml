@@ -23,8 +23,6 @@ retry_sleep_max = 3
 [article_analyzer]
 quick_report_article_limit = 10
 deep_report_article_limit = 100
-llm_url = "http://localhost:7777/v1"
-llm_model = "gemma-e2b-full-think"
 
 [gdelt_api]
 max_records = 250
@@ -45,6 +43,8 @@ cache_interval = 2592000
 
 [llm_client]
 api_key = "dummy_api_key"
+url = "http://localhost:7777/v1"
+model = "gemma-e2b-full-think"
 
 [generate_bist_mapping]
 scrape_url = "https://borsacoo.com/firmalar"
