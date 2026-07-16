@@ -67,34 +67,32 @@ def auth_register(user: UserRegister):
 
 @router.post("/auth/login")
 def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
-    cur = db.cursor()
+    with db.cursor() as cur:
+        cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
+        user_row = cur.fetchone()
 
-    cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
-    user_row = cur.fetchone()
+        if not user_row:
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    if not user_row:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        user_id, db_password_hash = user_row
+        try:
+            ph.verify(db_password_hash, form_data.password)
+        except VerificationError:
+            raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    user_id, db_password_hash = user_row
-    try:
-        ph.verify(db_password_hash, form_data.password)
-    except VerificationError:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-
-    access_token = create_jwt_token(user_id)
-    return {"access_token": access_token, "token_type": "bearer"}
+        access_token = create_jwt_token(user_id)
+        return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.delete("/auth/delete")
 def auth_delete(current_user_id: int = Depends(get_current_user)):
-    cur = db.cursor()
-    try:
-        cur.execute("DELETE FROM users WHERE id = %s", (current_user_id,))
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        cur.close()
-        raise HTTPException(status_code=400, detail="Database error")
+    with db.cursor() as cur:
+        try:
+            cur.execute("DELETE FROM users WHERE id = %s", (current_user_id,))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Database error")
     return {"message": f"Deleted user {current_user_id}"}
 
 

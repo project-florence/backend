@@ -49,7 +49,9 @@ class _DatabaseProxy:
         return self._conns.get(key)
 
     def cursor(self, db_name=None, **kwargs):
-        return self.get_connection(db_name).cursor(**kwargs)
+        conn = self.get_connection(db_name)
+        conn.rollback()
+        return conn.cursor(**kwargs)
 
     def commit(self, db_name=None):
         self.get_connection(db_name).commit()
