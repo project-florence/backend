@@ -28,7 +28,7 @@ for entry in "${CRON_ENTRIES[@]}"; do
     else
         echo "$entry" >> "$TEMP_CRON"
         echo "Eklendi: $entry"
-        ((added++))
+        added=$((added + 1))
     fi
 done
 
