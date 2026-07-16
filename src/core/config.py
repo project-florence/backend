@@ -10,7 +10,12 @@ def init_config():
         config = tomllib.load(f)
 
 def get_config():
-    return config
+    global config
+    if config is not None:
+        return config
+    else:
+        init_config()
+        return config
 
 def reload_config():
     global config
