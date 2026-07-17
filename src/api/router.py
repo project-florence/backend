@@ -9,6 +9,7 @@ from src.api.auth import router as auth_router
 from src.api.favorites import router as favorites_router
 from src.api.fit import router as fit_router
 from src.api.portfolio import router as portfolio_router
+from src.api.export import router as export_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(bist_router)
@@ -21,3 +22,4 @@ router.include_router(ipo_router)
 router.include_router(stats_router)
 router.include_router(auth_router)
 router.include_router(favorites_router)
+router.include_router(export_router)
