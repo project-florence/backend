@@ -1,9 +1,11 @@
+import json
 import math
 import psycopg2.extras
 from datetime import datetime, timedelta, timezone
 
 from src.clients.yfinance import fetch_price_history
 from src.core.database import db
+from src.core.redis import r
 
 
 def _clean(val):
@@ -66,30 +68,52 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
     if data.empty:
         return
 
+    values = []
+    for ts, row in data.iterrows():
+        if _clean(row.get("Open")) is None or _clean(row.get("Close")) is None:
+            continue
+        volume = row.get("Volume")
+        if isinstance(volume, (float, int)) and not math.isnan(volume):
+            volume = int(volume)
+        else:
+            volume = 0
+        values.append((
+            ticker, interval, ts.to_pydatetime(),
+            _clean(row.get("Open")), _clean(row.get("High")),
+            _clean(row.get("Low")), _clean(row.get("Close")), volume,
+        ))
+
+    if not values:
+        return
+
     with conn.cursor() as cur:
-        for ts, row in data.iterrows():
-            if _clean(row.get("Open")) is None or _clean(row.get("Close")) is None:
-                continue
-            volume = row.get("Volume")
-            if isinstance(volume, (float, int)) and not math.isnan(volume):
-                volume = int(volume)
-            else:
-                volume = 0
-            cur.execute(
-                "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
-                "ON CONFLICT (ticker, interval, ts) DO NOTHING",
-                (ticker, interval, ts.to_pydatetime(),
-                 _clean(row.get("Open")), _clean(row.get("High")),
-                 _clean(row.get("Low")), _clean(row.get("Close")), volume),
-            )
+        psycopg2.extras.execute_values(cur,
+            "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) VALUES %s ON CONFLICT (ticker, interval, ts) DO NOTHING",
+            values,
+        )
+    conn.commit()
+
+
+def _cache_key(ticker: str, period: str, interval: str) -> str:
+    return f"price_history:{ticker}:{period}:{interval}"
 
 
 def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
-    _init_db()
+    from src.core.config import get_config
+
+    cache_ttl = get_config().get("price_history", {}).get("cache_ttl", 0)
+
     ticker = ticker.upper()
     if not ticker.endswith(".IS"):
         ticker = f"{ticker}.IS"
+
+    # Try Redis cache first
+    if cache_ttl > 0:
+        cached = r.get(_cache_key(ticker, period, interval))
+        if cached:
+            return json.loads(cached)
+
+    _init_db()
 
     start, end = _parse_period(period)
     conn = db.get_connection()
@@ -102,35 +126,37 @@ def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
         )
         rows = cur.fetchall()
 
+    fetched = False
     if rows:
         db_start = rows[0]["ts"]
         db_end = rows[-1]["ts"]
-        has_missing_start = db_start > start
-        has_missing_end = db_end < end
-    else:
-        has_missing_start = True
-        has_missing_end = False
-        db_start = None
-
-    if not rows:
-        _fetch_and_store(conn, ticker, interval, start, end)
-    else:
-        if has_missing_start:
+        if db_start > start:
             _fetch_and_store(conn, ticker, interval, start, db_start)
-        if has_missing_end:
+            fetched = True
+        if db_end < end:
             _fetch_and_store(conn, ticker, interval, db_end, end)
+            fetched = True
+    else:
+        _fetch_and_store(conn, ticker, interval, start, end)
+        fetched = True
 
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
-            "SELECT ts, open, high, low, close, volume FROM price_candles "
-            "WHERE ticker = %s AND interval = %s AND ts >= %s AND ts <= %s ORDER BY ts",
-            (ticker, interval, start, end),
-        )
-        rows = cur.fetchall()
+    if fetched:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT ts, open, high, low, close, volume FROM price_candles "
+                "WHERE ticker = %s AND interval = %s AND ts >= %s AND ts <= %s ORDER BY ts",
+                (ticker, interval, start, end),
+            )
+            rows = cur.fetchall()
 
-    return [
+    result = [
         {"ts": row["ts"].isoformat(), "open": _clean(row["open"]), "high": _clean(row["high"]),
          "low": _clean(row["low"]), "close": _clean(row["close"]), "volume": row["volume"]}
         for row in rows
         if _clean(row["close"]) is not None
     ]
+
+    if cache_ttl > 0:
+        r.set(_cache_key(ticker, period, interval), json.dumps(result, ensure_ascii=False), ex=cache_ttl)
+
+    return result

@@ -54,7 +54,8 @@ output_dir = "data"
 output_filename = "bist_companies.json"
 
 [price_history]
-rate_limit_delay = 5.0
+rate_limit_delay = 1.5
+cache_ttl = 60
 
 [economy]
 api_url = "https://finans.truncgil.com/v3/today.json"
