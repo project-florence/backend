@@ -1,6 +1,7 @@
 from src.services.price import get_price_history
 import numpy as np
 import pandas as pd
+from src.services.price import get_current_price
 
 financial_days: int = 252
 sim_times: int = 10000
@@ -49,9 +50,10 @@ def _montecarlo(ticker: str, days: int):
     return options
 
 
-def probability(ticker: str, days: int, target: str):
-    options = _montecarlo(ticker, days)
-    target = float(target)  # int yerine float olsun
+def probability(ticker: str, days: int, target: str | float, options = None) -> float:
+    if options is None:
+        options = _montecarlo(ticker, days)
+    target = float(target)
 
     success: int = 0
     total = len(options)
@@ -59,11 +61,12 @@ def probability(ticker: str, days: int, target: str):
         if option >= target:
             success += 1
 
-    return success / total
+    return float(success / total)
 
 
-def confidence_interval(ticker: str, days: int, bounds: str):
-    options = _montecarlo(ticker, days)
+def confidence_interval(ticker: str, days: int, bounds: str | float, options = None):
+    if options is None:
+        options = _montecarlo(ticker, days)
     options.sort()
     bounds = float(bounds)
 
@@ -75,3 +78,15 @@ def confidence_interval(ticker: str, days: int, bounds: str):
 
     # min ve max diye değişken atamak Python'da gömülü fonksiyonları ezar, o yüzden min_price yaptım
     return {"min": min_price, "max": max_price, "percent": 1.0 - 2 * bounds, "days": days, "bounds": str(bounds)}
+
+def simulate(ticker: str, days: int, bounds : str | float = "0.05", target: str | None = None):
+    options = _montecarlo(ticker, days)
+    if target is None:
+        target = get_current_price(ticker)
+        if target is None:
+            raise TypeError("target cannot be None")
+        target = target + ((target * 10) / 100)
+
+    probability_output = probability(ticker, days, target, options)
+    confidence_output = confidence_interval(ticker, days, bounds, options)
+    return {"probability": probability_output, "confidence": confidence_output}
