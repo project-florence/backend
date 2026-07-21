@@ -8,8 +8,25 @@ from src.core.config import get_config
 router = APIRouter()
 
 
-@router.get("/simulations/probability/{ticker}")
-def probability(ticker: str, days: int = Query(...), target: str = Query(...), current_user_id: int = Depends(get_current_user)):
+@router.get("/simulations/per-day-cost")
+def daily_cost():
+    return {"per_day_cost": get_config()["simulation"]["per_day_cost"], "round": 3}
+
+@router.get("/simulations/estimate-cost/{ticker}")
+def estimate_cost(
+    ticker: str,
+    days: int = Query(...),
+):
+    return {"cost": round(days * get_config()["simulation"]["per_day_cost"], 3)}
+
+@router.get("/simulations/{ticker}")
+def simulate(
+    ticker: str,
+    days: int = Query(...),
+    bounds: str = Query("0.05"),
+    target: str | None = Query(default=None),
+    current_user_id: int = Depends(get_current_user),
+):
     validate_ticker(ticker)
     cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
 
@@ -36,7 +53,12 @@ def probability(ticker: str, days: int = Query(...), target: str = Query(...), c
             raise HTTPException(status_code=500, detail="Database error")
 
     try:
-        percent = montecarlo.probability(ticker, days, target)
+        result = montecarlo.simulate(ticker, days, bounds, target)
+    except TypeError as e:
+        with db.cursor() as cur:
+            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
+            db.commit()
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         with db.cursor() as cur:
             cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
@@ -44,45 +66,10 @@ def probability(ticker: str, days: int = Query(...), target: str = Query(...), c
         raise HTTPException(status_code=500, detail="Simulation failed, credits refunded.")
 
     increment_stat(ticker, "simulation_count")
-    return {"percent": percent, "ticker": ticker, "days": days, "target": target, "credits_spend": cost, "remaining_credits": remaining_credits}
-
-
-@router.get("/simulations/confidence-interval/{ticker}")
-def confidence_interval(ticker: str, days: int = Query(...), bounds: str = Query(...), current_user_id: int = Depends(get_current_user)):
-    validate_ticker(ticker)
-    cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
-
-    with db.cursor() as cur:
-        try:
-            cur.execute("""
-                        UPDATE users
-                        SET credits = credits - %s
-                        WHERE id = %s
-                          AND credits >= %s RETURNING credits
-                        """, (cost, current_user_id, cost))
-            row = cur.fetchone()
-
-            if row is None:
-                db.rollback()
-                raise HTTPException(status_code=402, detail="insufficient credit")
-
-            db.commit()
-            remaining_credits = row[0]
-        except HTTPException:
-            raise
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Database error")
-
-    try:
-        result = montecarlo.confidence_interval(ticker, days, bounds)
-    except Exception as e:
-        with db.cursor() as cur:
-            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
-            db.commit()
-        raise HTTPException(status_code=500, detail="Simulation failed, credits refunded.")
-
-    increment_stat(ticker, "simulation_count")
+    result["ticker"] = ticker
+    result["days"] = days
+    result["target"] = str(target) if target else "auto"
+    result["bounds"] = bounds
     result["credits_spend"] = cost
     result["remaining_credits"] = remaining_credits
     return result
