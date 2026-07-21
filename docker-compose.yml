@@ -30,6 +30,27 @@ services:
       - SEARXNG_BASE_URL=http://localhost:8080/
     restart: unless-stopped
 
+  api:
+    build: .
+    container_name: florence_api
+    ports:
+      - "7055:7055"
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  admin:
+    build: .
+    container_name: florence_admin
+    command: uvicorn src.admin:admin_app --uds /tmp/admin.sock --chmod-socket 666
+    volumes:
+      - /tmp:/tmp
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
