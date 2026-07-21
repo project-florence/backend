@@ -77,6 +77,9 @@ def portfolio_profile(body: PortfolioProfileRequest):
         if to_write:
             write_vectors_to_redis(to_write)
 
+    for t in tickers:
+        candidate_data.pop(t, None)
+
     scored = []
     for ticker, vec in candidate_data.items():
         if vec is not None:
