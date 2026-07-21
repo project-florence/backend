@@ -10,8 +10,8 @@ load_dotenv()
 EXCLUDED_FIELDS = ["Update_Date", "ons", "gram-altin", "gram-has-altin", "ceyrek-altin",
                    "yarim-altin", "tam-altin", "cumhuriyet-altini",
                    "ata-altin", "14-ayar-altin", "18-ayar-altin",
-                   "ikibucuk-altin", "altin", "gremse-altin",
-                   "resat-altin", "hamit_altin", "gumus", "gram-platin",
+                   "ikibucuk-altin", "altin", "gremse-altin", "22-ayar-bilezik", "besli-altin",
+                   "resat-altin", "hamit-altin", "gumus", "gram-platin",
                    "gram-paladyum"]
 
 def _get_specific_fields(data, fields):
@@ -46,8 +46,8 @@ def get_gold_prices():
     gold_prices = _get_specific_fields(j, ["ons", "gram-altin", "gram-has-altin",
                                            "ceyrek-altin", "yarim-altin", "tam-altin",
                                            "cumhuriyet-altini", "ata-altin", "14-ayar-altin",
-                                           "18-ayar-altin", "ikibucuk-altin", "altin",
-                                           "gremse-altin", "resat-altin", "hamit_altin"])
+                                           "18-ayar-altin", "ikibucuk-altin", "altin", "22-ayar-bilezik", "besli-altin",
+                                           "gremse-altin", "resat-altin", "hamit-altin"])
 
     r.set("gold_prices", json.dumps(gold_prices, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
     return gold_prices
