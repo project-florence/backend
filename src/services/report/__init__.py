@@ -104,3 +104,60 @@ def generate_quick_report(ticker: str) -> Report | None:
 
 def generate_deep_report(ticker: str) -> Report | None:
     return _generate_report(ticker, "deep")
+
+
+def get_report_by_id(report_id: int) -> Report | None:
+    import json
+    from src.core.database import db
+
+    with db.cursor() as cur:
+        cur.execute("""
+            SELECT ticker, title, token_usage, content, sentiments, created_at
+            FROM reports
+            WHERE id = %s
+        """, (report_id,))
+        row = cur.fetchone()
+
+    if not row:
+        return None
+
+    token_usage = row[2]
+    if isinstance(token_usage, str):
+        token_usage = json.loads(token_usage) if token_usage else {"prompt": 0, "completion": 0, "total": 0}
+
+    sentiments = row[4]
+    if isinstance(sentiments, str):
+        sentiments = json.loads(sentiments) if sentiments else []
+    elif sentiments is None:
+        sentiments = []
+
+    return Report(
+        title=row[1] or f"{row[0]} Analizi",
+        about=row[0],
+        date=row[5].isoformat(),
+        report=row[3] or "",
+        sentiments=sentiments,
+        token_usage=token_usage,
+    )
+
+def report_to_str(report: Report) -> str:
+    try:
+        dt = datetime.fromisoformat(report.date)
+        pretty_date = dt.strftime("%d %B %Y, %H:%M")
+    except (ValueError, TypeError):
+        pretty_date = report.date
+
+    sentiment_lines = "\n".join(
+        f"  - [{s.get('sentiment', '?')}] {s.get('url', '')} — {s.get('reasoning', '')}"
+        for s in (report.sentiments or [])
+    )
+
+    return f"""# {report.title}
+## {report.about} — {pretty_date}
+
+{report.report}
+
+### Sources
+{sentiment_lines if sentiment_lines else "  No sources recorded."}
+(Financial and economic data from the relevant date have not been included.)
+"""
