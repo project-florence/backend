@@ -10,6 +10,128 @@ from src.services.stats import get_all_stats
 from src.core.database import db
 
 
+def _fmt_num(val) -> str:
+    if val is None:
+        return "-"
+    if isinstance(val, (int, float)):
+        if abs(val) >= 1_000_000_000_000:
+            return f"{val / 1_000_000_000_000:.2f}T"
+        if abs(val) >= 1_000_000_000:
+            return f"{val / 1_000_000_000:.2f}B"
+        if abs(val) >= 1_000_000:
+            return f"{val / 1_000_000:.2f}M"
+        if abs(val) >= 1_000:
+            return f"{val:,.2f}"
+        return f"{val:.2f}"
+    return str(val)
+
+
+def _fmt_pct(val) -> str:
+    if val is None:
+        return "-"
+    return f"{val * 100:.2f}%" if isinstance(val, float) and abs(val) < 1 else f"{val:.2f}%"
+
+
+def _fmt_price(val, currency="TRY") -> str:
+    if val is None:
+        return "-"
+    return f"{_fmt_num(val)} {currency}"
+
+
+def company_info_to_md(profile: dict) -> str:
+    if not profile:
+        return "No data available."
+
+    symbol = profile.get("symbol", "")
+    name = profile.get("name", "")
+    sector = profile.get("sector", "-")
+    industry = profile.get("industry", "-")
+    exchange = profile.get("exchange", "-")
+    currency = profile.get("currency", "TRY")
+
+    m = profile.get("market", {})
+    t = profile.get("trading", {})
+    v = profile.get("valuation", {})
+    f = profile.get("financials", {})
+    b = profile.get("balanceSheet", {})
+    recs = profile.get("recommendations", [])
+
+    lines = [f"# {name} ({symbol})", f"**Sector:** {sector} | **Industry:** {industry}", f"**Exchange:** {exchange} | **Currency:** {currency}", ""]
+
+    lines.append("## Market Data")
+    lines.append(f"- **Current Price:** {_fmt_price(m.get('currentPrice'), currency)}")
+    lines.append(f"- **Market Cap:** {_fmt_num(m.get('marketCap'))} {currency}")
+    lines.append(f"- **Day Range:** {_fmt_price(m.get('dayLow'))} - {_fmt_price(m.get('dayHigh'))}")
+    lines.append(f"- **52 Week Range:** {_fmt_price(m.get('fiftyTwoWeekLow'))} - {_fmt_price(m.get('fiftyTwoWeekHigh'))}")
+    lines.append(f"- **Volume:** {_fmt_num(m.get('regularMarketVolume'))}")
+    lines.append("")
+
+    lines.append("## Trading Metrics")
+    lines.append(f"- **Beta:** {t.get('beta', '-')}")
+    lines.append(f"- **Shares Outstanding:** {_fmt_num(t.get('sharesOutstanding'))}")
+    lines.append(f"- **Float Shares:** {_fmt_num(t.get('floatShares'))}")
+    lines.append(f"- **Avg Volume:** {_fmt_num(t.get('averageVolume'))}")
+    lines.append(f"- **50 Day Average:** {_fmt_price(t.get('fiftyDayAverage'))}")
+    lines.append(f"- **200 Day Average:** {_fmt_price(t.get('twoHundredDayAverage'))}")
+    lines.append(f"- **Insider Ownership:** {_fmt_pct(t.get('heldPercentInsiders'))}")
+    lines.append(f"- **Institutional Ownership:** {_fmt_pct(t.get('heldPercentInstitutions'))}")
+    lines.append("")
+
+    lines.append("## Valuation")
+    lines.append(f"- **Trailing P/E:** {v.get('trailingPE', '-')}")
+    lines.append(f"- **Forward P/E:** {v.get('forwardPE', '-')}")
+    lines.append(f"- **Price/Book:** {_fmt_num(v.get('priceToBook'))}")
+    lines.append(f"- **Price/Sales (TTM):** {_fmt_num(v.get('priceToSalesTrailing12Months'))}")
+    lines.append(f"- **Enterprise Value:** {_fmt_num(v.get('enterpriseValue'))} {currency}")
+    lines.append(f"- **EV/EBITDA:** {_fmt_num(v.get('enterpriseToEbitda'))}")
+    lines.append(f"- **EV/Revenue:** {_fmt_num(v.get('enterpriseToRevenue'))}")
+    lines.append(f"- **Book Value:** {_fmt_price(v.get('bookValue'))}")
+    lines.append(f"- **Trailing EPS:** {_fmt_price(v.get('trailingEps'), '')}")
+    lines.append(f"- **Dividend Yield:** {_fmt_pct(v.get('dividendYield'))}")
+    lines.append(f"- **Payout Ratio:** {_fmt_pct(v.get('payoutRatio'))}")
+    target = v.get("targetMeanPrice")
+    if target is not None:
+        low = v.get("targetLowPrice", "-")
+        high = v.get("targetHighPrice", "-")
+        lines.append(f"- **Target Price:** {_fmt_price(target)} (Range: {_fmt_price(low)} - {_fmt_price(high)})")
+    lines.append(f"- **Analyst Opinions:** {v.get('numberOfAnalystOpinions', '-')}")
+    lines.append("")
+
+    lines.append("## Financials")
+    lines.append(f"- **Total Revenue:** {_fmt_num(f.get('totalRevenue'))} {currency}")
+    lines.append(f"- **Revenue Growth:** {_fmt_pct(f.get('revenueGrowth'))}")
+    lines.append(f"- **Gross Margin:** {_fmt_pct(f.get('grossMargins'))}")
+    lines.append(f"- **EBITDA:** {_fmt_num(f.get('ebitda'))} {currency}")
+    lines.append(f"- **Net Income:** {_fmt_num(f.get('netIncomeToCommon'))} {currency}")
+    lines.append(f"- **Profit Margin:** {_fmt_pct(f.get('profitMargins'))}")
+    lines.append(f"- **Operating Margin:** {_fmt_pct(f.get('operatingMargins'))}")
+    lines.append(f"- **Free Cash Flow:** {_fmt_num(f.get('freeCashflow'))} {currency}")
+    lines.append(f"- **Earnings Growth:** {_fmt_pct(f.get('earningsGrowth'))}")
+    lines.append(f"- **ROE:** {_fmt_pct(f.get('returnOnEquity'))}")
+    lines.append(f"- **ROA:** {_fmt_pct(f.get('returnOnAssets'))}")
+    lines.append("")
+
+    lines.append("## Balance Sheet")
+    lines.append(f"- **Total Cash:** {_fmt_num(b.get('totalCash'))} {currency}")
+    lines.append(f"- **Total Debt:** {_fmt_num(b.get('totalDebt'))} {currency}")
+    lines.append(f"- **Debt/Equity:** {_fmt_pct(b.get('debtToEquity'))}")
+    lines.append(f"- **Current Ratio:** {_fmt_num(b.get('currentRatio'))}")
+    lines.append(f"- **Quick Ratio:** {_fmt_num(b.get('quickRatio'))}")
+    lines.append("")
+
+    if recs:
+        lines.append("## Analyst Recommendations")
+        header = "| Period | Strong Buy | Buy | Hold | Sell | Strong Sell |"
+        sep = "|---|---|---|---|---|---|"
+        rows = [f"| {r.get('period', '')} | {r.get('strongBuy', 0)} | {r.get('buy', 0)} | {r.get('hold', 0)} | {r.get('sell', 0)} | {r.get('strongSell', 0)} |" for r in recs]
+        lines.append(header)
+        lines.append(sep)
+        lines.extend(rows)
+        lines.append("")
+
+    return "\n".join(lines)
+
+
 def _get_bist_tickers() -> list[str]:
     return [t + ".IS" for t in get_bist_tickers_as_dict_from_redis()]
 
