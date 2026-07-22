@@ -126,20 +126,23 @@ def get_company_info(ticker: str, use_cache: bool = True) -> dict:
     return profile
 
 
-def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular", tickers_filter: list[str] | None = None) -> list[dict]:
+def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular", tickers_filter: list[str] | None = None) -> dict:
     bist_companies = get_bist_companies_as_dict_from_redis()
     company_map = {c["ticker"]: c.get("name", "") for c in bist_companies}
 
     if tickers_filter:
         ticker_list = [t.upper() for t in tickers_filter if t.upper() in company_map]
+        total = len(ticker_list)
     elif sort == "popular":
         stats = get_all_stats()
+        total = len(stats)
         ticker_list = [s["ticker"] for s in stats[offset:offset + limit]]
     else:
+        total = len(company_map)
         ticker_list = sorted(company_map.keys())[offset:offset + limit]
 
     if not ticker_list:
-        return []
+        return {"data": [], "total": total}
 
     latest_candles = _fetch_latest_candles(ticker_list)
 
@@ -202,7 +205,7 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
             "price_updated_at": price_updated_at,
         })
 
-    return results
+    return {"data": results, "total": total}
 
 
 def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, dict]:

@@ -53,7 +53,7 @@ Rapor uzunlugu: {length_desc}
 ## Kurallar
 
 - **Kesinlikle uydurma bilgi ekleme.** Sadece okudugun haberlerden ve economic_data'dan gelen bilgileri kullan. Eger bazi veriler eksikse (economic_data calismiyorsa, icerik cekilemiyorsa), **mevcut verilerle en iyi raporu olustur** ve eksik oldugunu belirt. Eksik bilgi nedeniyle raporu reddetme.
-- Kullandigin her haber icin **sentiment** belirt (positive/neutral/negative) ve nedenini acikla.
+- Kullandigin her haber icin **sentiment** belirt (positive/neutral/negative), haberin URL'sini ve nedenini acikla.
 - Raporu **markdown** formatinda yaz. Baslik, alt basliklar, maddeler ve vurgular kullan.
 - Raporun bir **title** (baslik) olsun. "{ticker}" icin bir analiz basligi belirle.
 - Finansal terimleri gerektigi yerde kullan ama karmasiklastirma. Basit yatirimcilar da anlasin.
@@ -92,7 +92,10 @@ def _generate_report(ticker: str, mode: str) -> Report | None:
             token_usage=usage,
         )
 
-    return None
+    if result["type"] == "error":
+        raise RuntimeError(result.get("detail", "LLM error"))
+
+    raise RuntimeError(f"Unknown result type: {result.get('type')}")
 
 
 def generate_quick_report(ticker: str) -> Report | None:

@@ -21,16 +21,20 @@
               "type": "integer",
               "description": "news_search'ten gelen haber index numarasi"
             },
+            "url": {
+              "type": "string",
+              "description": "news_search'ten gelen haberin URL'si"
+            },
             "sentiment": {
               "type": "string",
               "enum": ["positive", "neutral", "negative"]
             },
             "reasoning": {
               "type": "string",
-              "description": "Bu sentiment'e neden varildigina dair kisa aciklama"
+              "description": "Bu sentiment'e neden varildigine dair kisa aciklama"
             }
           },
-          "required": ["index", "sentiment", "reasoning"]
+          "required": ["index", "url", "sentiment", "reasoning"]
         }
       }
     },

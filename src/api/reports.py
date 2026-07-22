@@ -62,13 +62,14 @@ def generate_report(ticker: str, type: str = Query(...), current_user_id: int = 
 
         try:
             cur.execute("""
-                        INSERT INTO reports (user_id, ticker, type, title, token_usage, content)
-                        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, created_at
+                        INSERT INTO reports (user_id, ticker, type, title, token_usage, content, sentiments)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, created_at
                         """, (
                 current_user_id, ticker, type,
                 report_obj.title,
                 json.dumps(report_obj.token_usage),
                 report_obj.report,
+                json.dumps(report_obj.sentiments) if report_obj.sentiments else "[]",
             ))
 
             report_row = cur.fetchone()
@@ -117,6 +118,12 @@ def report_info():
             "est_cost": _compute_cost(30000),
         },
         "token_cost_per_1k": token_cost,
+        "endpoints": {
+            "generate": {"method": "POST", "path": "/reports/generate", "auth": True, "params": {"ticker": "Ticker code", "type": "quick_report | deep_report"}},
+            "history": {"method": "GET", "path": "/reports/history", "auth": True, "params": {"sort": "created_at | ticker (default created_at)", "order": "asc | desc (default desc)"}},
+            "search": {"method": "GET", "path": "/reports/search", "auth": True, "params": {"q": "Search text", "sort": "created_at | ticker (default created_at)", "order": "asc | desc (default desc)", "limit": "Max results (default 20)", "offset": "Skip N (default 0)"}},
+            "detail": {"method": "GET", "path": "/reports/{id}", "auth": True},
+        },
     }
 
 
@@ -129,20 +136,7 @@ class ReportHistoryItem(BaseModel):
     created_at: str
 
 
-@router.get("/reports/history", response_model=list[ReportHistoryItem])
-def get_report_history(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        try:
-            cur.execute("""
-                        SELECT id, ticker, type, title, token_usage, created_at
-                        FROM reports
-                        WHERE user_id = %s
-                        ORDER BY created_at DESC
-                        """, (current_user_id,))
-            rows = cur.fetchall()
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Database error")
-
+def _parse_history_rows(rows: list) -> list[ReportHistoryItem]:
     history = []
     for row in rows:
         tu = row[4]
@@ -160,12 +154,73 @@ def get_report_history(current_user_id: int = Depends(get_current_user)):
     return history
 
 
+@router.get("/reports/history", response_model=list[ReportHistoryItem])
+def get_report_history(
+    current_user_id: int = Depends(get_current_user),
+    sort: str = Query("created_at", description="Sort: created_at, ticker"),
+    order: str = Query("desc", description="Order: asc, desc"),
+):
+    valid_sorts = {"created_at", "ticker"}
+    if sort not in valid_sorts:
+        raise HTTPException(status_code=400, detail=f"Invalid sort. Allowed: {valid_sorts}")
+    if order not in ("asc", "desc"):
+        raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
+
+    with db.cursor() as cur:
+        try:
+            cur.execute(f"""
+                        SELECT id, ticker, type, title, token_usage, created_at
+                        FROM reports
+                        WHERE user_id = %s
+                        ORDER BY {sort} {order}, id DESC
+                        """, (current_user_id,))
+            rows = cur.fetchall()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    history = _parse_history_rows(rows)
+    return history
+
+
+@router.get("/reports/search", response_model=list[ReportHistoryItem])
+def search_reports(
+    q: str = Query(..., min_length=1, description="Search query in title and content"),
+    current_user_id: int = Depends(get_current_user),
+    sort: str = Query("created_at", description="Sort: created_at, ticker"),
+    order: str = Query("desc", description="Order: asc, desc"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    valid_sorts = {"created_at", "ticker"}
+    if sort not in valid_sorts:
+        raise HTTPException(status_code=400, detail=f"Invalid sort. Allowed: {valid_sorts}")
+    if order not in ("asc", "desc"):
+        raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
+
+    pattern = f"%{q}%"
+    with db.cursor() as cur:
+        try:
+            cur.execute(f"""
+                        SELECT id, ticker, type, title, token_usage, created_at
+                        FROM reports
+                        WHERE user_id = %s
+                          AND (title ILIKE %s OR content ILIKE %s)
+                        ORDER BY {sort} {order}, id DESC
+                        LIMIT %s OFFSET %s
+                        """, (current_user_id, pattern, pattern, limit, offset))
+            rows = cur.fetchall()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return _parse_history_rows(rows)
+
+
 @router.get("/reports/{report_id}")
 def get_single_report(report_id: int, current_user_id: int = Depends(get_current_user)):
     with db.cursor() as cur:
         try:
             cur.execute("""
-                        SELECT ticker, type, title, token_usage, content, created_at
+                        SELECT ticker, type, title, token_usage, content, sentiments, created_at
                         FROM reports
                         WHERE id = %s
                           AND user_id = %s
@@ -179,17 +234,26 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
-    tu = row[3]
-    if isinstance(tu, str):
-        tu = json.loads(tu) if tu else None
+    token_usage = row[3]
+    if isinstance(token_usage, str):
+        token_usage = json.loads(token_usage) if token_usage else None
+
+    sentiments = row[5]
+    if isinstance(sentiments, str):
+        sentiments = json.loads(sentiments) if sentiments else []
+    elif sentiments is None:
+        sentiments = []
+
     return {
-        "id": report_id,
-        "ticker": row[0],
+        "success": True,
+        "report_id": report_id,
+        "about": row[0],
         "type": row[1],
         "title": row[2],
-        "token_usage": tu,
-        "content": row[4],
-        "created_at": row[5].isoformat(),
+        "token_usage": token_usage,
+        "report": row[4],
+        "sentiments": sentiments,
+        "created_at": row[6].isoformat(),
     }
 
 

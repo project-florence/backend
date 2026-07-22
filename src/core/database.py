@@ -133,6 +133,7 @@ def init_db():
             title TEXT,
             token_usage JSONB,
             content TEXT NOT NULL,
+            sentiments JSONB DEFAULT '[]'::jsonb,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         );
 
@@ -142,6 +143,7 @@ def init_db():
         cur.execute("""
         ALTER TABLE reports ADD COLUMN IF NOT EXISTS title TEXT;
         ALTER TABLE reports ADD COLUMN IF NOT EXISTS token_usage JSONB;
+        ALTER TABLE reports ADD COLUMN IF NOT EXISTS sentiments JSONB DEFAULT '[]'::jsonb;
         """)
 
         cur.execute("""

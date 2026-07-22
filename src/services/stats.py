@@ -115,7 +115,7 @@ def get_popular_companies(n: int = 10) -> list[dict]:
 def get_popular_company_summaries(n: int = 10) -> list[dict]:
     from src.services.company import get_companies_summary
     tickers = get_popular_tickers(n)
-    return get_companies_summary(limit=n, tickers_filter=tickers)
+    return get_companies_summary(limit=n, tickers_filter=tickers).get("data", [])
 
 
 def _get_ticker_name_map() -> dict[str, str]:
