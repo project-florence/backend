@@ -87,6 +87,7 @@ def simulate(ticker: str, days: int, bounds : str | float = "0.05", target: str 
             raise TypeError("target cannot be None")
         target = target + ((target * 10) / 100)
 
-    probability_output = probability(ticker, days, target, options)
+    prob_above = probability(ticker, days, target, options)
+    prob_below = 1.0 - prob_above
     confidence_output = confidence_interval(ticker, days, bounds, options)
-    return {"probability": probability_output, "confidence": confidence_output}
+    return {"prob_above": prob_above, "prob_below": prob_below, "confidence": confidence_output}
