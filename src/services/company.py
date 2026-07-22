@@ -102,6 +102,7 @@ def build_company_profile(raw_info: dict) -> dict:
             "currentRatio": raw_info.get("currentRatio"),
             "quickRatio": raw_info.get("quickRatio"),
         },
+        "recommendations": raw_info.get("recommendations", []),
     }
 
 

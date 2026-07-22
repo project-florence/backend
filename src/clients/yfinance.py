@@ -28,8 +28,15 @@ def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> di
     for attempt in range(max_retries):
         try:
             _wait_for_rate_limit()
-            info = yf.Ticker(ticker_symbol).info
+            ticker = yf.Ticker(ticker_symbol)
+            info = ticker.info
             if info:
+                try:
+                    recs = ticker.recommendations
+                    if recs is not None and not recs.empty:
+                        info["recommendations"] = recs.reset_index().to_dict(orient="records")
+                except Exception:
+                    pass
                 return info
         except Exception as e:
             print(f"yfinance hatasi ({ticker_symbol}), deneme {attempt + 1}/{max_retries}: {e}")
