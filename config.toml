@@ -44,7 +44,7 @@ cache_interval = 2592000
 [llm_client]
 api_key = "dummy_api_key"
 url = "http://localhost:7777/v1"
-model = "gemma-e2b-full-think"
+model = "qwen3.6"
 
 [generate_bist_mapping]
 scrape_url = "https://borsacoo.com/firmalar"
