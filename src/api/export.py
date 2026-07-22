@@ -87,9 +87,57 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
+    token_usage = []
+    with db.cursor() as cur:
+        try:
+            cur.execute(
+                """SELECT model, prompt_tokens, completion_tokens, total_tokens, endpoint, created_at
+                   FROM token_usage WHERE user_id = %s
+                   ORDER BY created_at DESC""",
+                (current_user_id,),
+            )
+            for row in cur.fetchall():
+                token_usage.append({
+                    "model": row[0],
+                    "prompt_tokens": row[1],
+                    "completion_tokens": row[2],
+                    "total_tokens": row[3],
+                    "endpoint": row[4],
+                    "created_at": row[5].isoformat(),
+                })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
+    simulations = []
+    with db.cursor() as cur:
+        try:
+            cur.execute(
+                """SELECT id, ticker, days, bounds, target, result, cost, created_at
+                   FROM simulations WHERE user_id = %s
+                   ORDER BY created_at DESC""",
+                (current_user_id,),
+            )
+            for row in cur.fetchall():
+                result_raw = row[5]
+                if isinstance(result_raw, str):
+                    result_raw = json.loads(result_raw) if result_raw else {}
+                simulations.append({
+                    "id": row[0],
+                    "ticker": row[1],
+                    "days": row[2],
+                    "bounds": row[3],
+                    "target": row[4],
+                    "result": result_raw,
+                    "cost": float(row[6]) if row[6] is not None else None,
+                    "created_at": row[7].isoformat(),
+                })
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Database error")
+
     return {
         "profile": profile,
         "favorites": favorites,
         "reports": reports,
         "token_usage": token_usage,
+        "simulations": simulations,
     }

@@ -147,6 +147,28 @@ def init_db():
         """)
 
         cur.execute("""
+        CREATE TABLE IF NOT EXISTS simulations (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            ticker TEXT NOT NULL,
+            days INT NOT NULL,
+            bounds TEXT,
+            target TEXT,
+            result JSONB NOT NULL,
+            cost NUMERIC,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_simulations_user_id ON simulations(user_id);
+        """)
+
+        cur.execute("""
+        ALTER TABLE simulations ADD COLUMN IF NOT EXISTS bounds TEXT;
+        ALTER TABLE simulations ADD COLUMN IF NOT EXISTS target TEXT;
+        ALTER TABLE simulations ADD COLUMN IF NOT EXISTS cost NUMERIC;
+        """)
+
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS token_usage (
             id SERIAL PRIMARY KEY,
             model TEXT NOT NULL,
