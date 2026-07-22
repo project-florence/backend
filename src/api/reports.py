@@ -1,12 +1,13 @@
 import math
 import json
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Response
 from src.core.config import get_config
 from src.core.database import db
-from src.services.report import generate_quick_report, generate_deep_report
+from src.services.report import generate_quick_report, generate_deep_report, get_report_by_id, report_to_str
 from src.api.deps import get_current_user, validate_ticker
 from datetime import datetime
 from pydantic import BaseModel
+from src.utils.file_utils import markdown_to_docx, markdown_to_pdf
 
 router = APIRouter()
 
@@ -257,3 +258,32 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
     }
 
 
+@router.post("/reports/download")
+def download_report(report_id: int = Query(...), ftype: str = Query(...), current_user_id: int = Depends(get_current_user)):
+    report = get_report_by_id(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found.")
+    report_str = report_to_str(report)
+
+    if ftype == "md":
+        return Response(
+            content=report_str,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="report_{report_id}.md"'},
+        )
+    elif ftype == "docx":
+        docx_bytes = markdown_to_docx(report_str)
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="report_{report_id}.docx"'},
+        )
+    elif ftype == "pdf":
+        pdf_bytes = markdown_to_pdf(report_str)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="report_{report_id}.pdf"'},
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Invalid file type.")
