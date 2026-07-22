@@ -160,3 +160,28 @@ def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
         r.set(_cache_key(ticker, period, interval), json.dumps(result, ensure_ascii=False), ex=cache_ttl)
 
     return result
+
+
+def get_current_price(ticker: str) -> float | None:
+    ticker = ticker.upper()
+    if not ticker.endswith(".IS"):
+        ticker = f"{ticker}.IS"
+
+    _init_db()
+    conn = db.get_connection()
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "SELECT close FROM price_candles "
+            "WHERE ticker = %s AND interval = '1d' ORDER BY ts DESC LIMIT 1",
+            (ticker,),
+        )
+        row = cur.fetchone()
+
+    if row and _clean(row["close"]) is not None:
+        return float(row["close"])
+
+    prices = get_price_history(ticker, "1d", "1d")
+    if prices:
+        return float(prices[-1]["close"])
+    return None
