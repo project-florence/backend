@@ -6,6 +6,7 @@ from src.core.config import get_config
 
 CATEGORY_IDS = {
     "ana-pazar": 116,
+    "aktif": "116,117",
     "taslak": 194,
 }
 

@@ -34,6 +34,22 @@ def get_upcoming_ipos(after: str | None = None) -> str:
     return serialized
 
 
+def get_active_ipos(after: str | None = None) -> str:
+    if after is None:
+        after = _default_after()
+
+    key = _cache_key_list("aktif", after)
+    cached = r.get(key)
+    if cached:
+        return cached
+
+    data = list_ipos("aktif", after=after)
+    serialized = json.dumps(data, ensure_ascii=False)
+    cfg = get_config()["halkarz"]
+    r.set(key, serialized, ex=cfg["list_cache_ttl"])
+    return serialized
+
+
 def get_draft_ipos(after: str | None = None) -> str:
     if after is None:
         after = _default_after()
