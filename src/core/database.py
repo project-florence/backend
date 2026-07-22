@@ -181,6 +181,39 @@ def init_db():
         );
         """)
 
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS macroeconomy (
+            id SERIAL PRIMARY KEY,
+            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            usa_gdp NUMERIC NOT NULL DEFAULT 0,
+            usa_real_gdp NUMERIC NOT NULL DEFAULT 0,
+            fed_funds NUMERIC NOT NULL DEFAULT 0,
+            fed_funds_rate NUMERIC NOT NULL DEFAULT 0,
+            usa_unrate NUMERIC NOT NULL DEFAULT 0,
+            brent_crude_oil_price NUMERIC NOT NULL DEFAULT 0,
+            wti_crude_oil_price NUMERIC NOT NULL DEFAULT 0,
+            usa_consumer_cpi NUMERIC NOT NULL DEFAULT 0,
+            usa_10y_treasury NUMERIC NOT NULL DEFAULT 0,
+            dxy NUMERIC NOT NULL DEFAULT 0,
+            vix NUMERIC NOT NULL DEFAULT 0,
+            sp500 NUMERIC NOT NULL DEFAULT 0,
+            nasdaq NUMERIC NOT NULL DEFAULT 0,
+            bitcoin NUMERIC NOT NULL DEFAULT 0
+        );
+        """)
+
+
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS market_rates (
+            id SERIAL PRIMARY KEY,
+            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            data_type TEXT NOT NULL,
+            data JSONB NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_market_rates_type ON market_rates(data_type);
+        CREATE INDEX IF NOT EXISTS idx_market_rates_ts ON market_rates(timestamp);
+        """)
+
     conn.close()
 
 

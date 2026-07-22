@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from src.services.economy import (
     get_gold_prices,
     get_silver_price,
@@ -8,6 +8,7 @@ from src.services.economy import (
     get_gram_palladium_price,
     get_currency,
 )
+from src.clients.macroeconomy import get_macroeconomy_data
 
 router = APIRouter()
 
@@ -41,6 +42,9 @@ def currency(symbols: Optional[str] = None):
     return data
 
 
-@router.get("/macroeconomy/all")
+@router.get("/macroeconomy")
 def macroeconomy_all():
-    return {"henuz implement edilmedi. key value seklinde faiz, gdp, issizlik, cari acik, enflasyon vb. gibi verileri dondurur."}
+    mdata = get_macroeconomy_data()
+    if mdata:
+        return mdata
+    raise HTTPException(status_code=500, detail="Internal server error")
