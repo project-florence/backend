@@ -13,11 +13,13 @@ admin_app = FastAPI()
 
 class GiftTarget(str, Enum):
     EVERYONE = "everyone"
+    USER = "user"
 
 @admin_app.post("/gift-credits")
 def gift_credits(
     user_type: str = Query(...),
     amount: int = Query(..., gt=1),
+    username: str | None = Query(default=None),
     filters: dict = Body({})
 ):
     try:
@@ -27,14 +29,27 @@ def gift_credits(
                     UPDATE users SET credits = credits + %s
                 """, (amount,))
                 db.commit()
-                return {
-                    "success": True,
-                }
+                return {"success": True}
+        elif user_type == GiftTarget.USER:
+            if not username:
+                raise HTTPException(status_code=400, detail="username is required for user type")
+            with db.cursor() as cur:
+                cur.execute("""
+                    UPDATE users SET credits = credits + %s WHERE username = %s RETURNING id, username, credits
+                """, (amount, username))
+                row = cur.fetchone()
+                if row is None:
+                    db.rollback()
+                    raise HTTPException(status_code=404, detail="User not found")
+                db.commit()
+                return {"success": True, "user": {"id": row[0], "username": row[1], "credits": row[2]}}
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid type. Allowed values: 'everyone'"
+                detail="Invalid type. Allowed values: 'everyone', 'user'"
             )
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Database error")
