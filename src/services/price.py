@@ -98,10 +98,11 @@ def _cache_key(ticker: str, period: str, interval: str) -> str:
     return f"price_history:{ticker}:{period}:{interval}"
 
 
-def get_price_history(ticker: str, period: str, interval: str) -> list[dict]:
+def get_price_history(ticker: str, period: str, interval: str, hot: bool = False) -> list[dict]:
     from src.core.config import get_config
 
-    cache_ttl = get_config().get("price_history", {}).get("cache_ttl", 0)
+    cfg = get_config().get("price_history", {})
+    cache_ttl = cfg.get("cache_ttl_hot" if hot else "cache_ttl", 0)
 
     ticker = ticker.upper()
     if not ticker.endswith(".IS"):
