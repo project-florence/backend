@@ -118,8 +118,6 @@ def init_db():
                 ticker_code TEXT REFERENCES tickers(code) ON DELETE CASCADE,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 
-                -- Bir kullanıcı aynı ticker'ı iki kez favorilemesin! 
-                -- Bu ikisinin birleşimi Primary Key olur:
                 PRIMARY KEY (user_id, ticker_code)
             );
         """)
@@ -212,6 +210,31 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_market_rates_type ON market_rates(data_type);
         CREATE INDEX IF NOT EXISTS idx_market_rates_ts ON market_rates(timestamp);
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                user_id INT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                prefs JSONB NOT NULL DEFAULT '{}'::jsonb,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+
+        cur.execute("""
+        CREATE OR REPLACE FUNCTION create_default_prefs()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            INSERT INTO user_preferences (user_id, prefs)
+            VALUES (NEW.id, '{"layout": "default", "theme": "default", "language": "default"}'::jsonb);
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+
+        DROP TRIGGER IF EXISTS trg_user_prefs ON users;
+        CREATE TRIGGER trg_user_prefs
+        AFTER INSERT ON users
+        FOR EACH ROW
+        EXECUTE FUNCTION create_default_prefs();
         """)
 
     conn.close()

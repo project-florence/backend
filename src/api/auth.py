@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 import jwt
+import json
 
 from src.core.database import db
 from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
@@ -211,3 +212,36 @@ def get_credits(current_user_id: int = Depends(get_current_user)):
     return {
         "credits": rows[0]
     }
+
+
+class PreferencesUpdate(BaseModel):
+    prefs: dict
+
+
+@router.get("/user/preferences")
+def get_preferences(current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        cur.execute("SELECT prefs FROM user_preferences WHERE user_id = %s", (current_user_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Preferences not found")
+    return row[0]
+
+
+@router.put("/user/preferences")
+def update_preferences(payload: PreferencesUpdate, current_user_id: int = Depends(get_current_user)):
+    with db.cursor() as cur:
+        cur.execute("SELECT prefs FROM user_preferences WHERE user_id = %s", (current_user_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Preferences not found")
+
+        existing = row[0]
+        existing.update(payload.prefs)
+
+        cur.execute(
+            "UPDATE user_preferences SET prefs = %s, updated_at = NOW() WHERE user_id = %s",
+            (json.dumps(existing), current_user_id)
+        )
+        db.commit()
+    return existing
