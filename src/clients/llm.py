@@ -1,20 +1,31 @@
 from openai import OpenAI
 from src.core.config import get_config
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 _client = None
 _default_model = None
+_client_type = None
 
 
 def init_client(url=None, default_model=None, api_key=None):
-    global _client, _default_model
+    global _client, _default_model, _client_type
     cfg = get_config()
     llm_cfg = cfg.get("llm_client", {})
-    if url is None:
-        url = llm_cfg.get("url")
-    if api_key is None:
-        api_key = llm_cfg.get("api_key")
-    _client = OpenAI(api_key=api_key, base_url=url)
-    _default_model = default_model or llm_cfg.get("model")
+    _client_type = llm_cfg.get("type", "custom")
+
+    if _client_type == "openrouter":
+        base_url = url or llm_cfg.get("openrouter_url")
+        key = api_key or os.getenv("OPENROUTER_API_KEY")
+        _default_model = default_model or "openrouter/free"
+    else:
+        base_url = url or llm_cfg.get("custom_url")
+        key = api_key or os.getenv("CUSTOM_API_KEY") or llm_cfg.get("api_key", "")
+        _default_model = default_model or llm_cfg.get("custom_model")
+
+    _client = OpenAI(api_key=key, base_url=base_url)
 
 
 def get_response(
@@ -23,8 +34,9 @@ def get_response(
     model: str = None,
     tools: list[dict] | None = None,
     messages: list[dict] | None = None,
+    reasoning: bool = False,
 ) -> dict:
-    global _client, _default_model
+    global _client, _default_model, _client_type
     if _client is None:
         init_client()
     if model is None:
@@ -38,6 +50,8 @@ def get_response(
     kwargs = {"model": model, "messages": messages}
     if tools:
         kwargs["tools"] = tools
+    if reasoning and _client_type == "openrouter":
+        kwargs["extra_body"] = {"reasoning": {"enabled": True}}
 
     try:
         import json
@@ -66,7 +80,15 @@ def get_response(
                 "assistant_message": choice.message,
             }
 
-        return {"type": "text", "content": choice.message.content, "usage": usage_dict}
+        result = {"type": "text", "content": choice.message.content, "usage": usage_dict}
+
+        reasoning_details = getattr(choice.message, "reasoning_details", None)
+        if not reasoning_details and hasattr(choice.message, "model_extra"):
+            reasoning_details = choice.message.model_extra.get("reasoning_details")
+        if reasoning_details:
+            result["reasoning_details"] = reasoning_details
+
+        return result
     except Exception as e:
         return {"type": "error", "detail": str(e), "usage": None}
 

@@ -1,7 +1,7 @@
 """Tüm kullanıcıların kredilerini günlük olarak yeniler.
 
 Cron ile gece 00:00'da çalışacak şekilde tasarlanmıştır.
-Her kullanıcıya 5 kredi ekler, maksimum 20 kredi ile sınırlar.
+Her kullanıcıya 5 kredi ekler.
 
 Kullanım:
   python scripts/credit_refiller.py
@@ -23,7 +23,7 @@ def refill_credits():
         try:
             cur.execute("""
                 UPDATE users
-                SET credits = LEAST(credits + 5, 20)
+                SET credits = credits + 5
             """)
             db.commit()
             print(f"Krediler yenilendi. Etkilenen kullanıcı: {cur.rowcount}")

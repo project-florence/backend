@@ -42,9 +42,10 @@ cache_ttl = 3600
 cache_interval = 2592000
 
 [llm_client]
-api_key = "dummy_api_key"
-url = "http://localhost:7777/v1"
-model = "qwen3.6"
+type = "custom" # or custom
+openrouter_url = "https://openrouter.ai/api/v1"
+custom_url = "http://localhost:7777/v1"
+custom_model = "gemma"
 
 [generate_bist_mapping]
 scrape_url = "https://borsacoo.com/firmalar"
