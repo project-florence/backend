@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_HOST_PORT}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     restart: unless-stopped
@@ -14,7 +14,7 @@ services:
     image: redis:latest
     container_name: florence_redis
     ports:
-      - "5434:6379"
+      - "${REDIS_HOST_PORT}:6379"
     volumes:
       - redisdata:/data
     restart: unless-stopped
@@ -23,7 +23,7 @@ services:
     image: searxng/searxng:latest
     container_name: searxng
     ports:
-      - "5435:8080"
+      - "${SEARXNG_HOST_PORT}:8080"
     volumes:
       - searxng:/etc/searxng
     environment:
@@ -34,7 +34,7 @@ services:
     build: .
     container_name: florence_api
     ports:
-      - "7055:7055"
+      - "${API_HOST_PORT}:7055"
     depends_on:
       - postgres
       - redis
