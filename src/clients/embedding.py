@@ -1,3 +1,4 @@
+import os
 from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 from src.core.config import get_config
@@ -10,11 +11,11 @@ def init_client(url=None, model=None, api_key=None):
     global _client, _model
     cfg = get_config().get("embedding", {})
     if url is None:
-        url = cfg.get("base_url")
+        url = os.getenv("EMBEDDING_BASE_URL") or cfg.get("base_url")
     if api_key is None:
-        api_key = cfg.get("api_key")
+        api_key = os.getenv("EMBEDDING_API_KEY") or cfg.get("api_key")
     if model is None:
-        model = cfg.get("model")
+        model = os.getenv("EMBEDDING_MODEL") or cfg.get("model")
     _client = OpenAI(api_key=api_key, base_url=url)
     _model = model
 

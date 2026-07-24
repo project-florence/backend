@@ -7,19 +7,32 @@ from src.core.config import get_config
 load_dotenv()
 
 
+def _pg_host():
+    return os.getenv("POSTGRES_HOST") or get_config()["postgres"]["host"]
+
+def _pg_port():
+    return os.getenv("POSTGRES_PORT") or get_config()["postgres"]["port"]
+
+def _pg_user():
+    return os.getenv("POSTGRES_USER") or get_config()["postgres"]["user"]
+
+def _pg_default_db():
+    return os.getenv("POSTGRES_DB") or get_config()["postgres"]["default_db"]
+
+
 class _DatabaseProxy:
     _conns = {}
     _lock = threading.Lock()
 
     def _ensure_db_exists(self, db_name: str):
-        if db_name == get_config()["postgres"]["default_db"]:
+        if db_name == _pg_default_db():
             return
         conn = psycopg2.connect(
-            host=get_config()["postgres"]["host"],
-            port=get_config()["postgres"]["port"],
-            user=get_config()["postgres"]["user"],
+            host=_pg_host(),
+            port=_pg_port(),
+            user=_pg_user(),
             password=os.getenv("POSTGRES_PASSWORD"),
-            dbname=get_config()["postgres"]["default_db"],
+            dbname=_pg_default_db(),
         )
         conn.autocommit = True
         with conn.cursor() as cur:
@@ -33,14 +46,13 @@ class _DatabaseProxy:
         if key not in self._conns:
             with self._lock:
                 if key not in self._conns:
-                    cfg = get_config()["postgres"]
-                    actual_db = db_name or cfg["default_db"]
+                    actual_db = db_name or _pg_default_db()
                     if db_name:
                         self._ensure_db_exists(db_name)
                     conn = psycopg2.connect(
-                        host=cfg["host"],
-                        port=cfg["port"],
-                        user=cfg["user"],
+                        host=_pg_host(),
+                        port=_pg_port(),
+                        user=_pg_user(),
                         password=os.getenv("POSTGRES_PASSWORD"),
                         dbname=actual_db,
                     )
@@ -62,11 +74,11 @@ class _DatabaseProxy:
 
 def init_db():
     conn = psycopg2.connect(
-        host=get_config()["postgres"]["host"],
-        port=get_config()["postgres"]["port"],
-        user=get_config()["postgres"]["user"],
+        host=_pg_host(),
+        port=_pg_port(),
+        user=_pg_user(),
         password=os.getenv("POSTGRES_PASSWORD"),
-        dbname=get_config()["postgres"]["default_db"],
+        dbname=_pg_default_db(),
     )
     conn.autocommit = True
     with conn.cursor() as cur:

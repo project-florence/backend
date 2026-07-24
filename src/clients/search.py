@@ -1,3 +1,4 @@
+import os
 import requests
 from src.core.config import get_config
 from pydantic import BaseModel
@@ -12,7 +13,7 @@ class NewsItem(BaseModel):
 
 
 def news_search(query: str, limit: int = 10) -> List[NewsItem]:
-    url = get_config()["news_search"]["search_url"]
+    url = os.getenv("NEWS_SEARCH_URL") or get_config()["news_search"]["search_url"]
     params = {
         "q": query,
         "format": "json",
@@ -22,7 +23,7 @@ def news_search(query: str, limit: int = 10) -> List[NewsItem]:
     }
 
     headers = {
-        "User-Agent": get_config()["news_search"]["user_agent"]
+        "User-Agent": os.getenv("NEWS_SEARCH_USER_AGENT") or get_config()["news_search"]["user_agent"]
     }
 
     response = requests.get(url, params=params, headers=headers)

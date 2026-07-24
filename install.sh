@@ -62,14 +62,12 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   echo "SECRET_KEY=$(openssl rand -base64 32)" >> .env
 
   # Ports
-  echo "POSTGRES_HOST_PORT=5433" >> .env
-  echo "REDIS_HOST_PORT=5434" >> .env
+  echo "POSTGRES_HOST=localhost" >> .env
+  echo "POSTGRES_PORT=5433" >> .env
+  echo "REDIS_HOST=localhost" >> .env
+  echo "REDIS_PORT=5434" >> .env
   echo "SEARXNG_HOST_PORT=5435" >> .env
   echo "API_HOST_PORT=8080" >> .env
-
-  # Hosts
-  echo "POSTGRES_HOST=localhost" >> .env
-  echo "REDIS_HOST=localhost" >> .env
 
   # Embedding
   echo "EMBEDDING_API_KEY=ollama" >> .env

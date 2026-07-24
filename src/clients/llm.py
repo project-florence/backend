@@ -17,13 +17,13 @@ def init_client(url=None, default_model=None, api_key=None):
     _client_type = llm_cfg.get("type", "custom")
 
     if _client_type == "openrouter":
-        base_url = url or llm_cfg.get("openrouter_url")
+        base_url = url or os.getenv("OPENROUTER_URL") or llm_cfg.get("openrouter_url")
         key = api_key or os.getenv("OPENROUTER_API_KEY")
         _default_model = default_model or "openrouter/free"
     else:
-        base_url = url or llm_cfg.get("custom_url")
+        base_url = url or os.getenv("CUSTOM_URL") or llm_cfg.get("custom_url")
         key = api_key or os.getenv("CUSTOM_API_KEY") or llm_cfg.get("api_key", "")
-        _default_model = default_model or llm_cfg.get("custom_model")
+        _default_model = default_model or os.getenv("CUSTOM_MODEL") or llm_cfg.get("custom_model")
 
     _client = OpenAI(api_key=key, base_url=base_url)
 

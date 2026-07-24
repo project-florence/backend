@@ -1,3 +1,4 @@
+import os
 import redis
 from src.core.config import get_config
 
@@ -9,8 +10,8 @@ class _RedisProxy:
         if self._conn is None:
             cfg = get_config()["redis"]
             self._conn = redis.Redis(
-                host=cfg["host"],
-                port=cfg["port"],
+                host=os.getenv("REDIS_HOST") or cfg["host"],
+                port=int(os.getenv("REDIS_PORT") or cfg["port"]),
                 db=cfg["db"],
                 decode_responses=cfg["decode_responses"],
             )
