@@ -3,7 +3,7 @@ import json
 from fastapi import APIRouter, Depends, Query, HTTPException, Response
 from src.core.config import get_config
 from src.core.database import db
-from src.services.report import generate_quick_report, generate_deep_report, get_report_by_id, report_to_str
+from src.services.report import generate_report, get_report_by_id, report_to_str
 from src.api.deps import get_current_user, validate_ticker
 from datetime import datetime
 from pydantic import BaseModel
@@ -19,17 +19,16 @@ def _compute_cost(total_tokens: int) -> int:
 
 
 @router.post("/reports/generate")
-def generate_report(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user)):
+async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user)):
     validate_ticker(ticker)
 
     if type not in ("quick_report", "deep_report"):
         raise HTTPException(status_code=400, detail="Invalid type")
 
+    mode = type.replace("_report", "")
+
     try:
-        if type == "quick_report":
-            report_obj = generate_quick_report(ticker)
-        else:
-            report_obj = generate_deep_report(ticker)
+        report_obj = await generate_report(ticker, mode)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
 
