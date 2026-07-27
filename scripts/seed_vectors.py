@@ -17,7 +17,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.core.config import init_config
 from src.core.redis import r as redis_client
 from src.services.company import get_company_info
 from src.services.stats import get_all_stats
@@ -31,8 +30,6 @@ def main():
     parser.add_argument("--delay", type=float, default=None,
                         help="İstekler arası bekleme saniyesi (varsayılan: config'deki rate_limit_delay)")
     args = parser.parse_args()
-
-    init_config()
 
     stats = get_all_stats()
     all_tickers = [s["ticker"] for s in stats]

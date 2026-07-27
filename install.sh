@@ -57,8 +57,10 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   read -rp "enter your CUSTOM_API_KEY: " custom_api_key
   echo "CUSTOM_API_KEY=$custom_api_key" >> .env
 
-  echo "generating secure postgress password and secret key..."
+  echo "generating secure postgres password and secret key..."
   echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
+  echo "POSTGRES_USER=postgres" >> .env
+  echo "POSTGRES_DB=postgres" >> .env
   echo "SECRET_KEY=$(openssl rand -base64 32)" >> .env
 
   # Ports
@@ -66,6 +68,8 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   echo "POSTGRES_PORT=5433" >> .env
   echo "REDIS_HOST=localhost" >> .env
   echo "REDIS_PORT=5434" >> .env
+  echo "REDIS_DB=0" >> .env
+  echo "REDIS_DECODE_RESPONSES=true" >> .env
   echo "SEARXNG_HOST_PORT=5435" >> .env
   echo "API_HOST_PORT=8080" >> .env
 

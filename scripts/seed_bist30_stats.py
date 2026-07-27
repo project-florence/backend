@@ -14,7 +14,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.core.config import init_config
 from src.core.database import db
 from src.services.bist import get_bist_companies_as_dict_from_redis
 
@@ -37,7 +36,6 @@ STAT_FIELDS = [
 
 
 def seed(boost: int = 50):
-    init_config()
     companies = get_bist_companies_as_dict_from_redis()
     existing_tickers = {c["ticker"] for c in companies}
 

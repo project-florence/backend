@@ -26,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yfinance as yf
 import pandas as pd
-from src.core.config import init_config
 from src.core.database import db
 from src.utils.mapping import load_bist_mapping
 from src.services.company import get_company_info
@@ -52,8 +51,6 @@ def main():
     parser.add_argument("--info", action="store_true",
                         help="Fiyat güncellemesinden sonra company info'yu da tazele (popular kademesi, 5s aralikla)")
     args = parser.parse_args()
-
-    init_config()
 
     mapping = load_bist_mapping()
     popular_tickers = list(mapping.keys())

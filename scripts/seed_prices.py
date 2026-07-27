@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import yfinance as yf
 import pandas as pd
-from src.core.config import init_config
 from src.core.database import db
 
 
@@ -28,8 +27,6 @@ def main():
     parser.add_argument("--start", type=int, default=0)
     parser.add_argument("--count", type=int, default=None)
     args = parser.parse_args()
-
-    init_config()
 
     from src.services.bist import get_bist_companies_as_dict_from_redis
     companies = get_bist_companies_as_dict_from_redis()

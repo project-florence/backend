@@ -12,13 +12,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.core.config import init_config
 from src.core.database import db
 
 
 def refill_credits():
-    init_config()
-
     with db.cursor() as cur:
         try:
             cur.execute("""
