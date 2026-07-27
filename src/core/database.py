@@ -2,22 +2,20 @@ import psycopg2
 import threading
 import os
 from dotenv import load_dotenv
-from src.core.config import get_config
-
 load_dotenv()
 
 
 def _pg_host():
-    return os.getenv("POSTGRES_HOST") or get_config()["postgres"]["host"]
+    return os.getenv("POSTGRES_HOST")
 
 def _pg_port():
-    return os.getenv("POSTGRES_PORT") or get_config()["postgres"]["port"]
+    return os.getenv("POSTGRES_PORT")
 
 def _pg_user():
-    return os.getenv("POSTGRES_USER") or get_config()["postgres"]["user"]
+    return os.getenv("POSTGRES_USER")
 
 def _pg_default_db():
-    return os.getenv("POSTGRES_DB") or get_config()["postgres"]["default_db"]
+    return os.getenv("POSTGRES_DB")
 
 
 class _DatabaseProxy:
