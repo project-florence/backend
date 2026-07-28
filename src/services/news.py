@@ -1,5 +1,6 @@
 import json
 import math
+import re
 from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
@@ -44,9 +45,14 @@ def _resolve_search_terms(query: str) -> dict:
     }
 
 
+_SAFE_TERM = re.compile(r"^[A-Z0-9 .\-]+$")
+
+
 def _build_title_clause(terms: list[str], filter_lang: dict | None, lang: list[str] | None) -> str:
     clauses = []
     for term in terms:
+        if not _SAFE_TERM.match(term):
+            continue
         if filter_lang and term in filter_lang:
             term_langs = filter_lang[term]
             if lang:
@@ -66,7 +72,10 @@ def _build_title_clause(terms: list[str], filter_lang: dict | None, lang: list[s
 
 
 def _build_gkg_clause(terms: list[str]) -> str:
-    return " OR ".join(f"UPPER(V2Organizations) LIKE '%{t}%'" for t in terms)
+    safe_terms = [t for t in terms if _SAFE_TERM.match(t)]
+    if not safe_terms:
+        return "FALSE"
+    return " OR ".join(f"UPPER(V2Organizations) LIKE '%{t}%'" for t in safe_terms)
 
 
 def collect_articles(

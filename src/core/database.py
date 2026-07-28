@@ -1,4 +1,5 @@
 import psycopg2
+import psycopg2.sql
 import threading
 import os
 from dotenv import load_dotenv
@@ -37,7 +38,7 @@ class _DatabaseProxy:
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             if not cur.fetchone():
-                cur.execute(f'CREATE DATABASE "{db_name}"')
+                cur.execute(psycopg2.sql.SQL("CREATE DATABASE {}").format(psycopg2.sql.Identifier(db_name)))
         conn.close()
 
     def get_connection(self, db_name=None):

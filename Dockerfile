@@ -2,6 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Sistem bağımlılıkları
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pandoc \
+    texlive-latex-base \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-xetex \
+    && rm -rf /var/lib/apt/lists/*
+
 # Önce bağımlılıkları yükle (Cache optimizasyonu)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
