@@ -1,5 +1,5 @@
 import logging
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 from src.core.redis import r
 
 logger = logging.getLogger(__name__)
@@ -44,4 +44,4 @@ def require_feature(feature: str):
                 detail=f"{feature} is temporarily disabled for maintenance",
             )
         return True
-    return Depends(_check)
+    return _check
