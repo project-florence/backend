@@ -1,5 +1,6 @@
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 from argon2 import PasswordHasher
@@ -90,7 +91,17 @@ def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
             raise HTTPException(status_code=400, detail="Incorrect username or password")
 
         access_token = create_jwt_token(user_id)
-        return {"access_token": access_token, "token_type": "bearer"}
+        response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+            max_age=3600,
+            path="/",
+        )
+        return response
 
 
 @router.delete("/auth/delete")
