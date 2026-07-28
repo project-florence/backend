@@ -189,13 +189,14 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_user_credits_user_id ON user_credits(user_id);
         """)
 
-        cur.execute("""
-            INSERT INTO user_credits (user_id, credit_type, amount)
-            SELECT id, 'free_credits', credits FROM users
-            ON CONFLICT (user_id, credit_type) DO NOTHING
-        """)
-
-        cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS credits")
+        cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'credits'")
+        if cur.fetchone():
+            cur.execute("""
+                INSERT INTO user_credits (user_id, credit_type, amount)
+                SELECT id, 'free_credits', credits FROM users
+                ON CONFLICT (user_id, credit_type) DO NOTHING
+            """)
+            cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS credits")
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS analytics_events (
