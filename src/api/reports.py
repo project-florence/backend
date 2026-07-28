@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException, Response
 from src.core.config import get_config
 from src.core.database import db
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
+from src.services.maintenance import require_feature
 from src.services.report import generate_report, get_report_by_id, report_to_str
 from src.api.deps import get_current_user, validate_ticker
 from datetime import datetime
@@ -20,7 +21,7 @@ def _compute_cost(total_tokens: int) -> int:
 
 
 @router.post("/reports/generate")
-async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user)):
+async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user), _: bool = Depends(require_feature("report_generate"))):
     validate_ticker(ticker)
 
     if type not in ("quick_report", "deep_report"):

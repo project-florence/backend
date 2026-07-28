@@ -133,3 +133,13 @@ def token_usage(
         raise HTTPException(status_code=400, detail="Invalid datetime format. Use ISO format.")
     except Exception as e:
         raise HTTPException(status_code=500, detail="Database error")
+
+
+@admin_app.post("/maintenance/toggle")
+def maintenance_toggle(
+    _: bool = Depends(verify_admin_token),
+    feature: str = Query(...),
+    action: str = Query(...),
+):
+    from src.services.maintenance import toggle as toggle_maintenance
+    return toggle_maintenance(feature, action)

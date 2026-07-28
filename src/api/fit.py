@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, field_validator
 from src.analysis.stock_vector import build_query, rank_by_similarity
 from src.api.deps import get_current_user
+from src.services.maintenance import require_feature
 
 router = APIRouter()
 
@@ -46,7 +47,7 @@ class FitRequest(BaseModel):
 
 
 @router.post("/stocks/fit")
-def fit_stocks(body: FitRequest, _: int = Depends(get_current_user)):
+def fit_stocks(body: FitRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
     try:
         query = build_query(body.horizon, body.profitability, body.risk_tolerance)
     except KeyError as e:

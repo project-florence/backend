@@ -6,6 +6,7 @@ from src.analysis.stock_vector import (
     vector_to_list, euclidean_distance, VECTOR_KEYS,
 )
 from src.api.deps import get_current_user
+from src.services.maintenance import require_feature
 
 router = APIRouter()
 
@@ -32,7 +33,7 @@ class PortfolioProfileRequest(BaseModel):
 
 
 @router.post("/portfolio/profile")
-def portfolio_profile(body: PortfolioProfileRequest, _: int = Depends(get_current_user)):
+def portfolio_profile(body: PortfolioProfileRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
     tickers = body.tickers
     redis_data = read_vectors_from_redis(tickers)
 

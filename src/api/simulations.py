@@ -3,6 +3,7 @@ from src.core.database import db
 import src.simulation.montecarlo as montecarlo
 from src.services.stats import increment_stat
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
+from src.services.maintenance import require_feature
 from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
 from src.services.simulation_history import save_simulation, get_simulation_history, get_simulation_detail
@@ -51,6 +52,7 @@ def simulate(
     bounds: str = Query("0.05"),
     target: str | None = Query(default=None),
     current_user_id: int = Depends(get_current_user),
+    _: bool = Depends(require_feature("simulation")),
 ):
     validate_ticker(ticker)
     cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
