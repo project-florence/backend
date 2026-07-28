@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Depends, Query, HTTPException, Response
 from src.core.config import get_config
 from src.core.database import db
+from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
 from src.services.report import generate_report, get_report_by_id, report_to_str
 from src.api.deps import get_current_user, validate_ticker
 from datetime import datetime
@@ -29,42 +30,20 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     max_tokens = cfg["quick_report_max_tokens"] if type == "quick_report" else cfg["deep_report_max_tokens"]
     estimated_cost = _compute_cost(max_tokens)
 
-    with db.cursor() as cur:
-        try:
-            cur.execute("""
-                        UPDATE users
-                        SET credits = credits - %s
-                        WHERE id = %s
-                          AND credits >= %s RETURNING credits
-                        """, (estimated_cost, current_user_id, estimated_cost))
-            row = cur.fetchone()
-
-            if row is None:
-                db.rollback()
-                raise HTTPException(status_code=402, detail="insufficient credit")
-
-            db.commit()
-            remaining_credits = row[0]
-        except HTTPException:
-            raise
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Database error")
+    ok, remaining_credits = credit_spend(current_user_id, estimated_cost)
+    if not ok:
+        raise HTTPException(status_code=402, detail="insufficient credit")
 
     mode = type.replace("_report", "")
 
     try:
         report_obj = await generate_report(ticker, mode)
     except Exception as e:
-        with db.cursor() as cur:
-            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (estimated_cost, current_user_id))
-            db.commit()
+        credit_refund(current_user_id, estimated_cost)
         raise HTTPException(status_code=500, detail="Report generation failed")
 
     if report_obj is None:
-        with db.cursor() as cur:
-            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (estimated_cost, current_user_id))
-            db.commit()
+        credit_refund(current_user_id, estimated_cost)
         raise HTTPException(status_code=500, detail="Report generation returned no result")
 
     total_tokens = report_obj.token_usage.get("total", 0)
@@ -72,11 +51,10 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     refund = estimated_cost - actual_cost
 
     if refund > 0:
-        with db.cursor() as cur:
-            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (refund, current_user_id))
-            db.commit()
-            remaining_credits = remaining_credits + refund
+        credit_refund(current_user_id, refund)
+        remaining_credits = get_credits(current_user_id)
 
+    with db.cursor() as cur:
         try:
             cur.execute("""
                         INSERT INTO reports (user_id, ticker, type, title, token_usage, content, sentiments)
@@ -102,7 +80,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     return {
         "success": True,
         "report_id": report_id,
-        "credits_spend": cost,
+        "credits_spend": actual_cost,
         "remaining_credits": remaining_credits,
         "about": ticker,
         "type": type,

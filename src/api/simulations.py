@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from src.core.database import db
 import src.simulation.montecarlo as montecarlo
 from src.services.stats import increment_stat
+from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
 from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
 from src.services.simulation_history import save_simulation, get_simulation_history, get_simulation_detail
@@ -54,39 +55,17 @@ def simulate(
     validate_ticker(ticker)
     cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
 
-    with db.cursor() as cur:
-        try:
-            cur.execute("""
-                        UPDATE users
-                        SET credits = credits - %s
-                        WHERE id = %s
-                          AND credits >= %s RETURNING credits
-                        """, (cost, current_user_id, cost))
-            row = cur.fetchone()
-
-            if row is None:
-                db.rollback()
-                raise HTTPException(status_code=402, detail="insufficient credit")
-
-            db.commit()
-            remaining_credits = row[0]
-        except HTTPException:
-            raise
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Database error")
+    ok, remaining_credits = credit_spend(current_user_id, cost)
+    if not ok:
+        raise HTTPException(status_code=402, detail="insufficient credit")
 
     try:
         result = montecarlo.simulate(ticker, days, bounds, target)
     except TypeError as e:
-        with db.cursor() as cur:
-            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
-            db.commit()
+        credit_refund(current_user_id, cost)
         raise HTTPException(status_code=400, detail="Invalid simulation parameters")
     except Exception as e:
-        with db.cursor() as cur:
-            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
-            db.commit()
+        credit_refund(current_user_id, cost)
         raise HTTPException(status_code=500, detail="Simulation failed, credits refunded.")
 
     increment_stat(ticker, "simulation_count")

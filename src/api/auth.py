@@ -9,6 +9,7 @@ import json
 
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
+from src.services.credits import get_total as get_credits
 from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
 
 ph = PasswordHasher()
@@ -190,7 +191,7 @@ def get_profile(current_user_id: int = Depends(get_current_user)):
     with db.cursor() as cur:
         try:
             cur.execute("""
-                SELECT username, email, credits FROM users WHERE id = %s
+                SELECT username, email FROM users WHERE id = %s
             """, (current_user_id,))
             rows = cur.fetchone()
 
@@ -200,25 +201,13 @@ def get_profile(current_user_id: int = Depends(get_current_user)):
     return {
         "username": rows[0],
         "email": rows[1],
-        "credits": rows[2]
+        "credits": get_credits(current_user_id)
     }
 
 
 @router.get("/credits")
-def get_credits(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        try:
-            cur.execute("""
-                SELECT credits FROM users WHERE id = %s
-            """, (current_user_id,))
-            rows = cur.fetchone()
-
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Database error")
-
-    return {
-        "credits": rows[0]
-    }
+def get_credits_endpoint(current_user_id: int = Depends(get_current_user)):
+    return {"credits": get_credits(current_user_id)}
 
 
 class PreferencesUpdate(BaseModel):

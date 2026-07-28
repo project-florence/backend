@@ -7,6 +7,7 @@ from src.core.redis import r
 from src.clients.llm import health_check
 from src.clients.search import news_search
 from src.services.token import get_token_summary
+from src.services.credits import add_free_credits, add_gift_credits, get_total as get_credits
 from src.api.deps import verify_admin_token
 from src.core.config import is_production
 import yfinance as yf
@@ -26,29 +27,34 @@ def gift_credits(
     user_type: str = Query(...),
     amount: int = Query(..., gt=1),
     username: str | None = Query(default=None),
+    credit_type: str = Query(default="free_credits", description="free_credits or gift_credits"),
     filters: dict = Body({})
 ):
     try:
         if user_type == GiftTarget.EVERYONE:
             with db.cursor() as cur:
-                cur.execute("""
-                    UPDATE users SET credits = credits + %s
-                """, (amount,))
-                db.commit()
+                cur.execute("SELECT id, username FROM users")
+                for row in cur.fetchall():
+                    if credit_type == "gift_credits":
+                        add_gift_credits(row[0], amount)
+                    else:
+                        add_free_credits(row[0], amount)
                 return {"success": True}
         elif user_type == GiftTarget.USER:
             if not username:
                 raise HTTPException(status_code=400, detail="username is required for user type")
             with db.cursor() as cur:
-                cur.execute("""
-                    UPDATE users SET credits = credits + %s WHERE username = %s RETURNING id, username, credits
-                """, (amount, username))
+                cur.execute("SELECT id FROM users WHERE username = %s", (username,))
                 row = cur.fetchone()
                 if row is None:
-                    db.rollback()
                     raise HTTPException(status_code=404, detail="User not found")
-                db.commit()
-                return {"success": True, "user": {"id": row[0], "username": row[1], "credits": row[2]}}
+
+            if credit_type == "gift_credits":
+                add_gift_credits(row[0], amount)
+            else:
+                add_free_credits(row[0], amount)
+
+            return {"success": True, "user": {"username": username, "credits": get_credits(row[0])}}
         else:
             raise HTTPException(
                 status_code=400,
@@ -57,7 +63,6 @@ def gift_credits(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=500, detail="Database error")
 
 @admin_app.post("/config-reload")

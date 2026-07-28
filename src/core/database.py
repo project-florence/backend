@@ -179,6 +179,24 @@ def init_db():
         """)
 
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_credits (
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                credit_type VARCHAR(50) NOT NULL DEFAULT 'free_credits',
+                amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, credit_type)
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_credits_user_id ON user_credits(user_id);
+        """)
+
+        cur.execute("""
+            INSERT INTO user_credits (user_id, credit_type, amount)
+            SELECT id, 'free_credits', credits FROM users
+            ON CONFLICT (user_id, credit_type) DO NOTHING
+        """)
+
+        cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS credits")
+
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS token_usage (
             id SERIAL PRIMARY KEY,
             model TEXT NOT NULL,

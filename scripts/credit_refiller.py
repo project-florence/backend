@@ -1,7 +1,7 @@
-"""Tüm kullanıcıların kredilerini günlük olarak yeniler.
+"""Tüm kullanıcıların free credit'lerini günlük olarak yeniler (cap'li).
 
 Cron ile gece 00:00'da çalışacak şekilde tasarlanmıştır.
-Her kullanıcıya 5 kredi ekler.
+Her kullanıcıya FREE_CREDIT_MAX üst sınırını geçmeyecek kadar free credit ekler.
 
 Kullanım:
   python scripts/credit_refiller.py
@@ -12,23 +12,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.core.database import db
-
-
-def refill_credits():
-    with db.cursor() as cur:
-        try:
-            cur.execute("""
-                UPDATE users
-                SET credits = credits + 5
-            """)
-            db.commit()
-            print(f"Krediler yenilendi. Etkilenen kullanıcı: {cur.rowcount}")
-        except Exception as e:
-            db.rollback()
-            print(f"Hata: {e}")
-            sys.exit(1)
+from src.services.credits import daily_refill
 
 
 if __name__ == "__main__":
-    refill_credits()
+    try:
+        count = daily_refill()
+        print(f"Free credits yenilendi. Etkilenen kullanıcı: {count}")
+    except Exception as e:
+        print(f"Hata: {e}")
+        sys.exit(1)

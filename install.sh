@@ -59,6 +59,8 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
 
   echo "generating secure passwords and keys..."
   echo "ENVIRONMENT=production" >> .env
+  echo "FREE_CREDIT_MAX=25" >> .env
+  echo "DAILY_FREE_CREDIT_REFILL=5" >> .env
   echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
   echo "POSTGRES_USER=postgres" >> .env
   echo "POSTGRES_DB=postgres" >> .env
@@ -75,7 +77,7 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   echo "REDIS_DB=0" >> .env
   echo "REDIS_DECODE_RESPONSES=true" >> .env
   echo "SEARXNG_HOST_PORT=5435" >> .env
-  echo "API_HOST_PORT=8080" >> .env
+  echo "API_HOST_PORT=7055" >> .env
 
   # Embedding
   echo "EMBEDDING_API_KEY=ollama" >> .env

@@ -80,9 +80,17 @@ def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="
     return result
 
 
+_VALID_PERIODS = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"}
+_VALID_INTERVALS = {"1d", "5d", "1wk", "1mo", "3mo"}
+
+
 @router.get("/price/history/{ticker}")
 def price_history(ticker: str, period: str = Query("1mo"), interval: str = Query("1d")):
     validate_ticker(ticker)
+    if period not in _VALID_PERIODS:
+        raise HTTPException(status_code=400, detail=f"Invalid period. Must be one of: {', '.join(sorted(_VALID_PERIODS))}")
+    if interval not in _VALID_INTERVALS:
+        raise HTTPException(status_code=400, detail=f"Invalid interval. Must be one of: {', '.join(sorted(_VALID_INTERVALS))}")
     result = get_price_history(ticker, period, interval)
     increment_stat(ticker, "history_count")
     return result
