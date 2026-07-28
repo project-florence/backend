@@ -1,89 +1,59 @@
-# Frontend Yapılacaklar (Security Raporu)
+# Frontend Yapılacaklar (Security Raporu) ✅
 
 Dizin: `/home/efe/Documents/web/`
 
----
-
-## 1. JWT localStorage -> httpOnly Cookie (ORTA #5)
-
-**Mevcut:** Token `localStorage`'da saklanıyor (`authStore.ts`, `api.ts`). XSS ile çalınabilir.
-
-**Yapılacaklar:**
-
-- [ ] **Backend:** Login yanıtında `Set-Cookie` header'ı gönder (`access_token`'ı `httpOnly; Secure; SameSite=Strict` cookie olarak). Backend zaten `/auth/login`'de token dönüyor — yanıta `set_cookie()` eklenmeli.
-- [ ] **Backend:** Token doğrulama middleware'inde cookie'den de `access_token` okuma desteği ekle (şu an sadece `Authorization: Bearer` header'ını destekliyor).
-- [ ] **Frontend `api.ts`:** `withCredentials: true` ekle (cookie'yi otomatik göndersin).
-- [ ] **Frontend `api.ts`:** `Authorization` header'ını manuel eklemeyi kaldır (cookie otomatik gider).
-- [ ] **Frontend `authStore.ts`:** `localStorage` yerine sadece state'te token tut (gerçek token'a JS erişmesine gerek yok). `isAuthenticated` kontrolünü cookie'nin varlığına veya backend `/profile` çağrısına göre yap.
-- [ ] **Frontend `api.ts`:** 401 interceptor'da `localStorage.removeItem` yerine logout state güncellemesi yap.
+> Bu dosyadaki tum maddeler fixlenmistir (`c8b7ec9`). Detaylar asagida.
 
 ---
 
-## 2. LLM-Sentiment URL Doğrulama (ORTA #6)
+## 1. JWT localStorage -> httpOnly Cookie (ORTA #5) ✅
 
-**Mevcut:** `ReportDetailPage.tsx:198` — `s.url` direkt `<a href>`'e basılıyor. LLM prompt injection ile `javascript:` URL'si yazılabilir.
+**Yapılanlar:**
+- Backend (`auth.py`): Login yanıtına `Set-Cookie` header'ı eklendi (`HttpOnly; Secure; SameSite=Strict`)
+- Backend (`deps.py`): `get_current_user` artık önce `Authorization: Bearer`, yoksa `Cookie: access_token`'ı dener
+- Frontend (`api.ts`): `withCredentials: true`, `Authorization: Bearer` interceptor'u kaldırıldı, 401'de `useAuthStore.logout()` çağrılıyor
+- Frontend (`authStore.ts`): localStorage kullanımı kalktı, `checkAuth()` ile `/profile` sorgulanıyor
+- Frontend (`LoginPage.tsx`): `setToken()` kaldırıldı, sadece `navigate('/')` yapılıyor
+- Frontend (`ProtectedRoute.tsx`): `checkAuth()` ile auth kontrolü, loading spinner eklendi
 
-**Yapılacaklar:**
+## 2. LLM-Sentiment URL Doğrulama (ORTA #6) ✅
 
-- [ ] `ReportDetailPage.tsx`'de `s.url`'yi render öncesi `new URL(s.url)` ile parse et. Scheme `http:` veya `https:` değilse link yerine düz metin olarak göster.
-- [ ] ReactMarkdown `urlTransform` prop'u ile aynı kısıtlamayı uygula (markdown içindeki linkler için de koruma).
+**Yapılanlar:**
+- `safeUrl()` fonksiyonu eklendi (`new URL()` ile parse, scheme `http:`/`https:` değilse null döner)
+- Sentiment URL linki `safeUrl()`'den geçiriliyor, geçersiz URL'lerde `<span>` gösteriliyor
 
----
+## 3. nginx.conf Düzeltmeleri (ORTA #7) ✅
 
-## 3. nginx.conf Düzeltmeleri (ORTA #7)
+**Yapılanlar:**
+- `proxy_pass http://backend:8000` -> `http://api:7055`
+- `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`
+- CSP: `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'`
+- Rate limiting: `auth` (5/dk), `reportgen` (1/dk), `api` (30/sn) — zone'lar ayri ayri
+- `server_name florencex.com.tr`
 
-**Mevcut:** `nginx.conf`'ta proxy_pass yanlış (`backend:8000` yerine `api:7055` olmalı), güvenlik header'ları yok.
+## 4. npm Audit / CVE Fix (ORTA #9) ✅
 
-**Yapılacaklar:**
+**Yapılanlar:**
+- `react-router-dom` `^7.18.1` -> `7.11.0` (GHSA-qwww-vcr4-c8h2 fix)
+- Kalan CVE'ler RSC/SSR moduna ozel, SPA'da etkisiz
 
-- [ ] `proxy_pass http://backend:8000;` -> `proxy_pass http://api:7055;`
-- [ ] `add_header X-Content-Type-Options nosniff;`
-- [ ] `add_header Referrer-Policy strict-origin-when-cross-origin;`
-- [ ] `add_header X-Frame-Options DENY;`
-- [ ] CSP header ekle (başlangıç):
-      `add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; script-src 'self';" always;`
-- [ ] `limit_req_zone $binary_remote_addr zone=api:10m rate=30r/s;` tanımla, `/api/v1/auth/` için 5r/dk, `/api/v1/reports/generate` için 1r/dk limit koy.
+## 5. VITE_API_URL Production Build (İncelenmeli #7) ✅
 
----
+**Yapılanlar:**
+- `.env`'de `VITE_API_URL` boş bırakıldı
+- `api.ts`'de `baseURL: import.meta.env.VITE_API_URL || ''` (production'da nginx proxy'si `/api/`'yi backend'e yönlendirir)
 
-## 4. npm Audit / CVE Fix (ORTA #9)
+## 6. Google Fonts Self-Host (Düşük) ✅
 
-**Mevcut:** `npm audit --omit=dev` 7 bulgu (5 yüksek, 2 orta).
+**Yapılanlar:**
+- `index.html`'deki Google Fonts `<link>` etiketleri kaldırıldı
+- `src/index.css`'e `@import "@fontsource-variable/geist"` eklendi
+- Font ailesi `'Geist Variable'` olarak güncellendi
+- CSP'den `fonts.googleapis.com` / `fonts.gstatic.com` izinleri kaldırıldı
 
-**Yapılacaklar:**
+## 7. Frontend nginx.conf TLS (Production Runbook) ❌
 
-- [ ] `npm audit fix` (auto-fix breaking olmayanlar)
-- [ ] `react-router-dom`'u manuel güncelle (GHSA-qwww-vcr4-c8h2) — SPA modunda RSC kullanılmıyor ama yine de güncel sürüme çek.
-- [ ] Kalanları `npm audit` ile kontrol et.
-
----
-
-## 5. VITE_API_URL Production Build (İncelenmeli #7)
-
-**Mevcut:** `VITE_API_URL=http://localhost:7055` build'e gömülüyor. Production'da kullanıcı tarayıcısı kendi localhost'una istek atar.
-
-**Yapılacaklar:**
-
-- [ ] `web/.env`'de `VITE_API_URL` boş bırak.
-- [ ] `src/config/api.ts`'de `baseURL`'i production'da boş string yap (nginx proxy'si `/api/`'yi backend'e yönlendirsin).
-- [ ] CORS middleware backend'de eklendi (main.py) — production'da `allow_origins=[]` (same-origin), development'da `allow_origins=["*"]`.
-
----
-
-## 6. Google Fonts Self-Host (Düşük)
-
-**Mevcut:** `index.html` Google Fonts CDN'den yükleniyor. Kullanıcı IP'si Google'a gidiyor, CSP ile de çelişiyor.
-
-**Yapılacaklar:**
-
-- [ ] `@fontsource-variable/geist` zaten `package.json`'da bağımlılık olarak var. `index.html`'deki `<link>` etiketini kaldır, font'u CSS ile import et.
-- [ ] CSP'den `fonts.googleapis.com` ve `fonts.gstatic.com` izinlerini kaldır (self-host sonrası).
-
----
-
-## 7. Frontend nginx.conf TLS (Production Runbook)
-
-- [ ] Certbot ile TLS sertifikası
-- [ ] 80 -> 443 redirect
-- [ ] HSTS header
-- [ ] CSP'yi production domain'e göre daralt
+- [ ] Certbot ile TLS sertifikası (`sudo certbot --nginx -d florencex.com.tr`)
+- [ ] 80 -> 443 redirect (certbot otomatik ekler)
+- [ ] HSTS header (`add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;`)
+- [ ] CSP'yi production domain'e gore daralt
