@@ -61,6 +61,7 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   echo "ENVIRONMENT=production" >> .env
   echo "FREE_CREDIT_MAX=25" >> .env
   echo "DAILY_FREE_CREDIT_REFILL=5" >> .env
+  echo "LOG_DIR=/var/log/florence" >> .env
   echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
   echo "POSTGRES_USER=postgres" >> .env
   echo "POSTGRES_DB=postgres" >> .env
@@ -97,6 +98,9 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
 else
   echo "generation passed"
 fi
+
+echo "creating log directory..."
+mkdir -p /var/log/florence
 
 echo "running containers..."
 docker compose up -d

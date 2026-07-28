@@ -1,8 +1,11 @@
 import os
+import logging
 import requests
 from src.core.config import get_config
 from pydantic import BaseModel
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 
 class NewsItem(BaseModel):
@@ -40,7 +43,7 @@ def news_search(query: str, limit: int = 10) -> List[NewsItem]:
         news_items = [NewsItem(**_to_item(result)) for result in results]
         return news_items
     else:
-        print("Error:", response.status_code, response.text)
+        logger.error("SearXNG error: %s %s", response.status_code, response.text)
         return []
 
 

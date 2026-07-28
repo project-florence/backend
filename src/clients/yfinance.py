@@ -1,8 +1,11 @@
+import logging
 import yfinance as yf
 import threading
 import time
 import random
 from src.core.config import get_config
+
+logger = logging.getLogger(__name__)
 
 _yfinance_lock = threading.Lock()
 _last_request = 0.0
@@ -39,12 +42,12 @@ def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> di
                     pass
                 return info
         except Exception as e:
-            print(f"yfinance hatasi ({ticker_symbol}), deneme {attempt + 1}/{max_retries}: {e}")
+            logger.warning("yfinance error (%s), attempt %d/%d: %s", ticker_symbol, attempt + 1, max_retries, e)
 
         if attempt < max_retries - 1:
             time.sleep(random.uniform(cfg["retry_sleep_min"], cfg["retry_sleep_max"]))
 
-    print(f"MAX RETRY asildi ({ticker_symbol})")
+    logger.error("Max retries exceeded (%s)", ticker_symbol)
     return {}
 
 

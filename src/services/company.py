@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 import random
 from datetime import datetime, timezone
@@ -8,6 +9,8 @@ from src.clients.yfinance import fetch_company_info
 from src.services.bist import get_bist_tickers_as_dict_from_redis, get_bist_companies_as_dict_from_redis
 from src.services.stats import get_all_stats
 from src.core.database import db
+
+logger = logging.getLogger(__name__)
 
 
 def _fmt_num(val) -> str:
@@ -142,7 +145,7 @@ def _save_company_to_redis(ticker: str, profile: dict) -> bool:
         r.set(ticker, json.dumps(profile), ex=cfg["cache_ttl"])
         return True
     except Exception as e:
-        print(f"Redis kaydetme hatasi ({ticker}): {e}")
+        logger.error("Redis save error (%s): %s", ticker, e)
         return False
 
 
@@ -239,7 +242,7 @@ def get_company_info(ticker: str, use_cache: bool = True) -> dict:
             if cached:
                 return json.loads(cached)
         except Exception as e:
-            print(f"Redis okuma hatasi: {e}")
+            logger.warning("Redis read error: %s", e)
 
     raw = fetch_company_info(ticker)
     profile = build_company_profile(raw)

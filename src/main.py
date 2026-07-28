@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from src.core.logging import init_logging
 from src.core.config import init_config, is_production
 from src.core.database import init_db
 from src.clients.llm import init_client as init_llm_client
@@ -9,6 +10,8 @@ from src.clients.embedding import init_client as init_embedding_client
 from src.services.bist import cache_tickers_and_companies
 from src.api.router import router
 from src.api.deps import SECRET_KEY
+
+init_logging()
 
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable is required")
