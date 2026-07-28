@@ -162,12 +162,14 @@ def build_company_profile(raw_info: dict) -> dict:
         "exchange": raw_info.get("exchange"),
         "market": {
             "currentPrice": raw_info.get("currentPrice"),
+            "previousClose": raw_info.get("previousClose") or raw_info.get("regularMarketPreviousClose"),
             "marketCap": raw_info.get("marketCap"),
             "dayHigh": raw_info.get("dayHigh"),
             "dayLow": raw_info.get("dayLow"),
             "regularMarketVolume": raw_info.get("regularMarketVolume"),
             "fiftyTwoWeekHigh": raw_info.get("fiftyTwoWeekHigh"),
             "fiftyTwoWeekLow": raw_info.get("fiftyTwoWeekLow"),
+            "regularMarketTime": raw_info.get("regularMarketTime"),
         },
         "trading": {
             "beta": raw_info.get("beta"),
@@ -303,17 +305,33 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
             market_cap = mkt.get("marketCap")
             sector = cached.get("sector")
 
+        prev_close = None
+        if cached:
+            prev_close = cached.get("market", {}).get("previousClose")
+
         if candle:
             if last_price is None:
                 last_price = candle["close"]
                 day_high = candle["high"]
                 day_low = candle["low"]
                 volume = candle["volume"]
-            if candle["open"] and candle["open"] != 0:
-                change_pct = round((candle["close"] - candle["open"]) / candle["open"] * 100, 2)
+
+        if last_price and prev_close and prev_close != 0:
+            change_pct = round((last_price - prev_close) / prev_close * 100, 2)
+        elif candle and candle.get("open") and candle["open"] != 0:
+            change_pct = round((candle["close"] - candle["open"]) / candle["open"] * 100, 2)
 
         if cached:
-            price_updated_at = datetime.now(timezone.utc).isoformat()
+            mkt = cached.get("market", {}) or {}
+            raw_time = mkt.get("regularMarketTime")
+            if raw_time:
+                try:
+                    dt = datetime.fromtimestamp(raw_time, tz=timezone.utc)
+                    price_updated_at = dt.isoformat()
+                except Exception:
+                    price_updated_at = datetime.now(timezone.utc).isoformat()
+            else:
+                price_updated_at = datetime.now(timezone.utc).isoformat()
         elif candle:
             price_updated_at = candle["ts"].isoformat() if candle["ts"] else None
 
