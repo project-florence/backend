@@ -19,6 +19,7 @@ def _pg_default_db():
 
 
 class _DatabaseProxy:
+    _local = threading.local()
     _conns = {}
     _lock = threading.Lock()
 
@@ -41,26 +42,26 @@ class _DatabaseProxy:
 
     def get_connection(self, db_name=None):
         key = db_name or "default"
-        if key not in self._conns:
-            with self._lock:
-                if key not in self._conns:
-                    actual_db = db_name or _pg_default_db()
-                    if db_name:
-                        self._ensure_db_exists(db_name)
-                    conn = psycopg2.connect(
-                        host=_pg_host(),
-                        port=_pg_port(),
-                        user=_pg_user(),
-                        password=os.getenv("POSTGRES_PASSWORD"),
-                        dbname=actual_db,
-                    )
-                    conn.autocommit = False
-                    self._conns[key] = conn
-        return self._conns.get(key)
+        thread_key = (key, threading.get_ident())
+        if not hasattr(self._local, "conns"):
+            self._local.conns = {}
+        if thread_key not in self._local.conns:
+            actual_db = db_name or _pg_default_db()
+            if db_name:
+                self._ensure_db_exists(db_name)
+            conn = psycopg2.connect(
+                host=_pg_host(),
+                port=_pg_port(),
+                user=_pg_user(),
+                password=os.getenv("POSTGRES_PASSWORD"),
+                dbname=actual_db,
+            )
+            conn.autocommit = False
+            self._local.conns[thread_key] = conn
+        return self._local.conns.get(thread_key)
 
     def cursor(self, db_name=None, **kwargs):
         conn = self.get_connection(db_name)
-        conn.rollback()
         return conn.cursor(**kwargs)
 
     def commit(self, db_name=None):

@@ -1,10 +1,11 @@
 import os
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -23,6 +24,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return user_id
     except jwt.PyJWTError:
         raise credentials_exception
+
+
+def verify_admin_token(x_admin_token: str = Header(...)):
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=500, detail="ADMIN_TOKEN not configured")
+    if x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid admin token")
+    return True
 
 
 def validate_ticker(ticker: str):

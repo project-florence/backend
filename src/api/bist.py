@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Response, Depends
 from src.services.bist import (
     get_bist_companies_as_dict_from_redis,
     get_bist_tickers_as_dict_from_redis,
@@ -8,7 +8,7 @@ from src.services.company import get_company_info, get_companies_summary, compan
 from src.services.news import get_latest_news
 from src.services.price import get_price_history
 from src.services.stats import increment_stat, get_popular_companies, get_popular_tickers
-from src.api.deps import validate_ticker
+from src.api.deps import validate_ticker, get_current_user
 
 router = APIRouter()
 
@@ -71,7 +71,7 @@ def companies_summary(
 
 
 @router.get("/news/{ticker}")
-def news(ticker: str, amount: int = Query(default=10, description="Number of news items")):
+def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="Number of news items"), current_user_id: int = Depends(get_current_user)):
     validate_ticker(ticker)
     result = get_latest_news(ticker, amount)
     increment_stat(ticker, "news_count")

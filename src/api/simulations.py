@@ -17,7 +17,7 @@ def daily_cost():
 @router.get("/simulations/estimate-cost/{ticker}")
 def estimate_cost(
     ticker: str,
-    days: int = Query(...),
+    days: int = Query(..., ge=1, le=370),
 ):
     return {"cost": round(days * get_config()["simulation"]["per_day_cost"], 3)}
 
@@ -45,7 +45,7 @@ def simulation_detail(
 @router.get("/simulations/{ticker}")
 def simulate(
     ticker: str,
-    days: int = Query(...),
+    days: int = Query(..., ge=1, le=370),
     bounds: str = Query("0.05"),
     target: str | None = Query(default=None),
     current_user_id: int = Depends(get_current_user),

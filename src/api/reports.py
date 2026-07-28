@@ -25,18 +25,9 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     if type not in ("quick_report", "deep_report"):
         raise HTTPException(status_code=400, detail="Invalid type")
 
-    mode = type.replace("_report", "")
-
-    try:
-        report_obj = await generate_report(ticker, mode)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
-
-    if report_obj is None:
-        raise HTTPException(status_code=500, detail="Report generation returned no result")
-
-    total_tokens = report_obj.token_usage.get("total", 0)
-    cost = _compute_cost(total_tokens)
+    cfg = get_config()["report"]
+    max_tokens = cfg["quick_report_max_tokens"] if type == "quick_report" else cfg["deep_report_max_tokens"]
+    estimated_cost = _compute_cost(max_tokens)
 
     with db.cursor() as cur:
         try:
@@ -45,7 +36,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
                         SET credits = credits - %s
                         WHERE id = %s
                           AND credits >= %s RETURNING credits
-                        """, (cost, current_user_id, cost))
+                        """, (estimated_cost, current_user_id, estimated_cost))
             row = cur.fetchone()
 
             if row is None:
@@ -59,6 +50,32 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
+
+    mode = type.replace("_report", "")
+
+    try:
+        report_obj = await generate_report(ticker, mode)
+    except Exception as e:
+        with db.cursor() as cur:
+            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (estimated_cost, current_user_id))
+            db.commit()
+        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
+
+    if report_obj is None:
+        with db.cursor() as cur:
+            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (estimated_cost, current_user_id))
+            db.commit()
+        raise HTTPException(status_code=500, detail="Report generation returned no result")
+
+    total_tokens = report_obj.token_usage.get("total", 0)
+    actual_cost = _compute_cost(total_tokens)
+    refund = estimated_cost - actual_cost
+
+    if refund > 0:
+        with db.cursor() as cur:
+            cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (refund, current_user_id))
+            db.commit()
+            remaining_credits = remaining_credits + refund
 
         try:
             cur.execute("""
@@ -259,7 +276,7 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
 
 @router.post("/reports/download")
 def download_report(report_id: int = Query(...), ftype: str = Query(...), current_user_id: int = Depends(get_current_user)):
-    report = get_report_by_id(report_id)
+    report = get_report_by_id(report_id, current_user_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found.")
     report_str = report_to_str(report)

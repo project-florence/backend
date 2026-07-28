@@ -24,7 +24,7 @@ else
   exit 1
 fi
 
-PACKAGES="nginx pandoc python3-certbot-nginx python3.12 python3.12-pip python3.12-venv docker docker-compose"
+PACKAGES="nginx pandoc python3-certbot-nginx python3.12 python3.12-pip python3.12-venv docker docker-compose openssl"
 echo -e "installing packages '${PACKAGES}'"
 apt install -y $PACKAGES
 
@@ -57,11 +57,13 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   read -rp "enter your CUSTOM_API_KEY: " custom_api_key
   echo "CUSTOM_API_KEY=$custom_api_key" >> .env
 
-  echo "generating secure postgres password and secret key..."
+  echo "generating secure passwords and keys..."
   echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
   echo "POSTGRES_USER=postgres" >> .env
   echo "POSTGRES_DB=postgres" >> .env
   echo "SECRET_KEY=$(openssl rand -base64 32)" >> .env
+  echo "ADMIN_TOKEN=$(openssl rand -base64 32)" >> .env
+  echo "REDIS_PASSWORD=$(openssl rand -base64 32)" >> .env
 
   # Ports
   echo "POSTGRES_HOST=localhost" >> .env

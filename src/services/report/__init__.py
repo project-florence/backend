@@ -191,16 +191,23 @@ async def generate_report(ticker: str, mode: str) -> Report:
     )
 
 
-def get_report_by_id(report_id: int) -> Report | None:
+def get_report_by_id(report_id: int, user_id: int | None = None) -> Report | None:
     import json
     from src.core.database import db
 
     with db.cursor() as cur:
-        cur.execute("""
-            SELECT ticker, title, token_usage, content, sentiments, created_at
-            FROM reports
-            WHERE id = %s
-        """, (report_id,))
+        if user_id is not None:
+            cur.execute("""
+                SELECT ticker, title, token_usage, content, sentiments, created_at
+                FROM reports
+                WHERE id = %s AND user_id = %s
+            """, (report_id, user_id))
+        else:
+            cur.execute("""
+                SELECT ticker, title, token_usage, content, sentiments, created_at
+                FROM reports
+                WHERE id = %s
+            """, (report_id,))
         row = cur.fetchone()
 
     if not row:

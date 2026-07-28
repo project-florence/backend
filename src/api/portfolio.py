@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, field_validator
 from src.analysis.stock_vector import (
     read_vectors_from_redis, write_vectors_to_redis,
     average_vector, estimate_profile, company_vector,
     vector_to_list, euclidean_distance, VECTOR_KEYS,
 )
+from src.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -31,7 +32,7 @@ class PortfolioProfileRequest(BaseModel):
 
 
 @router.post("/portfolio/profile")
-def portfolio_profile(body: PortfolioProfileRequest):
+def portfolio_profile(body: PortfolioProfileRequest, _: int = Depends(get_current_user)):
     tickers = body.tickers
     redis_data = read_vectors_from_redis(tickers)
 

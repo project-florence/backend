@@ -1,15 +1,16 @@
 from enum import Enum
 
-from fastapi import FastAPI, Query, HTTPException, Body
+from fastapi import FastAPI, Query, HTTPException, Body, Depends
 from src.core.database import db
 from src.core.config import reload_config
 from src.core.redis import r
 from src.clients.llm import health_check
 from src.clients.search import news_search
 from src.services.token import get_token_summary
+from src.api.deps import verify_admin_token
 import yfinance as yf
 
-admin_app = FastAPI()
+admin_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 class GiftTarget(str, Enum):
     EVERYONE = "everyone"
@@ -17,6 +18,7 @@ class GiftTarget(str, Enum):
 
 @admin_app.post("/gift-credits")
 def gift_credits(
+    _: bool = Depends(verify_admin_token),
     user_type: str = Query(...),
     amount: int = Query(..., gt=1),
     username: str | None = Query(default=None),
@@ -55,7 +57,7 @@ def gift_credits(
         raise HTTPException(status_code=500, detail="Database error")
 
 @admin_app.post("/config-reload")
-def config_reload():
+def config_reload(_: bool = Depends(verify_admin_token)):
     try:
         reload_config()
         return {"success": True}
@@ -63,7 +65,7 @@ def config_reload():
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @admin_app.post("/healthcheck")
-def healthcheck():
+def healthcheck(_: bool = Depends(verify_admin_token)):
 
     db_health : bool = True
     redis_health : bool = True
@@ -109,6 +111,7 @@ def healthcheck():
 
 @admin_app.post("/token-usage")
 def token_usage(
+    _: bool = Depends(verify_admin_token),
     since: str | None = Query(None, description="ISO format datetime, e.g. 2024-01-01T00:00:00Z"),
     endpoint: str | None = Query(None),
 ):

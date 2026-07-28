@@ -65,6 +65,8 @@ model = "mxbai-embed-large"
 
 [report]
 token_cost_per_1k = 0.05
+quick_report_max_tokens = 5000
+deep_report_max_tokens = 50000
 
 [simulation]
 per_day_cost = 0.005
