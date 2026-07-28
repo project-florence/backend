@@ -1,4 +1,5 @@
 import json
+import math
 from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
@@ -126,11 +127,13 @@ def collect_articles(
     combined AS (SELECT * FROM gqg_rows UNION DISTINCT SELECT * FROM gkg_rows),{tail_sql}
     """
 
+    max_bytes = cfg.get("maximum_bytes_billed")
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("from_date", "STRING", from_date_str),
             bigquery.ScalarQueryParameter("limit", "INT64", limit),
-        ]
+        ],
+        maximum_bytes_billed=max_bytes,
     )
 
     results = _get_client().query(sql, job_config=job_config).result().to_dataframe()
@@ -174,19 +177,22 @@ def _deserialize_articles(data: str) -> list[Article]:
 
 
 def _cache_key(ticker: str, amount: int) -> str:
-    return f"news:{ticker.upper()}:{amount}"
+    normalized = max(1, math.ceil(amount / 10) * 10)
+    return f"news:{ticker.upper()}:{normalized}"
 
 
 def get_latest_news(ticker: str, amount: int) -> list[Article]:
     key = _cache_key(ticker, amount)
     cached = r.get(key)
     if cached:
-        return _deserialize_articles(cached)
+        articles = _deserialize_articles(cached)
+        return articles[:amount]
 
+    normalized = max(1, math.ceil(amount / 10) * 10)
     from_date = datetime.now(timezone.utc) - timedelta(days=90)
-    articles = collect_articles(ticker, from_date=from_date, limit=amount, lang=["TURKISH"], diverse=False)
+    articles = collect_articles(ticker, from_date=from_date, limit=normalized, lang=["TURKISH"], diverse=False)
 
     cfg = get_config()["article_collector"]
     r.set(key, _serialize_articles(articles), ex=cfg["cache_ttl"])
 
-    return articles
+    return articles[:amount]

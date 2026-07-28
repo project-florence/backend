@@ -2,6 +2,7 @@ import trafilatura
 from urllib.parse import urlparse
 import ipaddress
 import socket
+import requests
 
 
 _PRIVATE_BLOCKS = [
@@ -29,13 +30,31 @@ def _is_private_url(url: str) -> bool:
         return True
 
 
+def _validate_redirect(r, *args, **kwargs):
+    if r.is_redirect:
+        location = r.headers.get("Location")
+        if location and _is_private_url(location):
+            raise ValueError(f"Redirect to private/internal URL blocked: {location}")
+
+
 def get_text_from_url(url: str, timeout: int = 15) -> str:
     if _is_private_url(url):
         raise Exception(f"Access to private/internal URL is not allowed: {url}")
 
-    downloaded = trafilatura.fetch_url(url, timeout=timeout)
-    if not downloaded:
-        raise Exception("Could not download from url")
+    session = requests.Session()
+    session.max_redirects = 5
+    session.hooks["response"] = [_validate_redirect]
+
+    try:
+        resp = session.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"}, allow_redirects=True)
+        resp.raise_for_status()
+        downloaded = resp.text
+    except ValueError as e:
+        raise Exception(str(e))
+    except requests.RequestException as e:
+        raise Exception(f"Could not download from url: {e}")
+    finally:
+        session.close()
 
     text = trafilatura.extract(downloaded)
     if not text:

@@ -69,12 +69,13 @@ def search_news(query: str) -> list[dict]:
 
 def content_fetch(urls: list[str]) -> list[dict]:
     """'search_news' kullanılarak bulunan haberlerden seçilen URL'lerin tam metin içeriğini getirir."""
-    from src.clients.scraping import get_text_from_url
+    from src.clients.scraping import get_text_from_url as _get_text_from_url
 
+    MAX_URLS = 5
     results = []
-    for url in urls:
+    for url in urls[:MAX_URLS]:
         try:
-            full_text = get_text_from_url(url)
+            full_text = _get_text_from_url(url)
         except Exception as e:
             full_text = f"[Icerik cekilemedi: {e}]"
         results.append({"url": url, "content": full_text})
