@@ -38,6 +38,11 @@ services:
     ports:
       - "127.0.0.1:${API_HOST_PORT}:7055"
     env_file: .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+      - NEWS_SEARCH_URL=http://searxng:8080/search
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json
     volumes:
       - "${GOOGLE_APPLICATION_CREDENTIALS}:/gcp-key.json:ro"
     depends_on:
@@ -52,6 +57,11 @@ services:
     volumes:
       - /run/florence:/run/florence
     env_file: .env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+      - NEWS_SEARCH_URL=http://searxng:8080/search
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json
     depends_on:
       - postgres
       - redis
