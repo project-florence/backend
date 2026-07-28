@@ -25,7 +25,7 @@ default_limit = 100
 gdelt_gqg_table = "gdelt-bq.gdeltv2.gqg"
 gdelt_gkg_table = "gdelt-bq.gdeltv2.gkg_partitioned"
 cache_ttl = 3600
-maximum_bytes_billed = 10485760
+# maximum_bytes_billed = 10485760
 
 [get_bist_companies]
 cache_interval = 2592000
