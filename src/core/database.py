@@ -198,6 +198,22 @@ def init_db():
         cur.execute("ALTER TABLE users DROP COLUMN IF EXISTS credits")
 
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS analytics_events (
+                id SERIAL PRIMARY KEY,
+                event_type VARCHAR(50) NOT NULL,
+                user_id INT REFERENCES users(id) ON DELETE SET NULL,
+                session_id VARCHAR(100),
+                ticker VARCHAR(20),
+                details JSONB DEFAULT '{}',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics_events(event_type);
+            CREATE INDEX IF NOT EXISTS idx_analytics_user_id ON analytics_events(user_id);
+            CREATE INDEX IF NOT EXISTS idx_analytics_ticker ON analytics_events(ticker);
+            CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at);
+        """)
+
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS token_usage (
             id SERIAL PRIMARY KEY,
             model TEXT NOT NULL,

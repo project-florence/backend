@@ -6,6 +6,7 @@ from src.core.database import db
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
 from src.services.maintenance import require_feature
 from src.services.report import generate_report, get_report_by_id, report_to_str
+from src.services.analytics import track_event
 from src.api.deps import get_current_user, validate_ticker
 from datetime import datetime
 from pydantic import BaseModel
@@ -77,6 +78,11 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
             db.rollback()
             report_id = None
             created_at = None
+
+    if report_id:
+        track_event("report_generated", user_id=current_user_id, ticker=ticker, details={
+            "report_type": type, "tokens_used": total_tokens, "cost": actual_cost,
+        })
 
     return {
         "success": True,

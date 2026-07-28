@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from src.core.database import db
 from src.services.stats import increment_stat
+from src.services.analytics import track_event
 from src.api.deps import get_current_user, validate_ticker
 
 router = APIRouter()
@@ -22,6 +23,7 @@ def add_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
             raise HTTPException(status_code=400, detail="Could not add to favorites")
 
     increment_stat(ticker, "favorite_count")
+    track_event("favorite_toggle", user_id=current_user_id, ticker=ticker, details={"action": "add"})
     return {"message": f"Added favorite {ticker} or already been added"}
 
 

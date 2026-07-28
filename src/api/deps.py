@@ -11,6 +11,44 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 
+def _decode_user(jwt_token: str) -> int | None:
+    try:
+        payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("user_id")
+        if user_id is None:
+            return None
+        token_iat = payload.get("iat")
+        if token_iat is not None:
+            from src.core.database import db
+            with db.cursor() as cur:
+                cur.execute("SELECT password_changed_at FROM users WHERE id = %s", (user_id,))
+                row = cur.fetchone()
+                if row is None:
+                    return None
+                changed_at = row[0]
+                if changed_at is not None:
+                    if isinstance(changed_at, datetime):
+                        changed_ts = changed_at.replace(tzinfo=timezone.utc).timestamp()
+                    else:
+                        changed_ts = changed_at.timestamp()
+                    if token_iat < changed_ts:
+                        return None
+        return user_id
+    except jwt.PyJWTError:
+        return None
+
+
+def get_current_user_optional(request):
+    auth = request.headers.get("Authorization")
+    if auth and auth.startswith("Bearer "):
+        return _decode_user(auth[7:])
+    cookies = request.cookies
+    token = cookies.get("access_token")
+    if token:
+        return _decode_user(token)
+    return None
+
+
 def get_current_user(token: str | None = Depends(oauth2_scheme), access_token: str | None = Cookie(default=None)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -20,32 +58,10 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), access_token: s
     jwt_token = token or access_token
     if jwt_token is None:
         raise credentials_exception
-    try:
-        payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("user_id")
-        if user_id is None:
-            raise credentials_exception
-
-        token_iat = payload.get("iat")
-        if token_iat is not None:
-            from src.core.database import db
-            with db.cursor() as cur:
-                cur.execute("SELECT password_changed_at FROM users WHERE id = %s", (user_id,))
-                row = cur.fetchone()
-                if row is None:
-                    raise credentials_exception
-                changed_at = row[0]
-                if changed_at is not None:
-                    if isinstance(changed_at, datetime):
-                        changed_ts = changed_at.replace(tzinfo=timezone.utc).timestamp()
-                    else:
-                        changed_ts = changed_at.timestamp()
-                    if token_iat < changed_ts:
-                        raise credentials_exception
-
-        return user_id
-    except jwt.PyJWTError:
+    user_id = _decode_user(jwt_token)
+    if user_id is None:
         raise credentials_exception
+    return user_id
 
 
 def verify_admin_token(x_admin_token: str = Header(...)):

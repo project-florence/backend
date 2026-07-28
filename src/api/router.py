@@ -12,6 +12,7 @@ from src.api.portfolio import router as portfolio_router
 from src.api.export import router as export_router
 from src.api.legal import router as legal_router
 from src.api.maintenance import router as maintenance_router
+from src.api.analytics import router as analytics_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(bist_router)

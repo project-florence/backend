@@ -4,6 +4,7 @@ import src.simulation.montecarlo as montecarlo
 from src.services.stats import increment_stat
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
 from src.services.maintenance import require_feature
+from src.services.analytics import track_event
 from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
 from src.services.simulation_history import save_simulation, get_simulation_history, get_simulation_detail
@@ -90,4 +91,7 @@ def simulate(
     result["bounds"] = bounds
     result["credits_spend"] = cost
     result["remaining_credits"] = remaining_credits
+    track_event("simulation_run", user_id=current_user_id, ticker=ticker, details={
+        "days": days, "cost": cost,
+    })
     return result
