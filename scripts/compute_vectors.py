@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.database import db, init_db
-from core.config import init_config
+from src.core.config import init_config
 
 init_config()
 init_db()
