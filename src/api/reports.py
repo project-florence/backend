@@ -59,7 +59,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
         with db.cursor() as cur:
             cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (estimated_cost, current_user_id))
             db.commit()
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {e}")
+        raise HTTPException(status_code=500, detail="Report generation failed")
 
     if report_obj is None:
         with db.cursor() as cur:

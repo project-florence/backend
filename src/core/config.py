@@ -1,7 +1,16 @@
+import os
 import tomllib
 from pathlib import Path
 
 config = None
+
+
+def is_production() -> bool:
+    return os.getenv("ENVIRONMENT", "development") == "production"
+
+
+def is_development() -> bool:
+    return not is_production()
 
 def init_config():
     global config

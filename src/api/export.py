@@ -87,27 +87,6 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
-    token_usage = []
-    with db.cursor() as cur:
-        try:
-            cur.execute(
-                """SELECT model, prompt_tokens, completion_tokens, total_tokens, endpoint, created_at
-                   FROM token_usage WHERE user_id = %s
-                   ORDER BY created_at DESC""",
-                (current_user_id,),
-            )
-            for row in cur.fetchall():
-                token_usage.append({
-                    "model": row[0],
-                    "prompt_tokens": row[1],
-                    "completion_tokens": row[2],
-                    "total_tokens": row[3],
-                    "endpoint": row[4],
-                    "created_at": row[5].isoformat(),
-                })
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Database error")
-
     simulations = []
     with db.cursor() as cur:
         try:

@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.get("/simulations/per-day-cost")
-def daily_cost():
+def daily_cost(_: int = Depends(get_current_user)):
     return {"per_day_cost": get_config()["simulation"]["per_day_cost"], "round": 3}
 
 
@@ -18,6 +18,7 @@ def daily_cost():
 def estimate_cost(
     ticker: str,
     days: int = Query(..., ge=1, le=370),
+    _: int = Depends(get_current_user),
 ):
     return {"cost": round(days * get_config()["simulation"]["per_day_cost"], 3)}
 
@@ -81,7 +82,7 @@ def simulate(
         with db.cursor() as cur:
             cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))
             db.commit()
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid simulation parameters")
     except Exception as e:
         with db.cursor() as cur:
             cur.execute("UPDATE users SET credits = credits + %s WHERE id = %s", (cost, current_user_id))

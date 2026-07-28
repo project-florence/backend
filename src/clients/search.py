@@ -26,7 +26,7 @@ def news_search(query: str, limit: int = 10) -> List[NewsItem]:
         "User-Agent": os.getenv("NEWS_SEARCH_USER_AGENT") or get_config()["news_search"]["user_agent"]
     }
 
-    response = requests.get(url, params=params, headers=headers)
+    response = requests.get(url, params=params, headers=headers, timeout=10)
 
     if response.status_code == 200:
         data = response.json()

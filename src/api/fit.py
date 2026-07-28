@@ -50,7 +50,7 @@ def fit_stocks(body: FitRequest, _: int = Depends(get_current_user)):
     try:
         query = build_query(body.horizon, body.profitability, body.risk_tolerance)
     except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid value: {e}")
+        raise HTTPException(status_code=400, detail="Invalid filter value")
 
     results = rank_by_similarity(query, n=body.limit)
     return {"query": query, "results": results}

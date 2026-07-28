@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 import jwt
@@ -21,6 +22,24 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         user_id = payload.get("user_id")
         if user_id is None:
             raise credentials_exception
+
+        token_iat = payload.get("iat")
+        if token_iat is not None:
+            from src.core.database import db
+            with db.cursor() as cur:
+                cur.execute("SELECT password_changed_at FROM users WHERE id = %s", (user_id,))
+                row = cur.fetchone()
+                if row is None:
+                    raise credentials_exception
+                changed_at = row[0]
+                if changed_at is not None:
+                    if isinstance(changed_at, datetime):
+                        changed_ts = changed_at.replace(tzinfo=timezone.utc).timestamp()
+                    else:
+                        changed_ts = changed_at.timestamp()
+                    if token_iat < changed_ts:
+                        raise credentials_exception
+
         return user_id
     except jwt.PyJWTError:
         raise credentials_exception

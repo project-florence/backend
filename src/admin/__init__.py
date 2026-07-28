@@ -8,9 +8,13 @@ from src.clients.llm import health_check
 from src.clients.search import news_search
 from src.services.token import get_token_summary
 from src.api.deps import verify_admin_token
+from src.core.config import is_production
 import yfinance as yf
 
-admin_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+docs_enabled = not is_production()
+admin_app = FastAPI(docs_url="/docs" if docs_enabled else None,
+                    redoc_url="/redoc" if docs_enabled else None,
+                    openapi_url="/openapi.json" if docs_enabled else None)
 
 class GiftTarget(str, Enum):
     EVERYONE = "everyone"

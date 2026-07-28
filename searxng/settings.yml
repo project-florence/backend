@@ -4,7 +4,7 @@
 use_default_settings: true
 
 server:
-  secret_key: "OpmeFXQeG0Oh5qxtZ91hjKtHVA5rxX"
+  secret_key: !ENV SEARXNG_SECRET_KEY
   image_proxy: true
 
 search:

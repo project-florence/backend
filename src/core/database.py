@@ -89,6 +89,7 @@ def init_db():
                 hashed_pw TEXT NOT NULL,
                 credits DOUBLE PRECISION NOT NULL DEFAULT 5
             );
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tickers (

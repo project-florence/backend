@@ -1,13 +1,14 @@
 import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 import jwt
 import json
 
 from src.core.database import db
+from src.core.ratelimit import rate_limiter
 from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
 
 ph = PasswordHasher()
@@ -16,8 +17,8 @@ router = APIRouter()
 
 class UserRegister(BaseModel):
     username: str
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(min_length=10)
 
 
 class ChangePassword(BaseModel):
@@ -38,17 +39,21 @@ class UpdateUsername(BaseModel):
 def create_jwt_token(user_id: int):
     payload = {
         "user_id": user_id,
+        "iat": datetime.datetime.utcnow(),
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
 @router.post("/auth/register")
-def auth_register(user: UserRegister):
+def auth_register(request: Request, user: UserRegister):
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limiter.check(f"register:{client_ip}", max_requests=3, window_seconds=60)
+
     with db.cursor() as cur:
         cur.execute("SELECT id FROM users WHERE username = %s OR email = %s", (user.username, user.email))
         if cur.fetchone() is not None:
-            raise HTTPException(status_code=400, detail="Email or username already in use")
+            raise HTTPException(status_code=400, detail="Registration failed")
 
         hashed_pw = ph.hash(user.password)
 
@@ -68,6 +73,8 @@ def auth_register(user: UserRegister):
 
 @router.post("/auth/login")
 def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
+    rate_limiter.check(f"login:{form_data.username}", max_requests=5, window_seconds=60)
+
     with db.cursor() as cur:
         cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
         user_row = cur.fetchone()
@@ -115,7 +122,7 @@ def change_password(payload: ChangePassword, current_user_id: int = Depends(get_
 
         new_hashed_pw = ph.hash(payload.new_password)
         try:
-            cur.execute("UPDATE users SET hashed_pw = %s WHERE id = %s", (new_hashed_pw, current_user_id))
+            cur.execute("UPDATE users SET hashed_pw = %s, password_changed_at = NOW() WHERE id = %s", (new_hashed_pw, current_user_id))
             db.commit()
         except Exception as e:
             db.rollback()

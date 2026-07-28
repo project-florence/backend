@@ -58,12 +58,14 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   echo "CUSTOM_API_KEY=$custom_api_key" >> .env
 
   echo "generating secure passwords and keys..."
+  echo "ENVIRONMENT=production" >> .env
   echo "POSTGRES_PASSWORD=$(openssl rand -base64 32)" >> .env
   echo "POSTGRES_USER=postgres" >> .env
   echo "POSTGRES_DB=postgres" >> .env
   echo "SECRET_KEY=$(openssl rand -base64 32)" >> .env
   echo "ADMIN_TOKEN=$(openssl rand -base64 32)" >> .env
   echo "REDIS_PASSWORD=$(openssl rand -base64 32)" >> .env
+  echo "SEARXNG_SECRET_KEY=$(openssl rand -base64 32)" >> .env
 
   # Ports
   echo "POSTGRES_HOST=localhost" >> .env
