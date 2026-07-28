@@ -215,6 +215,16 @@ def init_db():
         """)
 
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS stock_vectors (
+                ticker TEXT PRIMARY KEY,
+                risk DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+                horizon DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+                profitability DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
+
+        cur.execute("""
         CREATE TABLE IF NOT EXISTS token_usage (
             id SERIAL PRIMARY KEY,
             model TEXT NOT NULL,

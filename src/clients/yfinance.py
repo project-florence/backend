@@ -41,13 +41,16 @@ def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> di
                 except Exception:
                     pass
                 return info
+            if attempt == 0:
+                logger.warning("yfinance: no data for %s (possibly delisted)", ticker_symbol)
+                return {}
         except Exception as e:
             logger.warning("yfinance error (%s), attempt %d/%d: %s", ticker_symbol, attempt + 1, max_retries, e)
 
         if attempt < max_retries - 1:
             time.sleep(random.uniform(cfg["retry_sleep_min"], cfg["retry_sleep_max"]))
 
-    logger.error("Max retries exceeded (%s)", ticker_symbol)
+    logger.warning("yfinance: max retries exceeded (%s)", ticker_symbol)
     return {}
 
 

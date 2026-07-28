@@ -1,4 +1,5 @@
 import math
+import json
 from typing import Any
 
 from src.analysis.metrics import _g, earnings_yield, peg_ratio, price_to_sales, fcf_yield, cash_to_debt, quick_ratio
@@ -121,13 +122,43 @@ def _vector_ttl() -> int:
         return 86400
 
 
+def _write_to_db(ticker: str, vec: dict[str, float]):
+    from src.core.database import db
+    try:
+        with db.cursor() as cur:
+            cur.execute("""
+                INSERT INTO stock_vectors (ticker, risk, horizon, profitability, updated_at)
+                VALUES (%s, %s, %s, %s, NOW())
+                ON CONFLICT (ticker) DO UPDATE SET
+                    risk = EXCLUDED.risk,
+                    horizon = EXCLUDED.horizon,
+                    profitability = EXCLUDED.profitability,
+                    updated_at = NOW()
+            """, (ticker, vec.get("risk", 0.5), vec.get("horizon", 0.5), vec.get("profitability", 0.5)))
+            db.commit()
+    except Exception:
+        pass
+
+
+def _read_from_db(ticker: str) -> dict[str, float] | None:
+    from src.core.database import db
+    try:
+        with db.cursor() as cur:
+            cur.execute("SELECT risk, horizon, profitability FROM stock_vectors WHERE ticker = %s", (ticker,))
+            row = cur.fetchone()
+            if row:
+                return {"risk": float(row[0]), "horizon": float(row[1]), "profitability": float(row[2])}
+    except Exception:
+        pass
+    return None
+
+
 def write_vectors_to_redis(
     vectors: list[dict[str, Any]], ttl: int | None = None
 ) -> None:
     if ttl is None:
         ttl = _vector_ttl()
     from src.core.redis import r
-    import json
 
     pipe = r.pipeline()
     for item in vectors:
@@ -137,6 +168,7 @@ def write_vectors_to_redis(
             vec = dict(zip(VECTOR_KEYS, item.get("vector", [])))
         key = f"stock_vector:{ticker}"
         pipe.set(key, json.dumps(vec), ex=ttl)
+        _write_to_db(ticker, vec)
     pipe.execute()
 
 
@@ -144,9 +176,9 @@ def read_vectors_from_redis(
     tickers: list[str],
 ) -> dict[str, list[float] | None]:
     from src.core.redis import r
-    import json
 
     result = {}
+    db_fallbacks = {}
     for ticker in tickers:
         key = f"stock_vector:{ticker}"
         raw = r.get(key)
@@ -154,7 +186,21 @@ def read_vectors_from_redis(
             vec = json.loads(raw)
             result[ticker] = vector_to_list(vec)
         else:
-            result[ticker] = None
+            db_vec = _read_from_db(ticker)
+            if db_vec:
+                result[ticker] = vector_to_list(db_vec)
+                db_fallbacks[ticker] = db_vec
+            else:
+                result[ticker] = None
+
+    if db_fallbacks:
+        from src.core.redis import r
+        ttl = _vector_ttl()
+        pipe = r.pipeline()
+        for ticker, vec in db_fallbacks.items():
+            pipe.set(f"stock_vector:{ticker}", json.dumps(vec), ex=ttl)
+        pipe.execute()
+
     return result
 
 
