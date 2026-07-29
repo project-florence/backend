@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: florence_postgres
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -40,7 +40,9 @@ services:
     env_file: .env
     environment:
       - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - NEWS_SEARCH_URL=http://searxng:8080/search
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json
     volumes:
@@ -54,13 +56,15 @@ services:
   admin:
     build: .
     container_name: florence_admin
-    command: uvicorn src.admin:admin_app --uds /run/florence/admin.sock --chmod-socket 660
+    command: sh -c "umask 006 && exec uvicorn src.admin:admin_app --uds /run/florence/admin.sock"
     volumes:
       - /run/florence:/run/florence
     env_file: .env
     environment:
       - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - NEWS_SEARCH_URL=http://searxng:8080/search
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json
     depends_on:
