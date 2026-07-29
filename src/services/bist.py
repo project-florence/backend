@@ -57,7 +57,7 @@ def _db_get_companies():
         rows = cur.fetchall()
         if not rows:
             return None
-        return json.dumps([dict(r) for r in rows])
+        return json.dumps([dict(r) for r in rows], default=str)
 
 
 def get_bist_tickers_as_list():
