@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -12,6 +13,8 @@ from src.services.bist import cache_tickers_and_companies
 from src.api.router import router
 from src.api.deps import SECRET_KEY, get_current_user_optional
 from src.services.analytics import track_event
+
+logger = logging.getLogger(__name__)
 
 init_logging()
 
@@ -85,6 +88,7 @@ async def auth_and_tracking_middleware(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 

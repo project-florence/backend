@@ -45,7 +45,10 @@ SEARCH_ALIASES: dict[str, list[str]] = {
 
 def _build_dataset() -> dict[str, dict]:
     mapping = load_bist_mapping()
-    pykap_companies = {c["ticker"]: c for c in get_bist_companies_as_dict_from_redis()}
+    try:
+        pykap_companies = {c["ticker"]: c for c in get_bist_companies_as_dict_from_redis()}
+    except Exception:
+        pykap_companies = {}
 
     dataset = {}
     all_tickers = set(list(pykap_companies.keys()) + list(mapping.keys()))

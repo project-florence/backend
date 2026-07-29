@@ -44,6 +44,7 @@ services:
       - NEWS_SEARCH_URL=http://searxng:8080/search
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json
     volumes:
+      - /var/log/florence:/var/log/florence
       - "${GOOGLE_APPLICATION_CREDENTIALS}:/gcp-key.json:ro"
     depends_on:
       - postgres
