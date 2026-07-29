@@ -8,7 +8,7 @@ class Contributor(BaseModel):
     github_url: str
 
 
-contributors : list[Contributor] = [Contributor(
+contributor_list : list[Contributor] = [Contributor(
     nickname="dethrandir",
     picture_url="https://github.com/dethrandir.png",
     github_url="https://github.com/dethrandir",
@@ -33,5 +33,5 @@ router = APIRouter()
 
 
 @router.get("/contributors")
-def contributors():
-    return {"contributors": contributors}
+def get_contributors():
+    return {"contributors": contributor_list}

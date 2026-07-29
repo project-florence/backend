@@ -91,6 +91,8 @@ def init_db():
                 credits DOUBLE PRECISION NOT NULL DEFAULT 5
             );
             ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type VARCHAR(50) NOT NULL DEFAULT 'user';
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS last_announcement_viewed_at TIMESTAMPTZ;
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tickers (
@@ -295,6 +297,17 @@ def init_db():
                 ts TIMESTAMPTZ NOT NULL,
                 price DOUBLE PRECISION NOT NULL,
                 PRIMARY KEY (ticker, ts)
+            );
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS announcements (
+                id SERIAL PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                sent_by INT REFERENCES users(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             );
         """)
 
