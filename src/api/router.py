@@ -13,6 +13,7 @@ from src.api.export import router as export_router
 from src.api.legal import router as legal_router
 from src.api.maintenance import router as maintenance_router
 from src.api.analytics import router as analytics_router
+from src.api.contributors import router as contributors_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(bist_router)
@@ -28,3 +29,4 @@ router.include_router(favorites_router)
 router.include_router(export_router)
 router.include_router(legal_router)
 router.include_router(maintenance_router)
+router.include_router(contributors_router)
