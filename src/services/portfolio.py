@@ -47,7 +47,7 @@ def save_portfolio(portfolio: Portfolio) -> bool:
         with db.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO portfolio (portfolio_id, user_id, portfolio)
+                INSERT INTO portfolios (portfolio_id, user_id, portfolio)
                 VALUES (%s, %s, %s)
                 ON CONFLICT (portfolio_id)
                 DO UPDATE SET
@@ -69,7 +69,7 @@ def load_portfolio(portfolio_id: str) -> Portfolio | None:
     try:
         with db.cursor() as cur:
             cur.execute(
-                "SELECT portfolio FROM portfolio WHERE portfolio_id = %s;",
+                "SELECT portfolio FROM portfolios WHERE portfolio_id = %s;",
                 (portfolio_id,)
             )
             row = cur.fetchone()
@@ -84,7 +84,7 @@ def list_portfolios(user_id: int) -> list[Portfolio]:
     try:
         with db.cursor() as cur:
             cur.execute(
-                "SELECT portfolio FROM portfolio WHERE user_id = %s;",
+                "SELECT portfolio FROM portfolios WHERE user_id = %s;",
                 (user_id,)
             )
             rows = cur.fetchall()
@@ -115,7 +115,7 @@ def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfol
 def delete_portfolio(portfolio_id: str) -> bool:
     try:
         with db.cursor() as cur:
-            cur.execute("DELETE FROM portfolio WHERE portfolio_id = %s", (portfolio_id,))
+            cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s", (portfolio_id,))
             return cur.rowcount > 0
     except Exception:
         return False
@@ -274,6 +274,22 @@ def undo_last_transaction(portfolio_id: str) -> bool:
         portfolio.metadata.balance -= last_tx.quantity * last_tx.price
 
     return save_portfolio(portfolio)
+
+
+def _extract_price(raw) -> float | None:
+    if isinstance(raw, dict):
+        val = raw.get("Buying") or raw.get("Selling")
+        if val is None:
+            return None
+        cleaned = str(val).replace("$", "").replace("€", "").replace("£", "").replace(".", "").replace(",", ".").strip()
+        try:
+            return float(cleaned)
+        except (ValueError, TypeError):
+            return None
+    try:
+        return float(raw)
+    except (ValueError, TypeError):
+        return None
 
 
 def _recalculate_portfolio(portfolio: Portfolio) -> None:
@@ -494,9 +510,11 @@ def _compute_portfolio_value_at(
             closest = min(hist, key=lambda p: abs(
                 datetime.fromisoformat(p["ts"]).replace(tzinfo=timezone.utc) - date
             ))
-            price = closest.get("price") or closest.get("close")
-            if price is not None:
-                holdings_value += price * asset.amount
+            raw = closest.get("price") or closest.get("close")
+            if raw is not None:
+                price = _extract_price(raw)
+                if price is not None:
+                    holdings_value += price * asset.amount
 
     return balance, holdings_value
 

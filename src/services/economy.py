@@ -148,4 +148,4 @@ def get_economy_rate_history(ticker: str, start: datetime, end: datetime) -> lis
             (ticker, start, end),
         )
         rows = cur.fetchall()
-    return [{"ts": row["ts"].isoformat(), "price": float(row["price"])} for row in rows]
+    return [{"ts": row["ts"].isoformat(), "price": row["price"]} for row in rows]

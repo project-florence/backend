@@ -305,7 +305,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS economy_rates (
                 ticker TEXT NOT NULL,
                 ts TIMESTAMPTZ NOT NULL,
-                price DOUBLE PRECISION NOT NULL,
+                price JSONB NOT NULL,
                 PRIMARY KEY (ticker, ts)
             );
         """)

@@ -65,7 +65,7 @@ def company_info_md(ticker: str):
 def companies_summary(
     limit: int = Query(default=50, ge=1, le=500, description="Number of companies"),
     offset: int = Query(default=0, ge=0, description="Number of items to skip"),
-    sort: str = Query(default="popular", description="Sort order: popular or alphabetical"),
+    sort: str = Query(default="popular", description="Sort order: popular, alphabetical, gainers, losers, price_high, price_low, volume, market_cap"),
     tickers: str | None = Query(default=None, description="Comma-separated ticker filter"),
 ):
     ticker_list = [t.strip().upper() for t in tickers.split(",")] if tickers else None

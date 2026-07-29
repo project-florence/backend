@@ -87,6 +87,22 @@ def get_price_history(ticker: str, start: datetime | None = None, end: datetime 
     return [c for c in candles if start <= datetime.fromisoformat(c["ts"]) <= end]
 
 
+def _extract_price(raw) -> float | None:
+    if isinstance(raw, dict):
+        val = raw.get("Buying") or raw.get("Selling")
+        if val is None:
+            return None
+        cleaned = str(val).replace("$", "").replace("€", "").replace("£", "").replace(".", "").replace(",", ".").strip()
+        try:
+            return float(cleaned)
+        except (ValueError, TypeError):
+            return None
+    try:
+        return float(raw)
+    except (ValueError, TypeError):
+        return None
+
+
 def get_current_price(ticker: str) -> float | None:
     if not ticker:
         return None
@@ -96,19 +112,19 @@ def get_current_price(ticker: str) -> float | None:
     if ticker_lower in PRECIOUS_METAL_KEYS:
         gold_prices = get_gold_prices()
         if isinstance(gold_prices, dict) and ticker_lower in gold_prices:
-            return gold_prices[ticker_lower]
+            return _extract_price(gold_prices[ticker_lower])
         if ticker_lower == "gumus":
             silver = get_silver_price()
             if isinstance(silver, dict):
-                return silver.get("gumus")
+                return _extract_price(silver.get("gumus"))
         if ticker_lower == "gram-platin":
             plat = get_gram_platinum_price()
             if isinstance(plat, dict):
-                return plat.get("gram-platin")
+                return _extract_price(plat.get("gram-platin"))
         if ticker_lower == "gram-paladyum":
             pal = get_gram_palladium_price()
             if isinstance(pal, dict):
-                return pal.get("gram-paladyum")
+                return _extract_price(pal.get("gram-paladyum"))
         return None
 
     ticker_upper = ticker.upper()
@@ -116,7 +132,7 @@ def get_current_price(ticker: str) -> float | None:
     currency_data = get_currency()
     if isinstance(currency_data, dict) and "error" not in currency_data:
         if ticker_upper in currency_data:
-            return currency_data[ticker_upper]
+            return _extract_price(currency_data[ticker_upper])
 
     from src.services.price import get_current_price as get_stock_price
     return get_stock_price(ticker_upper)

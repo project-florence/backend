@@ -258,6 +258,8 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
     bist_companies = get_bist_companies_as_dict_from_redis()
     company_map = {c["ticker"]: c.get("name", "") for c in bist_companies}
 
+    needs_full_compute = sort in ("gainers", "losers", "price_high", "price_low", "volume", "market_cap")
+
     if tickers_filter:
         ticker_list = [t.upper() for t in tickers_filter if t.upper() in company_map]
         total = len(ticker_list)
@@ -265,6 +267,10 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
         stats = get_all_stats()
         total = len(stats)
         ticker_list = [s["ticker"] for s in stats[offset:offset + limit]]
+    elif needs_full_compute:
+        stats = get_all_stats()
+        total = len(stats)
+        ticker_list = [s["ticker"] for s in stats]
     else:
         total = len(company_map)
         ticker_list = sorted(company_map.keys())[offset:offset + limit]
@@ -348,6 +354,25 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
             "currency": "TRY",
             "price_updated_at": price_updated_at,
         })
+
+    if needs_full_compute:
+        import math
+        def _sort_key(val, ascending):
+            if val is None:
+                return math.inf if ascending else -math.inf
+            return val
+
+        sort_config = {
+            "gainers": ("change_pct", False),
+            "losers": ("change_pct", True),
+            "price_high": ("last_price", False),
+            "price_low": ("last_price", True),
+            "volume": ("volume", False),
+            "market_cap": ("market_cap", False),
+        }
+        field, ascending = sort_config[sort]
+        results.sort(key=lambda x: _sort_key(x[field], ascending), reverse=not ascending)
+        results = results[offset:offset + limit]
 
     return {"data": results, "total": total}
 
