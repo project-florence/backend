@@ -165,7 +165,7 @@ def portfolio_risk(portfolio_id: str, period: str = Query(default="1y", pattern=
 def portfolio_benchmark(portfolio_id: str, ticker: str = Query(default="XU100"), user_id: int = Depends(get_current_user)):
     result = svc.compare_with_benchmark(portfolio_id, benchmark_ticker=ticker)
     if result is None:
-        raise HTTPException(status_code=404, detail="Portfolio not found")
+        return {}
     return result
 
 
