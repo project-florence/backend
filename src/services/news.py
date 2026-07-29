@@ -142,8 +142,9 @@ def collect_articles(
             bigquery.ScalarQueryParameter("from_date", "STRING", from_date_str),
             bigquery.ScalarQueryParameter("limit", "INT64", limit),
         ],
-        maximum_bytes_billed=max_bytes,
     )
+    if max_bytes is not None:
+        job_config.maximum_bytes_billed = max_bytes
 
     results = _get_client().query(sql, job_config=job_config).result().to_dataframe()
 
