@@ -76,7 +76,7 @@ def load_portfolio(portfolio_id: str) -> Portfolio | None:
             row = cur.fetchone()
             if not row or not row[0]:
                 return None
-            return Portfolio.model_validate_json(row[0])
+            return Portfolio.model_validate(row[0])
     except Exception:
         return None
 
@@ -91,7 +91,7 @@ def list_portfolios(user_id: int) -> list[Portfolio]:
             rows = cur.fetchall()
             if not rows:
                 return []
-            return [Portfolio.model_validate_json(row[0]) for row in rows]
+            return [Portfolio.model_validate(row[0]) for row in rows]
     except Exception:
         return []
 
