@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import psycopg2
 import psycopg2.sql
 import threading
@@ -61,9 +62,17 @@ class _DatabaseProxy:
             self._local.conns[thread_key] = conn
         return self._local.conns.get(thread_key)
 
+    @contextmanager
     def cursor(self, db_name=None, **kwargs):
         conn = self.get_connection(db_name)
-        return conn.cursor(**kwargs)
+        cur = conn.cursor(**kwargs)
+        try:
+            yield cur
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
 
     def commit(self, db_name=None):
         self.get_connection(db_name).commit()
