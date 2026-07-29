@@ -11,7 +11,10 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
     with db.cursor() as cur:
         try:
             cur.execute(
-                "SELECT username, email, credits FROM users WHERE id = %s",
+                "SELECT u.username, u.email, COALESCE(uc.amount, 0) "
+                "FROM users u "
+                "LEFT JOIN user_credits uc ON uc.user_id = u.id AND uc.credit_type = 'free_credits' "
+                "WHERE u.id = %s",
                 (current_user_id,),
             )
             profile_row = cur.fetchone()
