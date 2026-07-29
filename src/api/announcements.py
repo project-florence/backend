@@ -1,3 +1,4 @@
+from datetime import timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from src.core.database import db
@@ -44,7 +45,8 @@ def list_announcements(current_user_id: int = Depends(get_current_user)):
         result = []
         for r in rows:
             ann_created = r[4]
-            if user_created_at and ann_created < user_created_at:
+            cutoff = user_created_at - timedelta(days=7) if user_created_at else None
+            if cutoff and ann_created < cutoff:
                 continue
 
             is_unread = last_viewed is None or ann_created > last_viewed
