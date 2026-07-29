@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
-from services.bist import get_bist_tickers_as_dict_from_redis
-from services.economy import get_gold_prices, get_silver_price, get_gram_platinum_price, get_gram_palladium_price, get_currency, get_economy_rate_history
+from src.services.bist import get_bist_tickers_as_dict_from_redis
+from src.services.economy import get_gold_prices, get_silver_price, get_gram_platinum_price, get_gram_palladium_price, get_currency, get_economy_rate_history
 
 
 PRECIOUS_METAL_KEYS = [
@@ -64,7 +64,7 @@ def get_price_history(ticker: str, start: datetime | None = None, end: datetime 
         if ticker_upper in currency_data:
             return get_economy_rate_history(ticker_upper, start, end)
 
-    from services.price import get_price_history as get_stock_history
+    from src.services.price import get_price_history as get_stock_history
     days = (end - start).days
     if days <= 1:
         period = "1d"
@@ -118,5 +118,5 @@ def get_current_price(ticker: str) -> float | None:
         if ticker_upper in currency_data:
             return currency_data[ticker_upper]
 
-    from services.price import get_current_price as get_stock_price
+    from src.services.price import get_current_price as get_stock_price
     return get_stock_price(ticker_upper)

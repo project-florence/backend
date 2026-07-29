@@ -6,7 +6,7 @@ import math
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
 
-from services.ticker import is_valid_ticker, get_current_price, get_price_history
+from src.services.ticker import is_valid_ticker, get_current_price, get_price_history
 from src.core.database import db
 
 
@@ -402,10 +402,10 @@ def get_diversification(portfolio_id: str) -> dict | None:
             total_holdings_value += value
 
         ticker_upper = ticker.upper()
-        from services.economy import get_currency
+        from src.services.economy import get_currency
         currency_data = get_currency()
         is_forex = isinstance(currency_data, dict) and ticker_upper in currency_data
-        from services.ticker import PRECIOUS_METAL_KEYS
+        from src.services.ticker import PRECIOUS_METAL_KEYS
         is_metal = ticker.lower() in PRECIOUS_METAL_KEYS
         asset_type = "metal" if is_metal else "forex" if is_forex else "stock"
 
