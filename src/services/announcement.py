@@ -20,8 +20,9 @@ def create_announcement(title: str, content: str, sent_by: int) -> Announcement 
                 (title, content, sent_by),
             )
             row = cur.fetchone()
-            if row:
-                return Announcement(id=row[0], title=row[1], content=row[2], sent_by=row[3], created_at=row[4], updated_at=row[5])
+        if row:
+            db.commit()
+            return Announcement(id=row[0], title=row[1], content=row[2], sent_by=row[3], created_at=row[4], updated_at=row[5])
         return None
     except Exception:
         return None
@@ -60,7 +61,10 @@ def update_announcement(announcement_id: int, title: str, content: str) -> bool:
                 "UPDATE announcements SET title = %s, content = %s, updated_at = NOW() WHERE id = %s",
                 (title, content, announcement_id),
             )
-            return cur.rowcount > 0
+            rowcount = cur.rowcount
+        if rowcount:
+            db.commit()
+        return rowcount > 0
     except Exception:
         return False
 
@@ -69,6 +73,9 @@ def delete_announcement(announcement_id: int) -> bool:
     try:
         with db.cursor() as cur:
             cur.execute("DELETE FROM announcements WHERE id = %s", (announcement_id,))
-            return cur.rowcount > 0
+            rowcount = cur.rowcount
+        if rowcount:
+            db.commit()
+        return rowcount > 0
     except Exception:
         return False

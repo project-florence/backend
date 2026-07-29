@@ -202,7 +202,7 @@ def get_profile(current_user_id: int = Depends(get_current_user)):
     with db.cursor() as cur:
         try:
             cur.execute("""
-                SELECT username, email, user_type FROM users WHERE id = %s
+                SELECT username, email, user_type, created_at FROM users WHERE id = %s
             """, (current_user_id,))
             rows = cur.fetchone()
 
@@ -213,6 +213,7 @@ def get_profile(current_user_id: int = Depends(get_current_user)):
         "username": rows[0],
         "email": rows[1],
         "user_type": rows[2],
+        "created_at": rows[3].isoformat() if rows[3] else None,
         "credits": get_credits(current_user_id)
     }
 

@@ -102,6 +102,7 @@ def init_db():
             ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type VARCHAR(50) NOT NULL DEFAULT 'user';
             ALTER TABLE users ADD COLUMN IF NOT EXISTS last_announcement_viewed_at TIMESTAMPTZ;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tickers (
