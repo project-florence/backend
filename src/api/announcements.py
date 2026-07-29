@@ -113,6 +113,7 @@ def mark_announcements_read(current_user_id: int = Depends(get_current_user)):
                 "UPDATE users SET last_announcement_viewed_at = NOW() WHERE id = %s",
                 (current_user_id,),
             )
+        db.commit()
         return {"message": "Marked as read"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
