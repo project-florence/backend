@@ -60,6 +60,7 @@ def save_portfolio(portfolio: Portfolio) -> bool:
                     portfolio.model_dump_json(),
                 ),
             )
+        db.commit()
         return True
     except Exception:
         return False
@@ -116,6 +117,7 @@ def delete_portfolio(portfolio_id: str) -> bool:
     try:
         with db.cursor() as cur:
             cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s", (portfolio_id,))
+            db.commit()
             return cur.rowcount > 0
     except Exception:
         return False
