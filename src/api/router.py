@@ -15,6 +15,7 @@ from src.api.maintenance import router as maintenance_router
 from src.api.analytics import router as analytics_router
 from src.api.announcements import router as announcements_router
 from src.api.contributors import router as contributors_router
+from src.api.virtual_portfolio import router as virtual_portfolio_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(bist_router)
@@ -33,3 +34,4 @@ router.include_router(maintenance_router)
 router.include_router(analytics_router)
 router.include_router(announcements_router)
 router.include_router(contributors_router)
+router.include_router(virtual_portfolio_router)
