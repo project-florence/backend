@@ -5,9 +5,8 @@ __pycache__
 *.pyo
 *.pyd
 .env
-*.json
 *.sql
 db_backup.sql
-data/
+project-florence-*.json
 scripts/
 .idea/

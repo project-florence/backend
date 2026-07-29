@@ -55,7 +55,11 @@ def _persist_economy_rates(data: dict) -> None:
     if not data or "error" in data:
         return
     with db.cursor() as cur:
-        args = [(ticker, price) for ticker, price in data.items()]
+        args = []
+        for ticker, price in data.items():
+            if isinstance(price, dict):
+                price = json.dumps(price, ensure_ascii=False)
+            args.append((ticker, price))
         cur.executemany(
             "INSERT INTO economy_rates (ticker, ts, price) VALUES (%s, NOW(), %s) ON CONFLICT DO NOTHING",
             args,
