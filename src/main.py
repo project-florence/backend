@@ -51,6 +51,7 @@ async def auth_and_tracking_middleware(request: Request, call_next):
         "/api/v1/contact",
         "/api/v1/version",
         "/api/v1/maintenance",
+        "/api/v1/contributors",
         "/",
         "/health",
         "/docs",
