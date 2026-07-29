@@ -1,6 +1,8 @@
 from src.core.config import get_config
 from src.core.redis import r
 from src.core.database import db
+from datetime import datetime
+import psycopg2.extras
 from dotenv import load_dotenv
 import os
 import json
@@ -49,6 +51,18 @@ def _persist_market_data(data_type: str, data: dict) -> None:
         db.commit()
 
 
+def _persist_economy_rates(data: dict) -> None:
+    if not data or "error" in data:
+        return
+    with db.cursor() as cur:
+        args = [(ticker, price) for ticker, price in data.items()]
+        cur.executemany(
+            "INSERT INTO economy_rates (ticker, ts, price) VALUES (%s, NOW(), %s) ON CONFLICT DO NOTHING",
+            args,
+        )
+        db.commit()
+
+
 def get_gold_prices():
     cached = r.get("gold_prices")
     if cached:
@@ -63,6 +77,7 @@ def get_gold_prices():
 
     r.set("gold_prices", json.dumps(gold_prices, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
     _persist_market_data("gold", gold_prices)
+    _persist_economy_rates(gold_prices)
     return gold_prices
 
 
@@ -76,6 +91,7 @@ def get_silver_price():
 
     r.set("silver_price", json.dumps(silver_price, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
     _persist_market_data("silver", silver_price)
+    _persist_economy_rates(silver_price)
     return silver_price
 
 def get_gram_platinum_price():
@@ -88,6 +104,7 @@ def get_gram_platinum_price():
 
     r.set("gram_platinum_price", json.dumps(gram_platinum_price, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
     _persist_market_data("platinum", gram_platinum_price)
+    _persist_economy_rates(gram_platinum_price)
     return gram_platinum_price
 
 def get_gram_palladium_price():
@@ -100,6 +117,7 @@ def get_gram_palladium_price():
 
     r.set("gram_palladium_price", json.dumps(gram_palladium_price, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
     _persist_market_data("palladium", gram_palladium_price)
+    _persist_economy_rates(gram_palladium_price)
     return gram_palladium_price
 
 
@@ -114,4 +132,16 @@ def get_currency():
     r.set("currency", json.dumps(currency, ensure_ascii=False),
           ex=get_config()["economy"]["cache_ttl"])
     _persist_market_data("currency", currency)
+    _persist_economy_rates(currency)
     return currency
+
+
+def get_economy_rate_history(ticker: str, start: datetime, end: datetime) -> list[dict]:
+    with db.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "SELECT ts, price FROM economy_rates "
+            "WHERE ticker = %s AND ts >= %s AND ts <= %s ORDER BY ts",
+            (ticker, start, end),
+        )
+        rows = cur.fetchall()
+    return [{"ts": row["ts"].isoformat(), "price": float(row["price"])} for row in rows]
