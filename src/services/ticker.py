@@ -103,7 +103,7 @@ def _extract_price(raw) -> float | None:
         return None
 
 
-def get_current_price(ticker: str) -> float | None:
+def get_current_price(ticker: str, interval: str = "5m") -> float | None:
     if not ticker:
         return None
 
@@ -135,4 +135,4 @@ def get_current_price(ticker: str) -> float | None:
             return _extract_price(currency_data[ticker_upper])
 
     from src.services.price import get_current_price as get_stock_price
-    return get_stock_price(ticker_upper)
+    return get_stock_price(ticker_upper, interval=interval)

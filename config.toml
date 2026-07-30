@@ -47,6 +47,8 @@ output_filename = "bist_companies.json"
 rate_limit_delay = 1.5
 cache_ttl = 60
 cache_ttl_hot = 604800
+cache_ttl_intraday = 30
+stale_ttl = 30
 
 [economy]
 api_url = "https://finans.truncgil.com/v3/today.json"

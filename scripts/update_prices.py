@@ -1,17 +1,18 @@
 """BIST şirketlerinin fiyat verilerini periyodik olarak günceller.
 
 Cron ile kullanım için tasarlanmıştır. Üç kademeli güncelleme:
-  - BIST30: her 10 dakikada bir
-  - Popüler 157 şirket (mapping): her 1 saatte bir
-  - Kalanlar: her 12 saatte bir
+  - BIST30: her 10 dakikada bir, interval=5m
+  - Popüler 157 şirket (mapping): her 1 saatte bir, interval=30m
+  - Kalanlar: her 12 saatte bir, interval=1d
 
 Kullanım:
-  python scripts/update_prices.py                      # tüm kademeleri kontrol eder
-  python scripts/update_prices.py --tier bist30         # sadece BIST30
-  python scripts/update_prices.py --tier popular        # sadece popüler
-  python scripts/update_prices.py --tier rest           # sadece kalanlar
-  python scripts/update_prices.py --info                # fiyat + company info (popular, 5s aralikla)
-  python scripts/update_prices.py --tier popular --info # sadece popular'in fiyat + info'su
+  python scripts/update_prices.py                          # tüm kademeleri kontrol eder
+  python scripts/update_prices.py --tier bist30             # sadece BIST30
+  python scripts/update_prices.py --tier popular            # sadece popüler
+  python scripts/update_prices.py --tier rest               # sadece kalanlar
+  python scripts/update_prices.py --tier bist30 --interval 1d  # belirli interval
+  python scripts/update_prices.py --info                    # fiyat + company info
+  python scripts/update_prices.py --tier popular --info     # sadece popular'in fiyat + info'su
 """
 
 import sys
@@ -29,6 +30,7 @@ import pandas as pd
 from src.core.database import db
 from src.utils.mapping import load_bist_mapping
 from src.services.company import get_company_info
+from src.services.price import INTRADAY_INTERVALS
 
 BIST30_TICKERS = [
     "AKBNK", "ARCLK", "ASELS", "BIMAS", "CCOLA",
@@ -39,15 +41,23 @@ BIST30_TICKERS = [
     "TUPRS", "VAKBN", "YKBNK", "AEFES",
 ]
 
-BATCH_SIZE = 50
 BATCH_DELAY = 10
 INFO_TICKER_DELAY = 5
+
+# Tier config: (name, tickers, cron_frequency, default_interval, batch_size)
+TIERS = {
+    "bist30": ("BIST30", timedelta(minutes=10), "5m", 15),
+    "popular": ("POPÜLER", timedelta(hours=1), "30m", 20),
+    "rest": ("DİĞER", timedelta(hours=12), "1d", 50),
+}
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tier", choices=["bist30", "popular", "rest"], default=None,
+    parser.add_argument("--tier", choices=list(TIERS.keys()), default=None,
                         help="Sadece belirli kademeyi güncelle")
+    parser.add_argument("--interval", default=None,
+                        help="Candle interval (5m, 30m, 1h, 1d). Varsayılan: kademeye göre")
     parser.add_argument("--info", action="store_true",
                         help="Fiyat güncellemesinden sonra company info'yu da tazele (popular kademesi, 5s aralikla)")
     args = parser.parse_args()
@@ -63,43 +73,47 @@ def main():
     popular_set = set(popular_tickers) & all_tickers
     rest_set = all_tickers - bist30_set - popular_set
 
+    ticker_sets = {
+        "bist30": list(bist30_set & all_tickers),
+        "popular": list(popular_set),
+        "rest": list(rest_set),
+    }
+
     now = datetime.now(timezone.utc)
 
-    tiers = []
-
-    if args.tier is None or args.tier == "bist30":
-        tiers.append(("BIST30", list(bist30_set & all_tickers), timedelta(minutes=10)))
-    if args.tier is None or args.tier == "popular":
-        tiers.append(("POPÜLER", list(popular_set), timedelta(hours=1)))
-    if args.tier is None or args.tier == "rest":
-        tiers.append(("DİĞER", list(rest_set), timedelta(hours=12)))
-
+    tier_keys = [args.tier] if args.tier else list(TIERS.keys())
     total_updated = 0
-    for tier_name, ticker_list, interval in tiers:
-        need_update = _needs_update(ticker_list, now, interval)
+
+    for key in tier_keys:
+        name, freq, default_interval, batch_size = TIERS[key]
+        interval = args.interval or default_interval
+        ticker_list = ticker_sets[key]
+
+        need_update = _needs_update(ticker_list, now, freq, interval)
         if not need_update:
-            print(f"[{tier_name}] Güncelleme gerektiren yok ({len(ticker_list)} ticker)")
+            print(f"[{name}] {interval} — güncelleme gerektiren yok ({len(ticker_list)} ticker)")
             continue
 
-        print(f"[{tier_name}] {len(need_update)}/{len(ticker_list)} ticker güncellenecek...")
+        print(f"[{name}] {interval} — {len(need_update)}/{len(ticker_list)} ticker güncellenecek...")
         tickers_is = [t + ".IS" for t in need_update]
 
-        for i in range(0, len(tickers_is), BATCH_SIZE):
-            batch = tickers_is[i : i + BATCH_SIZE]
-            _update_batch(batch, tier_name, i, len(tickers_is))
+        period = "5d" if interval in INTRADAY_INTERVALS else "5d"
+        for i in range(0, len(tickers_is), batch_size):
+            batch = tickers_is[i : i + batch_size]
+            _update_batch(batch, interval, period, name, i, len(tickers_is))
             total_updated += len(batch)
 
-            if i + BATCH_SIZE < len(tickers_is):
+            if i + batch_size < len(tickers_is):
                 print(f"  {BATCH_DELAY}s bekleniyor...")
                 time.sleep(BATCH_DELAY)
 
     if args.info:
-        _refresh_company_info(tiers)
+        _refresh_company_info(tier_keys)
 
     print(f"\nToplam {total_updated} ticker güncellendi.")
 
 
-def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta) -> list[str]:
+def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta, interval: str = "1d") -> list[str]:
     if not ticker_list:
         return []
 
@@ -110,9 +124,9 @@ def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta) -> 
         cur.execute(
             f"""SELECT ticker, MAX(ts) as last_ts
                 FROM price_candles
-                WHERE ticker IN ({placeholders}) AND interval = '1d'
+                WHERE ticker IN ({placeholders}) AND interval = %s
                 GROUP BY ticker""",
-            tickers_is,
+            tickers_is + [interval],
         )
         rows = cur.fetchall()
         last_ts_map = {r[0]: r[1] for r in rows}
@@ -126,13 +140,13 @@ def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta) -> 
     return need
 
 
-def _update_batch(batch_tickers: list[str], tier_name: str, offset: int, total: int):
-    print(f"  {tier_name} [{offset + 1}-{offset + len(batch_tickers)}/{total}] indiriliyor...", end=" ")
+def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_name: str, offset: int, total: int):
+    print(f"  {tier_name} [{offset + 1}-{offset + len(batch_tickers)}/{total}] {interval} indiriliyor...", end=" ")
 
     try:
         with open(os.devnull, "w") as devnull:
             with redirect_stderr(devnull), redirect_stdout(devnull):
-                df = yf.download(batch_tickers, period="5d", interval="1d", group_by="ticker", progress=False)
+                df = yf.download(batch_tickers, period=period, interval=interval, group_by="ticker", progress=False)
 
         if df is None or df.empty:
             print("veri yok")
@@ -153,50 +167,43 @@ def _update_batch(batch_tickers: list[str], tier_name: str, offset: int, total: 
             if ticker not in available:
                 continue
             try:
-                tdf = df[ticker].dropna() if multi else df.dropna()
+                tdf = df[ticker] if multi else df
+                tdf = tdf.dropna(how="all")
                 if tdf.empty:
                     continue
-                last = tdf.iloc[-1]
-                ts = last.name.to_pydatetime() if isinstance(last.name, pd.Timestamp) else last.name
 
-                cur.execute(
-                    """INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume)
-                       VALUES (%s, '1d', %s, %s, %s, %s, %s, %s)
-                       ON CONFLICT (ticker, interval, ts)
-                       DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
-                                     low = EXCLUDED.low, close = EXCLUDED.close,
-                                     volume = EXCLUDED.volume""",
-                    (ticker, ts,
-                     float(last["Open"]) if pd.notna(last["Open"]) else None,
-                     float(last["High"]) if pd.notna(last["High"]) else None,
-                     float(last["Low"]) if pd.notna(last["Low"]) else None,
-                     float(last["Close"]) if pd.notna(last["Close"]) else None,
-                     int(last["Volume"]) if pd.notna(last["Volume"]) else 0),
-                )
-                count += 1
+                for ts, row in tdf.iterrows():
+                    ts_dt = ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else ts
+                    cur.execute(
+                        """INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                           ON CONFLICT (ticker, interval, ts)
+                           DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
+                                         low = EXCLUDED.low, close = EXCLUDED.close,
+                                         volume = EXCLUDED.volume""",
+                        (ticker, interval, ts_dt,
+                         float(row["Open"]) if pd.notna(row["Open"]) else None,
+                         float(row["High"]) if pd.notna(row["High"]) else None,
+                         float(row["Low"]) if pd.notna(row["Low"]) else None,
+                         float(row["Close"]) if pd.notna(row["Close"]) else None,
+                         int(row["Volume"]) if pd.notna(row["Volume"]) else 0),
+                    )
+                    count += 1
             except Exception:
                 continue
     db.commit()
-    print(f"{count} kaydedildi")
+    print(f"{count} mum kaydedildi")
 
 
-def _refresh_company_info(tiers: list[tuple[str, list[str], timedelta]]):
-    """Popular kademesindeki ticker'larin company info'sunu tazeler.
-
-    use_cache=False ile Redis'e yazilan eski profili ezer,
-    yeni alanlarla (beta, sharesOutstanding, bookValue, averageVolume vb.) gunceller.
-    """
+def _refresh_company_info(tier_keys: list[str]):
     print("\n[INFO] Company info tazeleniyor...")
 
-    popular_tickers = None
-    for tier_name, ticker_list, _ in tiers:
-        if "POPÜLER" in tier_name:
-            popular_tickers = ticker_list
-            break
-
-    if not popular_tickers:
-        print("[INFO] Popular kademesi bulunamadi, atlaniyor.")
+    if "popular" not in tier_keys:
+        print("[INFO] Popular kademesi istenmemis, atlaniyor.")
         return
+
+    mapping = load_bist_mapping()
+    popular_tickers = list(mapping.keys())
 
     total = len(popular_tickers)
     for i, ticker in enumerate(popular_tickers, 1):

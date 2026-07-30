@@ -7,6 +7,8 @@ from src.clients.yfinance import fetch_price_history
 from src.core.database import db
 from src.core.redis import r
 
+INTRADAY_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
+
 
 def _clean(val):
     if val is None:
@@ -38,6 +40,10 @@ def _init_db():
                 volume    BIGINT,
                 PRIMARY KEY (ticker, interval, ts)
             );
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_price_candles_lookup
+            ON price_candles (ticker, interval, ts DESC)
         """)
     _db_initialized = True
 
@@ -88,7 +94,10 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
 
     with conn.cursor() as cur:
         psycopg2.extras.execute_values(cur,
-            "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) VALUES %s ON CONFLICT (ticker, interval, ts) DO NOTHING",
+            "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) VALUES %s "
+            "ON CONFLICT (ticker, interval, ts) DO UPDATE SET "
+            "open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, "
+            "close = EXCLUDED.close, volume = EXCLUDED.volume",
             values,
         )
     conn.commit()
@@ -163,13 +172,60 @@ def get_price_history(ticker: str, period: str, interval: str, hot: bool = False
     return result
 
 
-def get_current_price(ticker: str) -> float | None:
+def _current_price_cache_key(ticker: str, interval: str) -> str:
+    return f"latest_price:{ticker}:{interval}"
+
+
+def get_current_price(ticker: str, interval: str = "5m") -> float | None:
     ticker = ticker.upper()
     if not ticker.endswith(".IS"):
         ticker = f"{ticker}.IS"
 
+    intraday = interval in INTRADAY_INTERVALS
+
+    if intraday:
+        cached = r.get(_current_price_cache_key(ticker, interval))
+        if cached is not None:
+            try:
+                return float(cached)
+            except (TypeError, ValueError):
+                pass
+
     _init_db()
     conn = db.get_connection()
+
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "SELECT close, ts FROM price_candles "
+            "WHERE ticker = %s AND interval = %s ORDER BY ts DESC LIMIT 1",
+            (ticker, interval),
+        )
+        row = cur.fetchone()
+
+    if row and _clean(row["close"]) is not None:
+        price = float(row["close"])
+        if intraday:
+            r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+        return price
+
+    if intraday:
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(days=1)
+        _fetch_and_store(conn, ticker, interval, start, now)
+
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT close FROM price_candles "
+                "WHERE ticker = %s AND interval = %s ORDER BY ts DESC LIMIT 1",
+                (ticker, interval),
+            )
+            row = cur.fetchone()
+        if row and _clean(row["close"]) is not None:
+            price = float(row["close"])
+            r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+            return price
+
+        return get_current_price(ticker, "1d")
 
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
@@ -178,11 +234,10 @@ def get_current_price(ticker: str) -> float | None:
             (ticker,),
         )
         row = cur.fetchone()
-
     if row and _clean(row["close"]) is not None:
         return float(row["close"])
 
-    prices = get_price_history(ticker, "1d", "1d")
+    prices = get_price_history(ticker, "5d", "1d")
     if prices:
         return float(prices[-1]["close"])
     return None

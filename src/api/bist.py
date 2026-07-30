@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Response, Depends
+from fastapi import APIRouter, Query, Response, Depends, HTTPException
 from src.services.bist import (
     get_bist_companies_as_dict_from_redis,
     get_bist_tickers_as_dict_from_redis,
@@ -83,7 +83,7 @@ def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="
 
 
 _VALID_PERIODS = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"}
-_VALID_INTERVALS = {"1d", "5d", "1wk", "1mo", "3mo"}
+_VALID_INTERVALS = {"5m", "30m", "1h", "1d", "5d", "1wk", "1mo", "3mo"}
 
 
 @router.get("/price/history/{ticker}")
@@ -99,9 +99,14 @@ def price_history(ticker: str, period: str = Query("1mo"), interval: str = Query
 
 
 @router.get("/price/current")
-def current_price(ticker: str = Query(...)):
+def current_price(
+    ticker: str = Query(...),
+    interval: str = Query(default="5m", description="Candle interval: 5m, 30m, 1h, 1d"),
+):
     validate_ticker(ticker)
-    price = get_current_price(ticker.upper())
+    if interval not in _VALID_INTERVALS:
+        raise HTTPException(status_code=400, detail=f"Invalid interval. Must be one of: {', '.join(sorted(_VALID_INTERVALS))}")
+    price = get_current_price(ticker.upper(), interval=interval)
     if price is None:
         raise HTTPException(status_code=404, detail="Price not found")
-    return {"ticker": ticker.upper(), "price": price}
+    return {"ticker": ticker.upper(), "interval": interval, "price": price}

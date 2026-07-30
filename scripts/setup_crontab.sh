@@ -11,13 +11,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PYTHON="$(command -v python3)"
 
+LOG_DIR="/var/log/florence"
+mkdir -p "$LOG_DIR"
+
 CRON_ENTRIES=(
-    "*/10 * * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier bist30 > /dev/null 2>&1"
-    "0 * * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier popular > /dev/null 2>&1"
-    "0 */12 * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier rest > /dev/null 2>&1"
-    "0 0 * * * cd $PROJECT_DIR && $PYTHON scripts/credit_refiller.py > /dev/null 2>&1"
-    "0 2 * * * cd $PROJECT_DIR && $PYTHON scripts/seed_vectors.py --count 200 > /dev/null 2>&1"
-    "0 6 * * * cd $PROJECT_DIR && $PYTHON scripts/warm_price_cache.py > /tmp/warm_price_cache.log 2>&1"
+    "*/10 * * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier bist30 >> $LOG_DIR/update_bist30.log 2>&1"
+    "0 * * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier popular >> $LOG_DIR/update_popular.log 2>&1"
+    "0 */12 * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier rest >> $LOG_DIR/update_rest.log 2>&1"
+    "0 0 * * * cd $PROJECT_DIR && $PYTHON scripts/credit_refiller.py > $LOG_DIR/credit_refiller.log 2>&1"
+    "0 2 * * * cd $PROJECT_DIR && $PYTHON scripts/seed_vectors.py --count 200 >> $LOG_DIR/seed_vectors.log 2>&1"
+    "0 6 * * * cd $PROJECT_DIR && $PYTHON scripts/warm_price_cache.py >> $LOG_DIR/warm_price_cache.log 2>&1"
 )
 
 TEMP_CRON=$(mktemp)
