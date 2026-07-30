@@ -291,7 +291,9 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
         except Exception:
             pass
 
-        candle = latest_candles.get(key)
+        candles = latest_candles.get(key, [])
+        candle = candles[0] if candles else None
+        prev_candle = candles[1] if len(candles) > 1 else None
 
         last_price = None
         change_pct = None
@@ -311,19 +313,18 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
             market_cap = mkt.get("marketCap")
             sector = cached.get("sector")
 
-        prev_close = None
-        if cached:
-            prev_close = cached.get("market", {}).get("previousClose")
-
         if candle:
             if last_price is None:
                 last_price = candle["close"]
+            if day_high is None:
                 day_high = candle["high"]
+            if day_low is None:
                 day_low = candle["low"]
+            if volume is None:
                 volume = candle["volume"]
 
-        if last_price and prev_close and prev_close != 0:
-            change_pct = round((last_price - prev_close) / prev_close * 100, 2)
+        if candle and prev_candle and prev_candle["close"] != 0:
+            change_pct = round((candle["close"] - prev_candle["close"]) / prev_candle["close"] * 100, 2)
         elif candle and candle.get("open") and candle["open"] != 0:
             change_pct = round((candle["close"] - candle["open"]) / candle["open"] * 100, 2)
 
@@ -377,7 +378,7 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
     return {"data": results, "total": total}
 
 
-def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, dict]:
+def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, list[dict]]:
     if not ticker_list:
         return {}
 
@@ -386,7 +387,7 @@ def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, dict]:
 
     with db.cursor() as cur:
         cur.execute(
-            f"""SELECT DISTINCT ON (ticker) ticker, ts, open, high, low, close, volume
+            f"""SELECT ticker, ts, open, high, low, close, volume
                 FROM price_candles
                 WHERE ticker IN ({placeholders}) AND interval = '1d'
                 ORDER BY ticker, ts DESC""",
@@ -394,7 +395,14 @@ def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, dict]:
         )
         rows = cur.fetchall()
 
-    return {
-        r[0]: {"ts": r[1], "open": r[2], "high": r[3], "low": r[4], "close": r[5], "volume": r[6]}
-        for r in rows
-    }
+    result: dict[str, list[dict]] = {}
+    for r in rows:
+        ticker = r[0]
+        if ticker not in result:
+            result[ticker] = []
+        if len(result[ticker]) < 2:
+            result[ticker].append({
+                "ts": r[1], "open": r[2], "high": r[3], "low": r[4],
+                "close": r[5], "volume": r[6],
+            })
+    return result
