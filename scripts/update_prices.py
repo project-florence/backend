@@ -28,9 +28,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import yfinance as yf
 import pandas as pd
 from src.core.database import db
+from src.core.redis import r
 from src.utils.mapping import load_bist_mapping
 from src.services.company import get_company_info
-from src.services.price import INTRADAY_INTERVALS
+from src.services.price import INTRADAY_INTERVALS, invalidate_price_cache
 
 BIST30_TICKERS = [
     "AKBNK", "ARCLK", "ASELS", "BIMAS", "CCOLA",
@@ -192,7 +193,12 @@ def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_nam
             except Exception:
                 continue
     db.commit()
-    print(f"{count} mum kaydedildi")
+
+    updated_tickers = [t for t in batch_tickers if t in available]
+    for ticker in updated_tickers:
+        invalidate_price_cache(ticker, interval)
+
+    print(f"{count} mum kaydedildi, {len(updated_tickers)} cache invalidated")
 
 
 def _refresh_company_info(tier_keys: list[str]):

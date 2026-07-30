@@ -1,5 +1,6 @@
 import json
 import math
+import time
 import psycopg2.extras
 from datetime import datetime, timedelta, timezone
 
@@ -18,6 +19,16 @@ def _clean(val):
     if isinstance(val, float):
         return None if math.isnan(val) else val
     return val
+
+
+def _acquire_refresh_lock(ticker: str, interval: str, ttl: int = 15) -> bool:
+    lock_key = f"refresh_lock:{ticker}:{interval}"
+    return r.set(lock_key, "1", ex=ttl, nx=True) is not None
+
+
+def invalidate_price_cache(ticker: str, interval: str):
+    r.delete(_current_price_cache_key(ticker, interval))
+
 
 _db_initialized = False
 
@@ -112,16 +123,25 @@ def get_price_history(ticker: str, period: str, interval: str, hot: bool = False
 
     cfg = get_config().get("price_history", {})
     cache_ttl = cfg.get("cache_ttl_hot" if hot else "cache_ttl", 0)
+    stale_ttl = cfg.get("stale_ttl", 0)
 
     ticker = ticker.upper()
     if not ticker.endswith(".IS"):
         ticker = f"{ticker}.IS"
 
-    # Try Redis cache first
     if cache_ttl > 0:
         cached = r.get(_cache_key(ticker, period, interval))
         if cached:
-            return json.loads(cached)
+            try:
+                entry = json.loads(cached)
+                if isinstance(entry, dict) and "d" in entry and "t" in entry:
+                    age = time.time() - entry["t"]
+                    if age <= cache_ttl + stale_ttl:
+                        return entry["d"]
+                elif isinstance(entry, list):
+                    return entry
+            except (json.JSONDecodeError, TypeError):
+                pass
 
     _init_db()
 
@@ -167,7 +187,8 @@ def get_price_history(ticker: str, period: str, interval: str, hot: bool = False
     ]
 
     if cache_ttl > 0:
-        r.set(_cache_key(ticker, period, interval), json.dumps(result, ensure_ascii=False), ex=cache_ttl)
+        cache_entry = json.dumps({"d": result, "t": time.time()}, ensure_ascii=False)
+        r.set(_cache_key(ticker, period, interval), cache_entry, ex=cache_ttl + stale_ttl)
 
     return result
 
@@ -209,21 +230,22 @@ def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         return price
 
     if intraday:
-        now = datetime.now(timezone.utc)
-        start = now - timedelta(days=1)
-        _fetch_and_store(conn, ticker, interval, start, now)
+        if _acquire_refresh_lock(ticker, interval):
+            now = datetime.now(timezone.utc)
+            start = now - timedelta(days=1)
+            _fetch_and_store(conn, ticker, interval, start, now)
 
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                "SELECT close FROM price_candles "
-                "WHERE ticker = %s AND interval = %s ORDER BY ts DESC LIMIT 1",
-                (ticker, interval),
-            )
-            row = cur.fetchone()
-        if row and _clean(row["close"]) is not None:
-            price = float(row["close"])
-            r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
-            return price
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT close FROM price_candles "
+                    "WHERE ticker = %s AND interval = %s ORDER BY ts DESC LIMIT 1",
+                    (ticker, interval),
+                )
+                row = cur.fetchone()
+            if row and _clean(row["close"]) is not None:
+                price = float(row["close"])
+                r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+                return price
 
         return get_current_price(ticker, "1d")
 
