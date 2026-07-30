@@ -114,12 +114,51 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
     conn.commit()
 
 
+_PERIOD_DAYS: dict[str, int] = {
+    "1d": 1, "5d": 5, "1mo": 30, "3mo": 90, "6mo": 180, "1y": 365, "2y": 730, "5y": 1825, "10y": 3650,
+}
+
+_MAX_PERIOD_FOR_INTERVAL: dict[str, int] = {
+    "1m": 7, "5m": 60, "15m": 60, "30m": 60, "1h": 730, "1d": 3650, "5d": 3650, "1wk": 3650, "1mo": 3650, "3mo": 3650,
+}
+
+
+def _validate_interval_period(interval: str, period: str):
+    max_days = _MAX_PERIOD_FOR_INTERVAL.get(interval)
+    if max_days is None:
+        raise ValueError(f"Invalid interval: {interval}")
+    period_days = _PERIOD_DAYS.get(period)
+    if period_days is None:
+        days = 0
+        if period.endswith("d"):
+            days = int(period[:-1])
+        elif period.endswith("mo"):
+            days = int(period[:-2]) * 30
+        elif period.endswith("y"):
+            days = int(period[:-1]) * 365
+        elif period == "ytd":
+            from datetime import datetime, timezone
+            days = (datetime.now(timezone.utc) - datetime.now(timezone.utc).replace(month=1, day=1)).days
+        elif period == "max":
+            days = 3650
+        else:
+            raise ValueError(f"Invalid period: {period}")
+        period_days = days
+    if period_days > max_days:
+        raise ValueError(
+            f"Interval '{interval}' only supports up to {max_days} days of data, "
+            f"but period '{period}' requires {period_days} days"
+        )
+
+
 def _cache_key(ticker: str, period: str, interval: str) -> str:
     return f"price_history:{ticker}:{period}:{interval}"
 
 
 def get_price_history(ticker: str, period: str, interval: str, hot: bool = False) -> list[dict]:
     from src.core.config import get_config
+
+    _validate_interval_period(interval, period)
 
     cfg = get_config().get("price_history", {})
     cache_ttl = cfg.get("cache_ttl_hot" if hot else "cache_ttl", 0)

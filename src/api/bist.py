@@ -93,7 +93,10 @@ def price_history(ticker: str, period: str = Query("1mo"), interval: str = Query
         raise HTTPException(status_code=400, detail=f"Invalid period. Must be one of: {', '.join(sorted(_VALID_PERIODS))}")
     if interval not in _VALID_INTERVALS:
         raise HTTPException(status_code=400, detail=f"Invalid interval. Must be one of: {', '.join(sorted(_VALID_INTERVALS))}")
-    result = get_price_history(ticker, period, interval)
+    try:
+        result = get_price_history(ticker, period, interval)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     increment_stat(ticker, "history_count")
     return result
 
