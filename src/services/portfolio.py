@@ -2,6 +2,7 @@ import uuid
 import csv
 import io
 import math
+import os
 
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
@@ -33,6 +34,8 @@ class Transaction(BaseModel):
     type: str
     quantity: float
     price: float
+    commission: float = 0
+    total: float = 0
     date: datetime
 
 
@@ -191,13 +194,21 @@ def calculate_assets(portfolio: Portfolio) -> dict[str, Asset]:
     return {ticker: asset for ticker, asset in assets.items() if asset.amount > 0}
 
 
-def _add_transaction(portfolio: Portfolio, ticker: str, _type: str, quantity: float, price: float) -> None:
+def _commission_rate() -> float:
+    return float(os.getenv("PORTFOLIO_COMMISSION_RATE", "0.001"))
+
+
+def _add_transaction(portfolio: Portfolio, ticker: str, _type: str, quantity: float, price: float, commission: float = 0) -> None:
+    subtotal = price * quantity
+    total = subtotal + commission if _type == "BUY" else subtotal - commission
     tx = Transaction(
         id=f"tx-{uuid.uuid4()}",
         ticker=ticker,
         type=_type,
         quantity=quantity,
         price=price,
+        commission=round(commission, 2),
+        total=round(total, 2),
         date=datetime.now(timezone.utc),
     )
     portfolio.transactions.append(tx)
@@ -220,19 +231,23 @@ def add_transaction(portfolio_id: str, ticker: str, _type: str, quantity: float)
     if price is None:
         return False
 
-    cost = price * quantity
+    subtotal = price * quantity
+    rate = _commission_rate()
+    commission = round(subtotal * rate, 2)
 
     if _type == "BUY":
-        if cost > portfolio.metadata.balance:
+        total_cost = subtotal + commission
+        if total_cost > portfolio.metadata.balance:
             return False
-        portfolio.metadata.balance -= cost
-        _add_transaction(portfolio, ticker, _type, quantity, price)
+        portfolio.metadata.balance -= total_cost
+        _add_transaction(portfolio, ticker, _type, quantity, price, commission)
 
     elif _type == "SELL":
         if ticker not in assets or assets[ticker].amount < quantity:
             return False
-        portfolio.metadata.balance += cost
-        _add_transaction(portfolio, ticker, _type, quantity, price)
+        net = subtotal - commission
+        portfolio.metadata.balance += round(net, 2)
+        _add_transaction(portfolio, ticker, _type, quantity, price, commission)
 
     else:
         return False
