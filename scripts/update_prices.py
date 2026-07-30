@@ -53,6 +53,16 @@ TIERS = {
 }
 
 
+def _acquire_cron_lock(tier_name: str, ttl: int = 600) -> bool:
+    lock_key = f"lock:cron:{tier_name}"
+    acquired = r.set(lock_key, "1", ex=ttl, nx=True)
+    return acquired is not None
+
+
+def _release_cron_lock(tier_name: str):
+    r.delete(f"lock:cron:{tier_name}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--tier", choices=list(TIERS.keys()), default=None,
@@ -61,6 +71,8 @@ def main():
                         help="Candle interval (5m, 30m, 1h, 1d). Varsayılan: kademeye göre")
     parser.add_argument("--info", action="store_true",
                         help="Fiyat güncellemesinden sonra company info'yu da tazele (popular kademesi, 5s aralikla)")
+    parser.add_argument("--no-lock", action="store_true",
+                        help="Redis lock'u atla (debug için)")
     args = parser.parse_args()
 
     mapping = load_bist_mapping()
@@ -90,23 +102,30 @@ def main():
         interval = args.interval or default_interval
         ticker_list = ticker_sets[key]
 
-        need_update = _needs_update(ticker_list, now, freq, interval)
-        if not need_update:
-            print(f"[{name}] {interval} — güncelleme gerektiren yok ({len(ticker_list)} ticker)")
+        if not args.no_lock and not _acquire_cron_lock(key):
+            print(f"[{name}] {interval} — lock alinamadi (baskasi calisiyor), atlaniyor")
             continue
 
-        print(f"[{name}] {interval} — {len(need_update)}/{len(ticker_list)} ticker güncellenecek...")
-        tickers_is = [t + ".IS" for t in need_update]
+        try:
+            need_update = _needs_update(ticker_list, now, freq, interval)
+            if not need_update:
+                print(f"[{name}] {interval} — güncelleme gerektiren yok ({len(ticker_list)} ticker)")
+                continue
 
-        period = "5d" if interval in INTRADAY_INTERVALS else "5d"
-        for i in range(0, len(tickers_is), batch_size):
-            batch = tickers_is[i : i + batch_size]
-            _update_batch(batch, interval, period, name, i, len(tickers_is))
-            total_updated += len(batch)
+            print(f"[{name}] {interval} — {len(need_update)}/{len(ticker_list)} ticker güncellenecek...")
+            tickers_is = [t + ".IS" for t in need_update]
 
-            if i + batch_size < len(tickers_is):
-                print(f"  {BATCH_DELAY}s bekleniyor...")
-                time.sleep(BATCH_DELAY)
+            period = "5d" if interval in INTRADAY_INTERVALS else "5d"
+            for i in range(0, len(tickers_is), batch_size):
+                batch = tickers_is[i : i + batch_size]
+                _update_batch(batch, interval, period, name, i, len(tickers_is))
+                total_updated += len(batch)
+
+                if i + batch_size < len(tickers_is):
+                    print(f"  {BATCH_DELAY}s bekleniyor...")
+                    time.sleep(BATCH_DELAY)
+        finally:
+            _release_cron_lock(key)
 
     if args.info:
         _refresh_company_info(tier_keys)
