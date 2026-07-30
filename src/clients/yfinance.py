@@ -7,20 +7,23 @@ from src.core.config import get_config
 
 logger = logging.getLogger(__name__)
 
-_yfinance_lock = threading.Lock()
-_last_request = 0.0
+
+class _YFinanceRateLimiter:
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._last_request = 0.0
+
+    def wait(self):
+        delay = get_config()["price_history"]["rate_limit_delay"]
+        with self._lock:
+            now = time.time()
+            elapsed = now - self._last_request
+            if elapsed < delay:
+                time.sleep(delay - elapsed)
+            self._last_request = time.time()
 
 
-def _wait_for_rate_limit():
-    global _last_request
-    delay = get_config()["price_history"]["rate_limit_delay"]
-
-    with _yfinance_lock:
-        now = time.time()
-        elapsed = now - _last_request
-        if elapsed < delay:
-            time.sleep(delay - elapsed)
-        _last_request = time.time()
+_rate_limiter = _YFinanceRateLimiter()
 
 
 def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> dict:
@@ -30,7 +33,7 @@ def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> di
 
     for attempt in range(max_retries):
         try:
-            _wait_for_rate_limit()
+            _rate_limiter.wait()
             ticker = yf.Ticker(ticker_symbol)
             info = ticker.info
             if info:
@@ -55,5 +58,5 @@ def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> di
 
 
 def fetch_price_history(ticker: str, interval: str, start, end):
-    _wait_for_rate_limit()
+    _rate_limiter.wait()
     return yf.Ticker(ticker).history(start=start, end=end, interval=interval)
