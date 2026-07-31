@@ -590,7 +590,12 @@ def get_returns(portfolio_id: str, period: str = "1mo") -> dict | None:
     last_date = datetime.fromisoformat(history[-1]["ts"]).replace(tzinfo=timezone.utc)
     years = (last_date - first_date).total_seconds() / (365.25 * 86400)
 
-    cagr = ((end_value / start_value) ** (1 / years) - 1) * 100 if years > 0 and start_value > 0 else None
+    cagr = None
+    if years > 0 and start_value > 0 and end_value > 0:
+        try:
+            cagr = (math.exp(math.log(end_value / start_value) / years) - 1) * 100
+        except (OverflowError, ValueError):
+            cagr = None
 
     return {
         "period": period,
