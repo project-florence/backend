@@ -34,12 +34,13 @@ class PortfolioProfileRequest(BaseModel):
 
 @router.post("/portfolio/profile")
 def portfolio_profile(body: PortfolioProfileRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
+    from src.services.company import get_company_info
+
     tickers = body.tickers
     redis_data = read_vectors_from_redis(tickers)
 
     missing = [t for t in tickers if redis_data.get(t) is None]
     if missing:
-        from src.services.company import get_company_info
         to_write = []
         for ticker in missing:
             profile = get_company_info(ticker)

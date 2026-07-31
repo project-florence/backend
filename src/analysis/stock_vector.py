@@ -2,20 +2,21 @@ import math
 import json
 from typing import Any
 
-from src.analysis.metrics import _g, earnings_yield, peg_ratio, price_to_sales, fcf_yield, cash_to_debt, quick_ratio
+from src.analysis.metrics import _g, _num, earnings_yield, peg_ratio, price_to_sales, fcf_yield, cash_to_debt, quick_ratio
 
 
 def clip(val: float | None, min_val: float, max_val: float) -> float:
-    if val is None or math.isnan(val):
+    val = _num(val)
+    if val is None:
         return 0.5
     return float(max(min(val, max_val), min_val))
 
 
 def company_vector(profile: dict) -> dict[str, float]:
-    beta = _g(profile, "trading", "beta")
+    beta = _num(_g(profile, "trading", "beta"))
 
-    avg_vol = _g(profile, "trading", "averageVolume")
-    price = _g(profile, "market", "currentPrice") or 1.0
+    avg_vol = _num(_g(profile, "trading", "averageVolume"))
+    price = _num(_g(profile, "market", "currentPrice")) or 1.0
     dollar_vol = (avg_vol * price) if avg_vol else None
 
     ey = earnings_yield(profile)
