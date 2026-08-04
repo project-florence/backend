@@ -9,6 +9,7 @@ from src.clients.yfinance import fetch_company_info
 from src.services.bist import get_bist_tickers_as_dict_from_redis, get_bist_companies_as_dict_from_redis
 from src.services.stats import get_all_stats
 from src.core.database import db
+from src.services.quote import get_quotes
 
 logger = logging.getLogger(__name__)
 
@@ -278,100 +279,59 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
     if not ticker_list:
         return {"data": [], "total": total}
 
-    latest_candles = _fetch_latest_candles(ticker_list)
+    cached_profiles: dict[str, dict] = {}
+    for ticker in ticker_list:
+        try:
+            cached_raw = r.get(f"{ticker}.IS")
+            if cached_raw:
+                cached_profiles[ticker] = json.loads(cached_raw)
+        except Exception:
+            cached_profiles[ticker] = {}
 
+    quotes = get_quotes(
+        ticker_list,
+        {
+            ticker: (cached_profiles.get(ticker, {}).get("market", {}) or {})
+            for ticker in ticker_list
+        },
+    )
     results = []
     for ticker in ticker_list:
-        key = f"{ticker}.IS"
-        cached = None
-        try:
-            cached_raw = r.get(key)
-            if cached_raw:
-                cached = json.loads(cached_raw)
-        except Exception:
-            pass
-
-        candles = latest_candles.get(key, [])
-        candle = candles[0] if candles else None
-        prev_candle = candles[1] if len(candles) > 1 else None
-
-        last_price = None
-        change_pct = None
+        cached = cached_profiles.get(ticker, {})
+        quote = quotes[ticker]
         day_high = None
         day_low = None
         volume = None
         market_cap = None
         sector = None
-        price_updated_at = None
 
         if cached:
             mkt = cached.get("market", {}) or {}
-            last_price = mkt.get("currentPrice")
             day_high = mkt.get("dayHigh")
             day_low = mkt.get("dayLow")
             volume = mkt.get("regularMarketVolume")
             market_cap = mkt.get("marketCap")
             sector = cached.get("sector")
 
-        if candle:
-            if last_price is None:
-                last_price = candle["close"]
-            if day_high is None:
-                day_high = candle["high"]
-            if day_low is None:
-                day_low = candle["low"]
-            if volume is None:
-                volume = candle["volume"]
-
-        if cached:
-            mkt = cached.get("market", {}) or {}
-            prev_close = mkt.get("previousClose")
-            if last_price is not None and prev_close and prev_close != 0:
-                change_pct = round((last_price - prev_close) / prev_close * 100, 2)
-        candle_close = candle.get("close") if candle else None
-        previous_close = prev_candle.get("close") if prev_candle else None
-        candle_open = candle.get("open") if candle else None
-        if (
-            change_pct is None
-            and isinstance(candle_close, (int, float))
-            and isinstance(previous_close, (int, float))
-            and previous_close != 0
-        ):
-            change_pct = round((candle_close - previous_close) / previous_close * 100, 2)
-        if (
-            change_pct is None
-            and isinstance(candle_close, (int, float))
-            and isinstance(candle_open, (int, float))
-            and candle_open != 0
-        ):
-            change_pct = round((candle_close - candle_open) / candle_open * 100, 2)
-
-        if cached:
-            mkt = cached.get("market", {}) or {}
-            raw_time = mkt.get("regularMarketTime")
-            if raw_time:
-                try:
-                    dt = datetime.fromtimestamp(raw_time, tz=timezone.utc)
-                    price_updated_at = dt.isoformat()
-                except Exception:
-                    price_updated_at = datetime.now(timezone.utc).isoformat()
-            else:
-                price_updated_at = datetime.now(timezone.utc).isoformat()
-        elif candle:
-            price_updated_at = candle["ts"].isoformat() if candle["ts"] else None
-
         results.append({
             "ticker": ticker,
             "name": company_map.get(ticker, ""),
             "sector": sector,
-            "last_price": last_price,
-            "change_pct": change_pct,
+            "last_price": quote["price"],
+            "change_pct": quote["change_pct"],
+            "previous_close": quote["previous_close"],
+            "absolute_change": quote["absolute_change"],
+            "change_window": quote["change_window"],
+            "market_status": quote["market_status"],
+            "is_stale": quote["is_stale"],
+            "as_of": quote["as_of"],
+            "previous_close_as_of": quote["previous_close_as_of"],
             "day_high": day_high,
             "day_low": day_low,
             "volume": volume,
             "market_cap": market_cap,
             "currency": "TRY",
-            "price_updated_at": price_updated_at,
+            "price_updated_at": quote["as_of"],
         })
 
     if needs_full_compute:

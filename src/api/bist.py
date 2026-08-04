@@ -5,9 +5,9 @@ from src.services.bist import (
     search_companies_by_text,
 )
 from src.services.company import get_company_info, get_companies_summary, company_info_to_md
-from src.services.ticker import get_current_price
 from src.services.news import get_latest_news
 from src.services.price import get_price_history
+from src.services.quote import get_quote
 from src.services.stats import increment_stat, get_popular_companies, get_popular_tickers
 from src.api.deps import validate_ticker, get_current_user
 from src.core.ratelimit import rate_limiter
@@ -109,7 +109,8 @@ def current_price(
     validate_ticker(ticker)
     if interval not in _VALID_INTERVALS:
         raise HTTPException(status_code=400, detail=f"Invalid interval. Must be one of: {', '.join(sorted(_VALID_INTERVALS))}")
-    price = get_current_price(ticker.upper(), interval=interval)
-    if price is None:
+    profile = get_company_info(ticker.upper())
+    quote = get_quote(ticker.upper(), (profile.get("market", {}) if profile else {}))
+    if quote["price"] is None:
         raise HTTPException(status_code=404, detail="Price not found")
-    return {"ticker": ticker.upper(), "interval": interval, "price": price}
+    return {**quote, "interval": interval, "price": quote["price"]}
