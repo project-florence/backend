@@ -8,6 +8,7 @@ from src.services.analytics import track_event
 from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
 from src.services.simulation_history import save_simulation, get_simulation_history, get_simulation_detail
+from src.services.price import get_current_price
 
 router = APIRouter()
 
@@ -56,6 +57,12 @@ def simulate(
     _: bool = Depends(require_feature("simulation")),
 ):
     validate_ticker(ticker)
+    if target is not None:
+        try:
+            if float(target) <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid target price")
     cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
 
     ok, remaining_credits = credit_spend(current_user_id, cost)
@@ -74,6 +81,12 @@ def simulate(
     increment_stat(ticker, "simulation_count")
 
     actual_target = str(target) if target else "auto"
+    current_price = get_current_price(ticker)
+    if target is None or current_price is None:
+        direction = "above"
+    else:
+        direction = "above" if float(target) >= current_price else "below"
+    result["direction"] = direction
     sim_id = save_simulation(
         user_id=current_user_id,
         ticker=ticker,
