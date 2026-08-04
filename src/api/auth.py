@@ -26,7 +26,7 @@ class UserRegister(BaseModel):
 
 class ChangePassword(BaseModel):
     current_password: str
-    new_password: str
+    new_password: str = Field(min_length=10)
 
 
 class UpdateEmail(BaseModel):
