@@ -899,18 +899,36 @@ def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -
                 type=tx_type,
                 quantity=quantity,
                 price=price,
+                commission=round(quantity * price * _commission_rate(), 2),
+                total=round(
+                    quantity * price + round(quantity * price * _commission_rate(), 2)
+                    if tx_type == "BUY"
+                    else quantity * price - round(quantity * price * _commission_rate(), 2),
+                    2,
+                ),
                 date=tx_date,
             )
             portfolio.transactions.append(tx)
-            imported += 1
+            if _recalculate_portfolio(portfolio):
+                imported += 1
+            else:
+                portfolio.transactions.pop()
+                failed += 1
+                errors.append(f"Transaction would create an invalid balance or holding: {ticker}")
 
         except (ValueError, KeyError) as e:
             failed += 1
             errors.append(str(e))
 
     if imported > 0:
-        _recalculate_portfolio(portfolio)
-        save_portfolio(portfolio)
+        if not _recalculate_portfolio(portfolio) or not save_portfolio(portfolio):
+            return {
+                "success": False,
+                "message": "Could not save imported transactions",
+                "imported": 0,
+                "failed": failed + imported,
+                "errors": errors[:10],
+            }
 
     return {
         "success": failed == 0,
