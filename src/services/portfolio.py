@@ -44,6 +44,11 @@ class Portfolio(BaseModel):
     transactions: list[Transaction] = Field(default_factory=list)
 
 
+def _lock_portfolio(portfolio_id: str) -> None:
+    with db.cursor() as cur:
+        cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s));", (portfolio_id,))
+
+
 def save_portfolio(portfolio: Portfolio) -> bool:
     portfolio.metadata.updated_at = datetime.now(timezone.utc)
     try:
@@ -118,6 +123,7 @@ def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfol
 
 def delete_portfolio(portfolio_id: str, user_id: int) -> bool:
     try:
+        _lock_portfolio(portfolio_id)
         with db.cursor() as cur:
             cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s AND user_id = %s", (portfolio_id, user_id))
             db.commit()
@@ -127,6 +133,7 @@ def delete_portfolio(portfolio_id: str, user_id: int) -> bool:
 
 
 def rename_portfolio(portfolio_id: str, user_id: int, new_name: str) -> bool:
+    _lock_portfolio(portfolio_id)
     portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
@@ -143,6 +150,7 @@ def get_portfolio_by_name(user_id: int, name: str) -> Portfolio | None:
 
 
 def duplicate_portfolio(portfolio_id: str, user_id: int, new_name: str) -> Portfolio | None:
+    _lock_portfolio(portfolio_id)
     portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
@@ -221,6 +229,7 @@ def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: str, qu
     if not is_valid_ticker(ticker):
         return False
 
+    _lock_portfolio(portfolio_id)
     portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
@@ -281,6 +290,7 @@ def get_transactions(
 
 
 def undo_last_transaction(portfolio_id: str, user_id: int) -> bool:
+    _lock_portfolio(portfolio_id)
     portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None or not portfolio.transactions:
         return False
@@ -330,6 +340,7 @@ def _recalculate_portfolio(portfolio: Portfolio) -> bool:
 
 
 def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float | None = None, quantity: float | None = None) -> bool:
+    _lock_portfolio(portfolio_id)
     portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
@@ -853,6 +864,7 @@ def export_portfolio_csv(portfolio_id: str, user_id: int) -> str | None:
 
 
 def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -> dict:
+    _lock_portfolio(portfolio_id)
     portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return {"success": False, "message": "Portfolio not found", "imported": 0, "failed": 0}
