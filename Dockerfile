@@ -15,8 +15,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN groupadd --system --gid 10001 florence \
+    && useradd --system --uid 10001 --gid 10001 --create-home florence
+
 # Proje dosyalarını kopyala
 COPY . .
+
+RUN chown -R florence:florence /app
+
+USER florence
 
 EXPOSE 7055
 

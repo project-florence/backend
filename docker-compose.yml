@@ -11,7 +11,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:latest
+    image: redis:7.4.2-alpine
     container_name: florence_redis
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
@@ -35,6 +35,7 @@ services:
   api:
     build: .
     container_name: florence_api
+    user: "10001:10001"
     ports:
       - "127.0.0.1:${API_HOST_PORT}:7055"
     env_file: .env
@@ -56,6 +57,8 @@ services:
   admin:
     build: .
     container_name: florence_admin
+    # The admin UDS is mounted under /run/florence with host-managed permissions.
+    user: "0:0"
     command: sh -c "umask 006 && exec uvicorn src.admin:admin_app --uds /run/florence/admin.sock"
     volumes:
       - /run/florence:/run/florence
