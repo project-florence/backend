@@ -57,6 +57,12 @@ if [ "$env_generation" == "y" ] || [ "$env_generation" == "Y" ]; then
   read -rp "enter your CUSTOM_API_KEY: " custom_api_key
   echo "CUSTOM_API_KEY=$custom_api_key" >> .env
 
+  read -rp "enter your LOGODEV_API_KEY: " logodev_api_key
+  echo "LOGODEV_API_KEY=$logodev_api_key" >> .env
+
+  read -rp "enter your LOGO_SAVE_PATH: " logo_save_path
+  echo "LOGO_SAVE_PATH=$logo_save_path" >> .env
+
   echo "generating secure passwords and keys..."
   echo "ENVIRONMENT=production" >> .env
   echo "FREE_CREDIT_MAX=25" >> .env
@@ -126,6 +132,33 @@ if [ $? -eq 0 ]; then
   echo -e "${GREEN}containers restarted successfully${RESET}"
 else
   echo -e "${RED}something went wrong while restarting containers${RESET}"
+  exit 1
+fi
+
+echo "installing logo downloader dependencies..."
+pip install --break-system-packages httpx pykap python-dotenv beautifulsoup4 lxml pillow
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}logo downloader dependencies installed successfully${RESET}"
+else
+  echo -e "${RED}something went wrong while installing logo downloader dependencies${RESET}"
+  exit 1
+fi
+
+echo "fetching company website URLs from TradingView..."
+python3 scripts/fetch_company_urls.py
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}company URLs fetched successfully${RESET}"
+else
+  echo -e "${RED}something went wrong while fetching company URLs${RESET}"
+  exit 1
+fi
+
+echo "downloading logos from company websites..."
+python3 scripts/download_icons.py
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}logos downloaded successfully${RESET}"
+else
+  echo -e "${RED}something went wrong while downloading logos${RESET}"
   exit 1
 fi
 
