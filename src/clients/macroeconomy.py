@@ -1,4 +1,6 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from fredapi import Fred
@@ -23,6 +25,13 @@ class MacroeconomyData(BaseModel):
     bitcoin: float
 
 
+_MACRO_FIELDS = (
+    "usa_gdp", "usa_real_gdp", "fed_funds", "fed_funds_rate", "usa_unrate",
+    "brent_crude_oil_price", "wti_crude_oil_price", "usa_consumer_cpi",
+    "usa_10y_treasury", "dxy", "vix", "sp500", "nasdaq", "bitcoin",
+)
+
+
 load_dotenv()
 
 fred_api_key = os.getenv("FRED_API_KEY")
@@ -38,22 +47,49 @@ def _get_latest_fred_val(series_id: str) -> float:
 
 
 def _fetch_macroeconomy_data() -> MacroeconomyData:
-    return MacroeconomyData(
-        usa_gdp=_get_latest_fred_val("GDP"),
-        usa_real_gdp=_get_latest_fred_val("GDPC1"),
-        fed_funds=_get_latest_fred_val("FEDFUNDS"),
-        fed_funds_rate=_get_latest_fred_val("DFF"),
-        usa_unrate=_get_latest_fred_val("UNRATE"),
-        brent_crude_oil_price=_get_latest_fred_val("DCOILBRENTEU"),
-        wti_crude_oil_price=_get_latest_fred_val("DCOILWTICO"),
-        usa_consumer_cpi=_get_latest_fred_val("CPIAUCSL"),
-        usa_10y_treasury=_get_latest_fred_val("DGS10"),
-        dxy=_get_latest_fred_val("DTWEXBGS"),
-        vix=_get_latest_fred_val("VIXCLS"),
-        sp500=_get_latest_fred_val("SP500"),
-        nasdaq=_get_latest_fred_val("NASDAQCOM"),
-        bitcoin=_get_latest_fred_val("CBBTCUSD"),
-    )
+    series_ids = {
+        "usa_gdp": "GDP",
+        "usa_real_gdp": "GDPC1",
+        "fed_funds": "FEDFUNDS",
+        "fed_funds_rate": "DFF",
+        "usa_unrate": "UNRATE",
+        "brent_crude_oil_price": "DCOILBRENTEU",
+        "wti_crude_oil_price": "DCOILWTICO",
+        "usa_consumer_cpi": "CPIAUCSL",
+        "usa_10y_treasury": "DGS10",
+        "dxy": "DTWEXBGS",
+        "vix": "VIXCLS",
+        "sp500": "SP500",
+        "nasdaq": "NASDAQCOM",
+        "bitcoin": "CBBTCUSD",
+    }
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        values = dict(zip(series_ids, executor.map(_get_latest_fred_val, series_ids.values())))
+    return MacroeconomyData(**values)
+
+
+def _load_recent_database_snapshot() -> MacroeconomyData | None:
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=get_config()["macroeconomy"]["cache_ttl"])
+    with db.cursor() as cur:
+        cur.execute(
+            """
+            SELECT usa_gdp, usa_real_gdp, fed_funds, fed_funds_rate, usa_unrate,
+                   brent_crude_oil_price, wti_crude_oil_price, usa_consumer_cpi,
+                   usa_10y_treasury, dxy, vix, sp500, nasdaq, bitcoin, timestamp
+            FROM macroeconomy
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """
+        )
+        row = cur.fetchone()
+    if not row or row[-1] is None:
+        return None
+    timestamp = row[-1]
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    if timestamp < cutoff:
+        return None
+    return MacroeconomyData(**dict(zip(_MACRO_FIELDS, row[:-1])))
 
 
 def _cache_and_persist_macroeconomy_data(mdata: MacroeconomyData) -> None:
@@ -78,6 +114,11 @@ def get_macroeconomy_data() -> MacroeconomyData:
     mdata = r.get("MacroeconomyData")
     if mdata:
         return MacroeconomyData.model_validate_json(mdata)
+
+    snapshot = _load_recent_database_snapshot()
+    if snapshot:
+        r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
+        return snapshot
 
     mdata = _fetch_macroeconomy_data()
     _cache_and_persist_macroeconomy_data(mdata)
