@@ -84,6 +84,10 @@ def simulate(
         cost=cost,
     )
 
+    if sim_id is None:
+        credit_refund(current_user_id, cost)
+        raise HTTPException(status_code=500, detail="Simulation could not be saved")
+
     result["simulation_id"] = sim_id
     result["ticker"] = ticker
     result["days"] = days

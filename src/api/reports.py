@@ -55,6 +55,12 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     if refund > 0:
         credit_refund(current_user_id, refund)
         remaining_credits = get_credits(current_user_id)
+    elif actual_cost > estimated_cost:
+        extra_cost = actual_cost - estimated_cost
+        extra_ok, remaining_credits = credit_spend(current_user_id, extra_cost)
+        if not extra_ok:
+            credit_refund(current_user_id, estimated_cost)
+            raise HTTPException(status_code=500, detail="Report cost could not be charged")
 
     with db.cursor() as cur:
         try:
@@ -74,10 +80,10 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
 
             report_id = report_row[0]
             created_at = report_row[1].isoformat()
-        except Exception as e:
+        except Exception:
             db.rollback()
-            report_id = None
-            created_at = None
+            credit_refund(current_user_id, actual_cost)
+            raise HTTPException(status_code=500, detail="Report could not be saved")
 
     if report_id:
         track_event("report_generated", user_id=current_user_id, ticker=ticker, details={
@@ -233,7 +239,9 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
                 raise HTTPException(status_code=404,
                                     detail="Report not found or you do not have permission to view it.")
 
-        except Exception as e:
+        except HTTPException:
+            raise
+        except Exception:
             raise HTTPException(status_code=500, detail="Database error")
 
     token_usage = row[3]
