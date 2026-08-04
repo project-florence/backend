@@ -1,0 +1,32 @@
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+exclude = [
+    "migrations",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+    "SIM",
+]
+
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.13"
+strict = false
+warn_unused_configs = true
