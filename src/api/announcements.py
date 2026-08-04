@@ -62,8 +62,8 @@ def list_announcements(current_user_id: int = Depends(get_current_user)):
             })
 
         return {"announcements": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error")
 
 
 @router.get("/announcements/{announcement_id}")
@@ -115,5 +115,5 @@ def mark_announcements_read(current_user_id: int = Depends(get_current_user)):
             )
         db.commit()
         return {"message": "Marked as read"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Database error")
