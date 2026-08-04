@@ -8,6 +8,7 @@ from src.services.maintenance import require_feature
 from src.services.report import generate_report, get_report_by_id, report_to_str
 from src.services.analytics import track_event
 from src.api.deps import get_current_user, validate_ticker
+from src.core.job_slots import require_job_slot
 from datetime import datetime
 from pydantic import BaseModel
 from src.utils.file_utils import markdown_to_docx, markdown_to_pdf
@@ -22,7 +23,7 @@ def _compute_cost(total_tokens: int) -> int:
 
 
 @router.post("/reports/generate")
-async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user), _: bool = Depends(require_feature("report_generate"))):
+async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user), _: bool = Depends(require_feature("report_generate")), __: None = Depends(require_job_slot("report", 900))):
     validate_ticker(ticker)
 
     if type not in ("quick_report", "deep_report"):

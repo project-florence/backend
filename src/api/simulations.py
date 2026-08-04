@@ -9,6 +9,7 @@ from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
 from src.services.simulation_history import save_simulation, get_simulation_history, get_simulation_detail
 from src.services.price import get_current_price
+from src.core.job_slots import require_job_slot
 
 router = APIRouter()
 
@@ -55,6 +56,7 @@ def simulate(
     target: str | None = Query(default=None),
     current_user_id: int = Depends(get_current_user),
     _: bool = Depends(require_feature("simulation")),
+    __: None = Depends(require_job_slot("simulation", 600)),
 ):
     validate_ticker(ticker)
     if target is not None:
