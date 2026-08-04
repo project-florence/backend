@@ -328,10 +328,23 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
             prev_close = mkt.get("previousClose")
             if last_price is not None and prev_close and prev_close != 0:
                 change_pct = round((last_price - prev_close) / prev_close * 100, 2)
-        if change_pct is None and candle and prev_candle and prev_candle["close"] != 0:
-            change_pct = round((candle["close"] - prev_candle["close"]) / prev_candle["close"] * 100, 2)
-        if change_pct is None and candle and candle.get("open") and candle["open"] != 0:
-            change_pct = round((candle["close"] - candle["open"]) / candle["open"] * 100, 2)
+        candle_close = candle.get("close") if candle else None
+        previous_close = prev_candle.get("close") if prev_candle else None
+        candle_open = candle.get("open") if candle else None
+        if (
+            change_pct is None
+            and isinstance(candle_close, (int, float))
+            and isinstance(previous_close, (int, float))
+            and previous_close != 0
+        ):
+            change_pct = round((candle_close - previous_close) / previous_close * 100, 2)
+        if (
+            change_pct is None
+            and isinstance(candle_close, (int, float))
+            and isinstance(candle_open, (int, float))
+            and candle_open != 0
+        ):
+            change_pct = round((candle_close - candle_open) / candle_open * 100, 2)
 
         if cached:
             mkt = cached.get("market", {}) or {}
