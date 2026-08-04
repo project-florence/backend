@@ -69,12 +69,12 @@ def save_portfolio(portfolio: Portfolio) -> bool:
         return False
 
 
-def load_portfolio(portfolio_id: str) -> Portfolio | None:
+def load_portfolio(portfolio_id: str, user_id: int) -> Portfolio | None:
     try:
         with db.cursor() as cur:
             cur.execute(
-                "SELECT portfolio FROM portfolios WHERE portfolio_id = %s;",
-                (portfolio_id,)
+                "SELECT portfolio FROM portfolios WHERE portfolio_id = %s AND user_id = %s;",
+                (portfolio_id, user_id)
             )
             row = cur.fetchone()
             if not row or not row[0]:
@@ -116,18 +116,18 @@ def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfol
     return portfolio
 
 
-def delete_portfolio(portfolio_id: str) -> bool:
+def delete_portfolio(portfolio_id: str, user_id: int) -> bool:
     try:
         with db.cursor() as cur:
-            cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s", (portfolio_id,))
+            cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s AND user_id = %s", (portfolio_id, user_id))
             db.commit()
             return cur.rowcount > 0
     except Exception:
         return False
 
 
-def rename_portfolio(portfolio_id: str, new_name: str) -> bool:
-    portfolio = load_portfolio(portfolio_id)
+def rename_portfolio(portfolio_id: str, user_id: int, new_name: str) -> bool:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
     portfolio.metadata.name = new_name
@@ -142,8 +142,8 @@ def get_portfolio_by_name(user_id: int, name: str) -> Portfolio | None:
     return None
 
 
-def duplicate_portfolio(portfolio_id: str, new_name: str) -> Portfolio | None:
-    portfolio = load_portfolio(portfolio_id)
+def duplicate_portfolio(portfolio_id: str, user_id: int, new_name: str) -> Portfolio | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
     now = datetime.now(timezone.utc)
@@ -214,14 +214,14 @@ def _add_transaction(portfolio: Portfolio, ticker: str, _type: str, quantity: fl
     portfolio.transactions.append(tx)
 
 
-def add_transaction(portfolio_id: str, ticker: str, _type: str, quantity: float) -> bool:
+def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: str, quantity: float) -> bool:
     if quantity <= 0:
         return False
 
     if not is_valid_ticker(ticker):
         return False
 
-    portfolio = load_portfolio(portfolio_id)
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
 
@@ -257,12 +257,13 @@ def add_transaction(portfolio_id: str, ticker: str, _type: str, quantity: float)
 
 def get_transactions(
     portfolio_id: str,
+    user_id: int,
     ticker: str | None = None,
     tx_type: str | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> list[Transaction] | None:
-    portfolio = load_portfolio(portfolio_id)
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -279,8 +280,8 @@ def get_transactions(
     return sorted(txs, key=lambda tx: tx.date)
 
 
-def undo_last_transaction(portfolio_id: str) -> bool:
-    portfolio = load_portfolio(portfolio_id)
+def undo_last_transaction(portfolio_id: str, user_id: int) -> bool:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None or not portfolio.transactions:
         return False
 
@@ -320,8 +321,8 @@ def _recalculate_portfolio(portfolio: Portfolio) -> None:
     portfolio.metadata.balance = balance
 
 
-def update_transaction(portfolio_id: str, tx_id: str, price: float | None = None, quantity: float | None = None) -> bool:
-    portfolio = load_portfolio(portfolio_id)
+def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float | None = None, quantity: float | None = None) -> bool:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
 
@@ -337,8 +338,8 @@ def update_transaction(portfolio_id: str, tx_id: str, price: float | None = None
     return False
 
 
-def get_transaction_stats(portfolio_id: str) -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_transaction_stats(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -371,8 +372,8 @@ def get_transaction_stats(portfolio_id: str) -> dict | None:
     }
 
 
-def get_portfolio_valuation(portfolio_id: str) -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_portfolio_valuation(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -416,8 +417,8 @@ def get_portfolio_valuation(portfolio_id: str) -> dict | None:
     }
 
 
-def get_diversification(portfolio_id: str) -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_diversification(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -468,8 +469,8 @@ def get_diversification(portfolio_id: str) -> dict | None:
     }
 
 
-def get_best_worst_performers(portfolio_id: str, top_n: int = 5) -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_best_worst_performers(portfolio_id: str, user_id: int, top_n: int = 5) -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -536,8 +537,8 @@ def _compute_portfolio_value_at(
     return balance, holdings_value
 
 
-def get_portfolio_history(portfolio_id: str, period: str = "1mo") -> list[dict] | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_portfolio_history(portfolio_id: str, user_id: int, period: str = "1mo") -> list[dict] | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -572,12 +573,12 @@ def get_portfolio_history(portfolio_id: str, period: str = "1mo") -> list[dict] 
     return result
 
 
-def get_returns(portfolio_id: str, period: str = "1mo") -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_returns(portfolio_id: str, user_id: int, period: str = "1mo") -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    history = get_portfolio_history(portfolio_id, period)
+    history = get_portfolio_history(portfolio_id, user_id, period)
     if not history or len(history) < 1:
         return None
 
@@ -613,12 +614,12 @@ def _daily_returns(values: list[float]) -> list[float]:
     return [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, len(values)) if values[i - 1] > 0]
 
 
-def get_risk_metrics(portfolio_id: str, period: str = "1y") -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_risk_metrics(portfolio_id: str, user_id: int, period: str = "1y") -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    history = get_portfolio_history(portfolio_id, period)
+    history = get_portfolio_history(portfolio_id, user_id, period)
     if not history or len(history) < 3:
         return {"volatility": None, "max_drawdown": None, "sharpe_ratio": None}
 
@@ -647,12 +648,12 @@ def get_risk_metrics(portfolio_id: str, period: str = "1y") -> dict | None:
     }
 
 
-def compare_with_benchmark(portfolio_id: str, benchmark_ticker: str = "XU100") -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def compare_with_benchmark(portfolio_id: str, user_id: int, benchmark_ticker: str = "XU100") -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    history = get_portfolio_history(portfolio_id, "max")
+    history = get_portfolio_history(portfolio_id, user_id, "max")
     if not history or len(history) < 2:
         return None
 
@@ -684,8 +685,8 @@ def compare_with_benchmark(portfolio_id: str, benchmark_ticker: str = "XU100") -
     }
 
 
-def analyze_portfolio_performance(portfolio_id: str) -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def analyze_portfolio_performance(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -775,16 +776,16 @@ def analyze_portfolio_performance(portfolio_id: str) -> dict | None:
     }
 
 
-def get_portfolio_snapshot(portfolio_id: str) -> dict | None:
-    portfolio = load_portfolio(portfolio_id)
+def get_portfolio_snapshot(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    valuation = get_portfolio_valuation(portfolio_id)
-    diversification = get_diversification(portfolio_id)
-    performers = get_best_worst_performers(portfolio_id)
-    tx_stats = get_transaction_stats(portfolio_id)
-    recent_txs = get_transactions(portfolio_id)
+    valuation = get_portfolio_valuation(portfolio_id, user_id)
+    diversification = get_diversification(portfolio_id, user_id)
+    performers = get_best_worst_performers(portfolio_id, user_id)
+    tx_stats = get_transaction_stats(portfolio_id, user_id)
+    recent_txs = get_transactions(portfolio_id, user_id)
     recent_txs = recent_txs[-5:] if recent_txs and len(recent_txs) > 5 else recent_txs
 
     return {
@@ -805,8 +806,8 @@ def get_portfolio_snapshot(portfolio_id: str) -> dict | None:
     }
 
 
-def export_portfolio_csv(portfolio_id: str) -> str | None:
-    portfolio = load_portfolio(portfolio_id)
+def export_portfolio_csv(portfolio_id: str, user_id: int) -> str | None:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -827,8 +828,8 @@ def export_portfolio_csv(portfolio_id: str) -> str | None:
     return output.getvalue()
 
 
-def import_transactions_csv(portfolio_id: str, csv_content: str) -> dict:
-    portfolio = load_portfolio(portfolio_id)
+def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -> dict:
+    portfolio = load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return {"success": False, "message": "Portfolio not found", "imported": 0, "failed": 0}
 

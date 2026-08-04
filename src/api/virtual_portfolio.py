@@ -49,7 +49,7 @@ def list_portfolios(user_id: int = Depends(get_current_user)):
 
 @router.get("/{portfolio_id}")
 def get_portfolio(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.load_portfolio(portfolio_id)
+    result = svc.load_portfolio(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result.model_dump()
@@ -57,21 +57,21 @@ def get_portfolio(portfolio_id: str, user_id: int = Depends(get_current_user)):
 
 @router.put("/{portfolio_id}")
 def rename_portfolio(portfolio_id: str, body: RenamePortfolioBody, user_id: int = Depends(get_current_user)):
-    if not svc.rename_portfolio(portfolio_id, body.name):
+    if not svc.rename_portfolio(portfolio_id, user_id, body.name):
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return {"message": "Portfolio renamed"}
 
 
 @router.delete("/{portfolio_id}")
 def delete_portfolio(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    if not svc.delete_portfolio(portfolio_id):
+    if not svc.delete_portfolio(portfolio_id, user_id):
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return {"message": "Portfolio deleted"}
 
 
 @router.post("/{portfolio_id}/duplicate")
 def duplicate_portfolio(portfolio_id: str, body: DuplicatePortfolioBody, user_id: int = Depends(get_current_user)):
-    result = svc.duplicate_portfolio(portfolio_id, body.name)
+    result = svc.duplicate_portfolio(portfolio_id, user_id, body.name)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result.model_dump()
@@ -86,7 +86,7 @@ def get_transactions(
     end: datetime | None = Query(default=None),
     user_id: int = Depends(get_current_user),
 ):
-    result = svc.get_transactions(portfolio_id, ticker=ticker, tx_type=type, start=start, end=end)
+    result = svc.get_transactions(portfolio_id, user_id, ticker=ticker, tx_type=type, start=start, end=end)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return [tx.model_dump() for tx in result]
@@ -94,28 +94,28 @@ def get_transactions(
 
 @router.post("/{portfolio_id}/transactions")
 def add_transaction(portfolio_id: str, body: AddTransactionBody, user_id: int = Depends(get_current_user)):
-    if not svc.add_transaction(portfolio_id, body.ticker, body.type, body.quantity):
+    if not svc.add_transaction(portfolio_id, user_id, body.ticker, body.type, body.quantity):
         raise HTTPException(status_code=400, detail="Transaction failed")
     return {"message": "Transaction added"}
 
 
 @router.put("/{portfolio_id}/transactions/{tx_id}")
 def update_transaction(portfolio_id: str, tx_id: str, body: UpdateTransactionBody, user_id: int = Depends(get_current_user)):
-    if not svc.update_transaction(portfolio_id, tx_id, price=body.price, quantity=body.quantity):
+    if not svc.update_transaction(portfolio_id, user_id, tx_id, price=body.price, quantity=body.quantity):
         raise HTTPException(status_code=404, detail="Transaction not found")
     return {"message": "Transaction updated"}
 
 
 @router.delete("/{portfolio_id}/transactions/undo")
 def undo_last_transaction(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    if not svc.undo_last_transaction(portfolio_id):
+    if not svc.undo_last_transaction(portfolio_id, user_id):
         raise HTTPException(status_code=400, detail="Nothing to undo")
     return {"message": "Last transaction undone"}
 
 
 @router.get("/{portfolio_id}/valuation")
 def portfolio_valuation(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.get_portfolio_valuation(portfolio_id)
+    result = svc.get_portfolio_valuation(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -123,7 +123,7 @@ def portfolio_valuation(portfolio_id: str, user_id: int = Depends(get_current_us
 
 @router.get("/{portfolio_id}/diversification")
 def portfolio_diversification(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.get_diversification(portfolio_id)
+    result = svc.get_diversification(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -131,7 +131,7 @@ def portfolio_diversification(portfolio_id: str, user_id: int = Depends(get_curr
 
 @router.get("/{portfolio_id}/performers")
 def portfolio_performers(portfolio_id: str, top_n: int = Query(default=5, ge=1, le=20), user_id: int = Depends(get_current_user)):
-    result = svc.get_best_worst_performers(portfolio_id, top_n=top_n)
+    result = svc.get_best_worst_performers(portfolio_id, user_id, top_n=top_n)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -139,7 +139,7 @@ def portfolio_performers(portfolio_id: str, top_n: int = Query(default=5, ge=1, 
 
 @router.get("/{portfolio_id}/history")
 def portfolio_history(portfolio_id: str, period: str = Query(default="1mo", pattern="^(1w|1mo|3mo|6mo|1y|max)$"), user_id: int = Depends(get_current_user)):
-    result = svc.get_portfolio_history(portfolio_id, period=period)
+    result = svc.get_portfolio_history(portfolio_id, user_id, period=period)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -147,7 +147,7 @@ def portfolio_history(portfolio_id: str, period: str = Query(default="1mo", patt
 
 @router.get("/{portfolio_id}/returns")
 def portfolio_returns(portfolio_id: str, period: str = Query(default="1mo", pattern="^(1w|1mo|3mo|6mo|1y|max)$"), user_id: int = Depends(get_current_user)):
-    result = svc.get_returns(portfolio_id, period=period)
+    result = svc.get_returns(portfolio_id, user_id, period=period)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -155,7 +155,7 @@ def portfolio_returns(portfolio_id: str, period: str = Query(default="1mo", patt
 
 @router.get("/{portfolio_id}/risk")
 def portfolio_risk(portfolio_id: str, period: str = Query(default="1y", pattern="^(1w|1mo|3mo|6mo|1y|max)$"), user_id: int = Depends(get_current_user)):
-    result = svc.get_risk_metrics(portfolio_id, period=period)
+    result = svc.get_risk_metrics(portfolio_id, user_id, period=period)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -163,7 +163,7 @@ def portfolio_risk(portfolio_id: str, period: str = Query(default="1y", pattern=
 
 @router.get("/{portfolio_id}/benchmark")
 def portfolio_benchmark(portfolio_id: str, ticker: str = Query(default="XU100"), user_id: int = Depends(get_current_user)):
-    result = svc.compare_with_benchmark(portfolio_id, benchmark_ticker=ticker)
+    result = svc.compare_with_benchmark(portfolio_id, user_id, benchmark_ticker=ticker)
     if result is None:
         return {}
     return result
@@ -171,7 +171,7 @@ def portfolio_benchmark(portfolio_id: str, ticker: str = Query(default="XU100"),
 
 @router.get("/{portfolio_id}/performance")
 def portfolio_performance(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.analyze_portfolio_performance(portfolio_id)
+    result = svc.analyze_portfolio_performance(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -179,7 +179,7 @@ def portfolio_performance(portfolio_id: str, user_id: int = Depends(get_current_
 
 @router.get("/{portfolio_id}/stats")
 def portfolio_stats(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.get_transaction_stats(portfolio_id)
+    result = svc.get_transaction_stats(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -187,7 +187,7 @@ def portfolio_stats(portfolio_id: str, user_id: int = Depends(get_current_user))
 
 @router.get("/{portfolio_id}/snapshot")
 def portfolio_snapshot(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.get_portfolio_snapshot(portfolio_id)
+    result = svc.get_portfolio_snapshot(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return result
@@ -195,7 +195,7 @@ def portfolio_snapshot(portfolio_id: str, user_id: int = Depends(get_current_use
 
 @router.get("/{portfolio_id}/export/csv", response_class=PlainTextResponse)
 def portfolio_export_csv(portfolio_id: str, user_id: int = Depends(get_current_user)):
-    result = svc.export_portfolio_csv(portfolio_id)
+    result = svc.export_portfolio_csv(portfolio_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Portfolio not found")
     return PlainTextResponse(result, media_type="text/csv")
