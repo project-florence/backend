@@ -286,10 +286,9 @@ def undo_last_transaction(portfolio_id: str, user_id: int) -> bool:
         return False
 
     last_tx = portfolio.transactions.pop()
-    if last_tx.type == "BUY":
-        portfolio.metadata.balance += last_tx.quantity * last_tx.price
-    elif last_tx.type == "SELL":
-        portfolio.metadata.balance -= last_tx.quantity * last_tx.price
+    if not _recalculate_portfolio(portfolio):
+        portfolio.transactions.append(last_tx)
+        return False
 
     return save_portfolio(portfolio)
 
@@ -310,15 +309,24 @@ def _extract_price(raw) -> float | None:
         return None
 
 
-def _recalculate_portfolio(portfolio: Portfolio) -> None:
+def _recalculate_portfolio(portfolio: Portfolio) -> bool:
     balance = portfolio.metadata.initial_balance
+    assets: dict[str, float] = {}
     for tx in portfolio.transactions:
-        cost = tx.quantity * tx.price
+        subtotal = tx.quantity * tx.price
+        commission = tx.commission
         if tx.type == "BUY":
-            balance -= cost
+            balance -= subtotal + commission
+            assets[tx.ticker] = assets.get(tx.ticker, 0.0) + tx.quantity
         elif tx.type == "SELL":
-            balance += cost
+            if assets.get(tx.ticker, 0.0) < tx.quantity:
+                return False
+            balance += subtotal - commission
+            assets[tx.ticker] = assets.get(tx.ticker, 0.0) - tx.quantity
+    if balance < 0:
+        return False
     portfolio.metadata.balance = balance
+    return True
 
 
 def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float | None = None, quantity: float | None = None) -> bool:
@@ -328,11 +336,27 @@ def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float
 
     for tx in portfolio.transactions:
         if tx.id == tx_id:
+            original_price = tx.price
+            original_quantity = tx.quantity
+            original_commission = tx.commission
+            original_total = tx.total
             if price is not None:
                 tx.price = price
             if quantity is not None:
                 tx.quantity = quantity
-            _recalculate_portfolio(portfolio)
+            tx.commission = round(tx.price * tx.quantity * _commission_rate(), 2)
+            subtotal = tx.price * tx.quantity
+            tx.total = round(
+                subtotal + tx.commission if tx.type == "BUY" else subtotal - tx.commission,
+                2,
+            )
+            if not _recalculate_portfolio(portfolio):
+                tx.price = original_price
+                tx.quantity = original_quantity
+                tx.commission = original_commission
+                tx.total = original_total
+                _recalculate_portfolio(portfolio)
+                return False
             return save_portfolio(portfolio)
 
     return False
