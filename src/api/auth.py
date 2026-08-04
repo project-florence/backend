@@ -7,6 +7,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 import jwt
 import json
+import os
 
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
@@ -96,12 +97,19 @@ def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=True,
+            secure=os.getenv("ENVIRONMENT", "development") == "production",
             samesite="strict",
             max_age=3600,
             path="/",
         )
         return response
+
+
+@router.post("/auth/logout")
+def auth_logout():
+    response = JSONResponse(content={"message": "Logged out"})
+    response.delete_cookie(key="access_token", path="/")
+    return response
 
 
 @router.delete("/auth/delete")
