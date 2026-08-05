@@ -109,8 +109,7 @@ def current_price(
     validate_ticker(ticker)
     if interval not in _VALID_INTERVALS:
         raise HTTPException(status_code=400, detail=f"Invalid interval. Must be one of: {', '.join(sorted(_VALID_INTERVALS))}")
-    profile = get_company_info(ticker.upper())
-    quote = get_quote(ticker.upper(), (profile.get("market", {}) if profile else {}))
+    quote = get_quote(ticker.upper())
     if quote["price"] is None:
         raise HTTPException(status_code=404, detail="Price not found")
     return {**quote, "interval": interval, "price": quote["price"]}

@@ -288,13 +288,7 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
         except Exception:
             cached_profiles[ticker] = {}
 
-    quotes = get_quotes(
-        ticker_list,
-        {
-            ticker: (cached_profiles.get(ticker, {}).get("market", {}) or {})
-            for ticker in ticker_list
-        },
-    )
+    quotes = get_quotes(ticker_list)
     results = []
     for ticker in ticker_list:
         cached = cached_profiles.get(ticker, {})
