@@ -2,9 +2,13 @@
 
 Her baslatmada cagrilir; `register_job` ON CONFLICT DO UPDATE ile DB'deki
 kaynak kodunu kod ile senkron tutar. Artik kodda olmayan isler temizlenir.
+
+Ilk kurulumda isler ayni anda (burst) calismasin diye her ise farkli bir
+ilk offset verilir; sonraki baslatmalarda DB'deki `last_run` korunur.
 """
 
 import logging
+from datetime import UTC, datetime, timedelta
 
 from src.clients.cron import cron_client
 
@@ -58,12 +62,41 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
     ]
 
 
+def _initial_last_run(name: str, interval_ms: int) -> datetime:
+    """Ilk kurulumda bir isin ilk ne zaman calisacagini belirler.
+
+    Kisa aralikli isler boot'tan kisa sure sonra baslar (fiyat akisi hemen
+    gelsin); agir gunluk isler birbirine denk gelmeyecek sekilde yayilir.
+    """
+    now = datetime.now(UTC)
+    interval_s = interval_ms / 1000.0
+
+    if interval_ms <= 10 * 60 * 1000:
+        return now - timedelta(seconds=interval_s - 60)
+    if interval_ms <= 60 * 60 * 1000:
+        return now - timedelta(seconds=interval_s - 15 * 60)
+    if interval_ms <= 12 * 60 * 60 * 1000:
+        return now - timedelta(seconds=interval_s - 60 * 60)
+
+    daily_offsets_hours = {
+        "credit_refill": 1,
+        "seed_vectors": 2,
+        "cleanup_old_data": 3,
+        "warm_price_cache": 6,
+    }
+    offset_hours = daily_offsets_hours.get(name, 2)
+    return now - timedelta(hours=24 - offset_hours)
+
+
 def register_cron_jobs() -> None:
     specs = _job_specs()
     desired = {name for name, *_ in specs}
 
+    existing_last_run = {job.name: job.last_run for job in cron_client.list_jobs()}
+
     for name, interval_ms, snippet, description in specs:
-        cron_client.register_job(name, interval_ms, snippet, description)
+        last_run = existing_last_run.get(name) or _initial_last_run(name, interval_ms)
+        cron_client.register_job(name, interval_ms, snippet, description, last_run=last_run)
 
     for existing in cron_client.list_jobs():
         if existing.name not in desired:

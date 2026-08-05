@@ -69,8 +69,7 @@ class CronClient:
                 ON CONFLICT (name) DO UPDATE SET
                     description = EXCLUDED.description,
                     source = EXCLUDED.source,
-                    interval_ms = EXCLUDED.interval_ms,
-                    last_run = EXCLUDED.last_run
+                    interval_ms = EXCLUDED.interval_ms
                 """,
                 (job.name, job.description, job.source, job.interval_ms, job.last_run),
             )
@@ -150,11 +149,16 @@ class CronClient:
         interval_ms: int,
         code: str | Path,
         description: str = "",
+        last_run: datetime | None = None,
     ) -> None:
-        """Bir isi kaydeder: veritabanina yazar ve yerel sozluge derlenmis kodunu ekler."""
+        """Bir isi kaydeder: veritabanina yazar ve yerel sozluge derlenmis kodunu ekler.
+
+        `last_run` verilirse ilk calismayi ertelemek icin kullanilir; mevcut
+        isin DB'deki `last_run` degeri kayit guncellenirken korunur.
+        """
         source = code.read_text() if isinstance(code, Path) else code
 
-        job = Job(name=name, description=description, source=source, interval_ms=interval_ms)
+        job = Job(name=name, description=description, source=source, interval_ms=interval_ms, last_run=last_run)
         with self._lock:
             self._jobs[name] = job
             self._code_dict[name] = self._compile(source, name)
