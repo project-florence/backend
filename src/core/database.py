@@ -351,4 +351,10 @@ def init_db():
     conn.close()
 
 
+# Fiyat mumlarina yazan cron thread'leri ve API istekleri arasindaki
+# eşzamanli INSERT deadlock'larini onlemek icin kullanilan surec ici yazma kilidi.
+# (Tek API worker calistigimiz icin surec ici kilit yeterli.)
+price_write_lock = threading.Lock()
+
+
 db = _DatabaseProxy()

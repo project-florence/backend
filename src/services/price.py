@@ -5,7 +5,7 @@ import psycopg2.extras
 from datetime import datetime, timedelta, timezone
 
 from src.clients.yfinance import fetch_price_history
-from src.core.database import db
+from src.core.database import db, price_write_lock
 from src.core.redis import r
 
 INTRADAY_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
@@ -103,15 +103,20 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
     if not values:
         return
 
-    with conn.cursor() as cur:
-        psycopg2.extras.execute_values(cur,
-            "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) VALUES %s "
-            "ON CONFLICT (ticker, interval, ts) DO UPDATE SET "
-            "open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, "
-            "close = EXCLUDED.close, volume = EXCLUDED.volume",
-            values,
-        )
-    conn.commit()
+    with price_write_lock:
+        try:
+            with conn.cursor() as cur:
+                psycopg2.extras.execute_values(cur,
+                    "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) VALUES %s "
+                    "ON CONFLICT (ticker, interval, ts) DO UPDATE SET "
+                    "open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, "
+                    "close = EXCLUDED.close, volume = EXCLUDED.volume",
+                    values,
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 _PERIOD_DAYS: dict[str, int] = {

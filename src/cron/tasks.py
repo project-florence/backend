@@ -15,7 +15,7 @@ import pandas as pd
 import yfinance as yf
 
 from src.analysis.stock_vector import company_vector, write_vectors_to_redis
-from src.core.database import db
+from src.core.database import db, price_write_lock
 from src.core.redis import r
 from src.services.bist import get_bist_companies_as_dict_from_redis
 from src.services.company import get_company_info
@@ -35,7 +35,7 @@ BIST30_TICKERS = [
 ]
 
 BATCH_DELAY = 10
-INFO_TICKER_DELAY = 5
+INFO_TICKER_DELAY = 2
 
 # Tier config: (name, cron_frequency, default_interval, batch_size)
 TIERS = {
@@ -124,38 +124,49 @@ def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_nam
         available = {batch_tickers[0]} if not df.empty else set()
 
     count = 0
-    with db.cursor() as cur:
-        for ticker in batch_tickers:
-            if ticker not in available:
-                continue
-            try:
-                tdf = df[ticker] if multi else df
-                tdf = tdf.dropna(how="all")
-                if tdf.empty:
-                    continue
+    updated_tickers = []
 
-                for ts, row in tdf.iterrows():
-                    ts_dt = ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else ts
-                    cur.execute(
-                        """INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                           ON CONFLICT (ticker, interval, ts)
-                           DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
-                                         low = EXCLUDED.low, close = EXCLUDED.close,
-                                         volume = EXCLUDED.volume""",
-                        (ticker, interval, ts_dt,
-                         float(row["Open"]) if pd.notna(row["Open"]) else None,
-                         float(row["High"]) if pd.notna(row["High"]) else None,
-                         float(row["Low"]) if pd.notna(row["Low"]) else None,
-                         float(row["Close"]) if pd.notna(row["Close"]) else None,
-                         int(row["Volume"]) if pd.notna(row["Volume"]) else 0),
-                    )
-                    count += 1
-            except Exception:
-                continue
-    db.commit()
+    with price_write_lock:
+        try:
+            with db.cursor() as cur:
+                for ticker in batch_tickers:
+                    if ticker not in available:
+                        continue
+                    try:
+                        tdf = df[ticker] if multi else df
+                        tdf = tdf.dropna(how="all")
+                        if tdf.empty:
+                            continue
 
-    updated_tickers = [t for t in batch_tickers if t in available]
+                        for ts, row in tdf.iterrows():
+                            ts_dt = ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else ts
+                            cur.execute(
+                                """INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume)
+                                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                   ON CONFLICT (ticker, interval, ts)
+                                   DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
+                                                 low = EXCLUDED.low, close = EXCLUDED.close,
+                                                 volume = EXCLUDED.volume""",
+                                (ticker, interval, ts_dt,
+                                 float(row["Open"]) if pd.notna(row["Open"]) else None,
+                                 float(row["High"]) if pd.notna(row["High"]) else None,
+                                 float(row["Low"]) if pd.notna(row["Low"]) else None,
+                                 float(row["Close"]) if pd.notna(row["Close"]) else None,
+                                 int(row["Volume"]) if pd.notna(row["Volume"]) else 0),
+                            )
+                            count += 1
+                        updated_tickers.append(ticker)
+                    except Exception:
+                        db.rollback()
+                        logger.warning("Batch '{}' icin yazma hatasi, kalan tickerlar atlaniyor".format(ticker))
+                        break
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.warning("Batch commit basarisiz, {} ticker yazilamadi".format(len(batch_tickers)))
+            count = 0
+            updated_tickers = []
+
     for ticker in updated_tickers:
         invalidate_price_cache(ticker, interval)
 
@@ -352,13 +363,13 @@ def run_warm_price_cache() -> None:
     from src.services.bist import get_bist_tickers_as_json_from_redis
 
     tickers = json.loads(get_bist_tickers_as_json_from_redis())
-    logger.info("Warming %s tickers with 10 parallel workers...", len(tickers))
+    logger.info("Warming %s tickers with 3 parallel workers...", len(tickers))
 
     start_time = time.time()
     done = 0
     errors = 0
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {}
         for raw in tickers:
             ticker = raw if raw.endswith(".IS") else f"{raw}.IS"
