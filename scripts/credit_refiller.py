@@ -1,24 +1,13 @@
 """Tüm kullanıcıların free credit'lerini günlük olarak yeniler (cap'li).
 
-Cron ile gece 00:00'da çalışacak şekilde tasarlanmıştır.
-Her kullanıcıya FREE_CREDIT_MAX üst sınırını geçmeyecek kadar free credit ekler.
+In-process cron (`src.cron.tasks`) isinin thin CLI wrapper'idir.
 
 Kullanım:
   python scripts/credit_refiller.py
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.services.credits import daily_refill
+from src.cron.tasks import run_credit_refill
 
 
 if __name__ == "__main__":
-    try:
-        count = daily_refill()
-        print(f"Free credits yenilendi. Etkilenen kullanıcı: {count}")
-    except Exception as e:
-        print(f"Hata: {e}")
-        sys.exit(1)
+    run_credit_refill()
