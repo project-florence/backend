@@ -74,19 +74,7 @@ services:
       - postgres
       - redis
     restart: unless-stopped
-  anubis:
-    image: ghcr.io/techarohq/anubis:latest
-    container_name: florence_anubis
-    environment:
-      - BIND=:8923
-      - TARGET=http://host.docker.internal:8080
-      - DIFFICULTY=4
-      - COOKIE_DOMAIN=florencex.com.tr
-    ports:
-      - "127.0.0.1:8923:8923"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
+    
 volumes:
   pgdata:
   redisdata:
