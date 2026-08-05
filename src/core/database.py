@@ -322,6 +322,16 @@ def init_db():
         """)
 
         cur.execute("""
+            CREATE TABLE IF NOT EXISTS cron_jobs (
+                name TEXT PRIMARY KEY,
+                description TEXT NOT NULL DEFAULT '',
+                source TEXT NOT NULL,
+                interval_ms BIGINT NOT NULL,
+                last_run TIMESTAMPTZ
+            );
+        """)
+
+        cur.execute("""
         CREATE OR REPLACE FUNCTION create_default_prefs()
         RETURNS TRIGGER AS $$
         BEGIN
