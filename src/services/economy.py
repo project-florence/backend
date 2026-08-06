@@ -2,7 +2,8 @@ import logging
 from src.core.config import get_config
 from src.core.redis import r
 from src.core.database import db
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 import psycopg2.extras
 from dotenv import load_dotenv
 import os
@@ -12,6 +13,8 @@ import requests
 logger = logging.getLogger(__name__)
 
 load_dotenv()
+
+MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
 
 # GenelPara list adlari
 _GENELPARA_DOVIZ = "doviz"
@@ -67,8 +70,50 @@ def _as_float(value) -> float | None:
         return None
 
 
-def _map_entry(item, type_label: str) -> dict | None:
-    """GenelPara item'ini truncgil-stili {Buying, Selling, Change, Type} yapar."""
+def _parse_number(value) -> float | None:
+    """Virgul/nokta ondalikli sayi metnini float'a cevirir."""
+    if value is None:
+        return None
+    try:
+        return float(str(value).replace(",", ".").strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _previous_close(ticker: str) -> float | None:
+    """Ticker'in bugun baslamadan onceki son kayitli fiyatini dondurur.
+
+    Degisim yuzdesini saglayicinin (genelpara) hatali degisim alanlarina
+    guvenmeden kendi ekonomik gecmisimizden hesaplariz.
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        today_local = now.astimezone(MARKET_TIMEZONE).date()
+        today_start_utc = datetime.combine(today_local, time.min, tzinfo=MARKET_TIMEZONE).astimezone(timezone.utc)
+        # Yalnizca yaklasik 3 gun icindeki "onceki kapanis"i referans al; eski
+        # (orn. truncgil donemi) veri gecis artefaktiyla buyuk degisim gostermesin.
+        min_ts = today_start_utc - timedelta(days=3)
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT price FROM economy_rates WHERE ticker = %s AND ts >= %s AND ts < %s ORDER BY ts DESC LIMIT 1",
+                (ticker, min_ts, today_start_utc),
+            )
+            row = cur.fetchone()
+        if row and row[0]:
+            price = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            if isinstance(price, dict):
+                return _parse_number(price.get("Buying"))
+    except Exception:
+        pass
+    return None
+
+
+def _map_entry(item, type_label: str, prev_close: float | None = None) -> dict | None:
+    """GenelPara item'ini truncgil-stili {Buying, Selling, Change, Type} yapar.
+
+    Change, kendi gecmisimizdeki onceki kapanisa gore hesaplanir; genelparanin
+    hatali `degisim`/`oran` alanlari kullanilmaz.
+    """
     if not isinstance(item, dict):
         return None
     alis = _as_float(item.get("alis"))
@@ -76,13 +121,14 @@ def _map_entry(item, type_label: str) -> dict | None:
         return None
 
     satis = _as_float(item.get("satis"))
-    degisim = _as_float(item.get("degisim"))
-    change_pct = (degisim / alis) * 100 if (degisim is not None and alis > 0) else None
+    change_pct = None
+    if prev_close is not None and prev_close > 0:
+        change_pct = (alis - prev_close) / prev_close * 100
 
     return {
         "Buying": _to_tr_string(item.get("alis")),
         "Selling": _to_tr_string(item.get("satis")),
-        "Change": f"%{change_pct:.2f}" if change_pct is not None else "0",
+        "Change": f"%{change_pct:.2f}" if change_pct is not None else None,
         "Type": type_label,
     }
 
@@ -186,7 +232,7 @@ def get_gold_prices():
     raw = _fetch_genelpara(_GENELPARA_ALTIN)
     gold_prices = {}
     for gp_symbol, key in GENELPARA_GOLD_MAP.items():
-        entry = _map_entry(raw.get(gp_symbol), "Gold")
+        entry = _map_entry(raw.get(gp_symbol), "Gold", _previous_close(key))
         if entry:
             gold_prices[key] = entry
 
@@ -205,7 +251,7 @@ def get_silver_price():
         return json.loads(cached)
 
     raw = _fetch_genelpara(_GENELPARA_ALTIN)
-    entry = _map_entry(raw.get("GAG"), "Gold")
+    entry = _map_entry(raw.get("GAG"), "Gold", _previous_close("gumus"))
     silver_price = {"gumus": entry} if entry else {}
 
     if not silver_price:
@@ -223,7 +269,7 @@ def get_gram_platinum_price():
         return json.loads(cached)
 
     raw = _fetch_genelpara(_GENELPARA_EMTIA, "XPTUSD")
-    entry = _map_entry(raw.get("XPTUSD"), "Commodity")
+    entry = _map_entry(raw.get("XPTUSD"), "Commodity", _previous_close("gram-platin"))
     gram_platinum_price = {"gram-platin": entry} if entry else {}
 
     if not gram_platinum_price:
@@ -241,7 +287,7 @@ def get_gram_palladium_price():
         return json.loads(cached)
 
     raw = _fetch_genelpara(_GENELPARA_EMTIA, "XPDUSD")
-    entry = _map_entry(raw.get("XPDUSD"), "Commodity")
+    entry = _map_entry(raw.get("XPDUSD"), "Commodity", _previous_close("gram-paladyum"))
     gram_palladium_price = {"gram-paladyum": entry} if entry else {}
 
     if not gram_palladium_price:
@@ -263,7 +309,7 @@ def get_currency():
     for code, item in raw.items():
         if code in _CURRENCY_EXCLUDED:
             continue
-        entry = _map_entry(item, "Currency")
+        entry = _map_entry(item, "Currency", _previous_close(code))
         if entry:
             currency[code] = entry
 
