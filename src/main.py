@@ -82,6 +82,12 @@ async def auth_and_tracking_middleware(request: Request, call_next):
     }
 
     path = request.url.path
+
+    # CORS preflight (OPTIONS) istekleri auth gerektirmez; aksi halde masaustu
+    # istemcisinin Authorization header'li istekleri preflight'ta 401 alip engellenir.
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     is_public = any(path == p or path.startswith(p + "/") for p in PUBLIC_PATHS if p.startswith("/api/"))
 
     if path.startswith("/api/") and not is_public:
