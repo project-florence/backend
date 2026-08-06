@@ -33,4 +33,4 @@ Bu depo, Florence'ın API sunucusunu içerir. Web arayüzü için [project-flore
 
 ## Lisans
 
-Apache License 2.0
+AGPL-3.0

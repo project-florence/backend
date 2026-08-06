@@ -33,4 +33,4 @@ Turkish version: [Türkçe](../README.md)
 
 ## License
 
-Apache License 2.0
+AGPL-3.0
