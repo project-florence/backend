@@ -12,10 +12,45 @@ import os
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
 from src.services.credits import get_total as get_credits
+from src.services.refresh_token import (
+    create_refresh_token,
+    hash_token,
+    rotate_token,
+    revoke_all_user_tokens,
+    revoke_token,
+    refresh_token_ttl_days,
+)
 from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
 
 ph = PasswordHasher()
 router = APIRouter()
+
+
+def _set_auth_cookies(response, access_token: str, refresh_token: str):
+    secure = os.getenv("ENVIRONMENT", "development") == "production"
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=secure,
+        samesite="strict",
+        max_age=3600,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=secure,
+        samesite="strict",
+        max_age=refresh_token_ttl_days() * 24 * 3600,
+        path="/api/v1/auth",
+    )
+
+
+def _delete_auth_cookies(response):
+    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="refresh_token", path="/api/v1/auth")
 
 
 class UserRegister(BaseModel):
@@ -37,6 +72,10 @@ class UpdateEmail(BaseModel):
 class UpdateUsername(BaseModel):
     new_username: str
     current_password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str | None = None
 
 
 def create_jwt_token(user_id: int):
@@ -75,7 +114,7 @@ def auth_register(request: Request, user: UserRegister):
 
 
 @router.post("/auth/login")
-def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
+def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     rate_limiter.check(f"login:{form_data.username}", max_requests=5, window_seconds=60)
 
     with db.cursor() as cur:
@@ -92,23 +131,43 @@ def auth_login(form_data: OAuth2PasswordRequestForm = Depends()):
             raise HTTPException(status_code=400, detail="Incorrect username or password")
 
         access_token = create_jwt_token(user_id)
-        response = JSONResponse(content={"access_token": access_token, "token_type": "bearer"})
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=os.getenv("ENVIRONMENT", "development") == "production",
-            samesite="strict",
-            max_age=3600,
-            path="/",
-        )
+        refresh_token = create_refresh_token(user_id, device=request.client.host if request.client else None)
+        response = JSONResponse(content={
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        })
+        _set_auth_cookies(response, access_token, refresh_token)
         return response
 
 
+@router.post("/auth/refresh")
+def auth_refresh(request: Request, payload: RefreshRequest):
+    token = payload.refresh_token or request.cookies.get("refresh_token")
+    rate_limiter.check(f"refresh:{hash_token(token) if token else 'none'}", max_requests=5, window_seconds=60)
+
+    result = rotate_token(token)
+    if result is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    new_refresh_token, user_id = result
+    access_token = create_jwt_token(user_id)
+    response = JSONResponse(content={
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer",
+    })
+    _set_auth_cookies(response, access_token, new_refresh_token)
+    return response
+
+
 @router.post("/auth/logout")
-def auth_logout():
+def auth_logout(request: Request, payload: RefreshRequest):
+    token = payload.refresh_token or request.cookies.get("refresh_token")
+    if token:
+        revoke_token(token)
     response = JSONResponse(content={"message": "Logged out"})
-    response.delete_cookie(key="access_token", path="/")
+    _delete_auth_cookies(response)
     return response
 
 
@@ -148,6 +207,8 @@ def change_password(payload: ChangePassword, current_user_id: int = Depends(get_
             db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
+        revoke_all_user_tokens(current_user_id)
+
     return {"message": "Password changed successfully"}
 
 
@@ -175,6 +236,8 @@ def change_email(payload: UpdateEmail, current_user_id: int = Depends(get_curren
             db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
+        revoke_all_user_tokens(current_user_id)
+
     return {"message": "Email changed successfully", "new_email": payload.new_email}
 
 
@@ -201,6 +264,8 @@ def change_username(payload: UpdateUsername, current_user_id: int = Depends(get_
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
+
+        revoke_all_user_tokens(current_user_id)
 
     return {"message": "Username changed successfully", "new_username": payload.new_username}
 
