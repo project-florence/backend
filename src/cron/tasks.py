@@ -253,6 +253,28 @@ def run_update_rest() -> None:
     update_tier("rest")
 
 
+def run_update_daily_closes() -> None:
+    """Tum hisselerin gunluk (1d) kapanis mumlarini tazeler.
+
+    Piyasa kapanisindan sonra (~18:35 TRT) calisir; boylece bist30/popular
+    hisselerin de gunluk kapanislari final degerine ulasir (bist30=5m ve
+    popular=30m kademeleri 1d mum yazmadigi icin bu is gerekli).
+    """
+    companies = get_bist_companies_as_dict_from_redis()
+    all_tickers = sorted({c["ticker"] for c in companies})
+    total = len(all_tickers)
+    logger.info("Gunluk kapanis mumlari guncelleniyor: %s ticker", total)
+
+    for i in range(0, total, 50):
+        batch = [f"{t}.IS" for t in all_tickers[i:i + 50]]
+        _update_batch(batch, "1d", "5d", "DAILY-CLOSE", i, total)
+        if i + 50 < total:
+            logger.info("  %ss bekleniyor...", BATCH_DELAY)
+            time.sleep(BATCH_DELAY)
+
+    logger.info("Gunluk kapanis guncellemesi tamamlandi.")
+
+
 # ----------------------------------------------------------------------
 # Kredi dolumu
 # ----------------------------------------------------------------------

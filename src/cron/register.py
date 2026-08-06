@@ -9,10 +9,15 @@ ilk offset verilir; sonraki baslatmalarda DB'deki `last_run` korunur.
 
 import logging
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from src.clients.cron import cron_client
 
 logger = logging.getLogger(__name__)
+
+MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
+DAILY_CLOSE_HOUR = 18
+DAILY_CLOSE_MINUTE = 35
 
 
 def _job_specs() -> list[tuple[str, int, str, str]]:
@@ -59,6 +64,12 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
             "from src.cron.tasks import run_warm_price_cache\nrun_warm_price_cache()",
             "Redis fiyat cache on-isitma",
         ),
+        (
+            "daily_close",
+            24 * 60 * 60 * 1000,
+            "from src.cron.tasks import run_update_daily_closes\nrun_update_daily_closes()",
+            "Gunluk kapanis mumlari (18:35 TRT)",
+        ),
     ]
 
 
@@ -70,6 +81,13 @@ def _initial_last_run(name: str, interval_ms: int) -> datetime:
     """
     now = datetime.now(UTC)
     interval_s = interval_ms / 1000.0
+
+    if name == "daily_close":
+        local = now.astimezone(MARKET_TIMEZONE)
+        target = local.replace(hour=DAILY_CLOSE_HOUR, minute=DAILY_CLOSE_MINUTE, second=0, microsecond=0)
+        if local >= target:
+            target = target + timedelta(days=1)
+        return (target - timedelta(hours=24)).astimezone(UTC)
 
     if interval_ms <= 10 * 60 * 1000:
         return now - timedelta(seconds=interval_s - 60)
