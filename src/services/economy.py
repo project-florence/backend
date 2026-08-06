@@ -1,3 +1,4 @@
+import logging
 from src.core.config import get_config
 from src.core.redis import r
 from src.core.database import db
@@ -7,6 +8,8 @@ from dotenv import load_dotenv
 import os
 import json
 import requests
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -43,28 +46,36 @@ def _send_request(url: str):
 def _persist_market_data(data_type: str, data: dict) -> None:
     if not data or "error" in data:
         return
-    with db.cursor() as cur:
-        cur.execute(
-            "INSERT INTO market_rates (data_type, data) VALUES (%s, %s)",
-            (data_type, json.dumps(data, ensure_ascii=False))
-        )
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                "INSERT INTO market_rates (data_type, data) VALUES (%s, %s)",
+                (data_type, json.dumps(data, ensure_ascii=False))
+            )
         db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("market_rates persist basarisiz: %s", data_type, exc_info=True)
 
 
 def _persist_economy_rates(data: dict) -> None:
     if not data or "error" in data:
         return
-    with db.cursor() as cur:
-        args = []
-        for ticker, price in data.items():
-            if isinstance(price, dict):
-                price = json.dumps(price, ensure_ascii=False)
-            args.append((ticker, price))
-        cur.executemany(
-            "INSERT INTO economy_rates (ticker, ts, price) VALUES (%s, NOW(), %s) ON CONFLICT DO NOTHING",
-            args,
-        )
+    try:
+        with db.cursor() as cur:
+            args = []
+            for ticker, price in data.items():
+                if isinstance(price, dict):
+                    price = json.dumps(price, ensure_ascii=False)
+                args.append((ticker, price))
+            cur.executemany(
+                "INSERT INTO economy_rates (ticker, ts, price) VALUES (%s, NOW(), %s) ON CONFLICT DO NOTHING",
+                args,
+            )
         db.commit()
+    except Exception:
+        db.rollback()
+        logger.warning("economy_rates persist basarisiz: %s", list(data)[:3], exc_info=True)
 
 
 def get_gold_prices():

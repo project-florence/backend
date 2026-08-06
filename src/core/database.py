@@ -310,6 +310,18 @@ def init_db():
             );
         """)
 
+        # Self-heal: eski ortamlar economy_rates.price'i DOUBLE PRECISION olarak
+        # yaratmis olabilir (migration 002). Kod JSONB bekliyor; gerekirse cevir.
+        cur.execute(
+            "SELECT data_type FROM information_schema.columns "
+            "WHERE table_name = 'economy_rates' AND column_name = 'price'"
+        )
+        economy_price_row = cur.fetchone()
+        if economy_price_row and economy_price_row[0] != "jsonb":
+            cur.execute(
+                "ALTER TABLE economy_rates ALTER COLUMN price TYPE JSONB USING to_jsonb(price::text)"
+            )
+
         cur.execute("""
             CREATE TABLE IF NOT EXISTS announcements (
                 id SERIAL PRIMARY KEY,
