@@ -51,8 +51,8 @@ cache_ttl_intraday = 30
 stale_ttl = 30
 
 [economy]
-api_url = "https://finans.truncgil.com/v3/today.json"
-cache_ttl = 600
+api_url = "https://api.genelpara.com/json/"
+cache_ttl = 1200
 
 [halkarz]
 base_url = "https://halkarz.com"

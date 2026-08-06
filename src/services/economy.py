@@ -13,34 +13,134 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-EXCLUDED_FIELDS = ["Update_Date", "ons", "gram-altin", "gram-has-altin", "ceyrek-altin",
-                   "yarim-altin", "tam-altin", "cumhuriyet-altini",
-                   "ata-altin", "14-ayar-altin", "18-ayar-altin",
-                   "ikibucuk-altin", "altin", "gremse-altin", "22-ayar-bilezik", "besli-altin",
-                   "resat-altin", "hamit-altin", "gumus", "gram-platin",
-                   "gram-paladyum"]
+# GenelPara list adlari
+_GENELPARA_DOVIZ = "doviz"
+_GENELPARA_ALTIN = "altin"
+_GENELPARA_EMTIA = "emtia"
 
-def _get_specific_fields(data, fields):
-    if not isinstance(data, dict):
-        return {}
+# GenelPara sembolu -> truncgil-stili anahtar.
+# API cevap sozlesmesi (anahtarlar) korunur; portfoy metal pozisyonlari bozulmaz.
+GENELPARA_GOLD_MAP = {
+    "GA": "gram-altin",
+    "C": "ceyrek-altin",
+    "XAUUSD": "ons",
+    "XHGLD": "gram-has-altin",
+    "Y": "yarim-altin",
+    "T": "tam-altin",
+    "CMR": "cumhuriyet-altini",
+    "ATA": "ata-altin",
+    "14": "14-ayar-altin",
+    "18": "18-ayar-altin",
+    "22": "22-ayar-bilezik",
+    "IKB": "ikibucuk-altin",
+    "BSL": "besli-altin",
+    "GR": "gremse-altin",
+    "RA": "resat-altin",
+    "HA": "hamit-altin",
+}
 
-    return {field: data[field] for field in fields if field in data}
+# Doviz listesinden cikarilacaklar (TRY baz kur; kart olarak gosterilmek istenmez)
+_CURRENCY_EXCLUDED = {"TRY"}
 
 
-def _get_all_except(data, excluded_fields):
-    if not isinstance(data, dict):
-        return {}
+def _genelpara_url(list_name: str, symbols: str | None = None) -> str:
+    base = get_config()["economy"]["api_url"].rstrip("/")
+    url = f"{base}?list={list_name}"
+    if symbols:
+        url += f"&sembol={symbols}"
+    return url
 
-    return {field: data[field] for field in data if field not in excluded_fields}
+
+def _to_tr_string(value: str | None) -> str | None:
+    """GenelPara nokta ondaligini virgul ondaliga cevirir (frontend beklentisi)."""
+    if value is None:
+        return None
+    return str(value).replace(".", ",")
 
 
-def _send_request(url: str):
+def _as_float(value) -> float | None:
+    if value is None:
+        return None
     try:
-        response = requests.get(url, timeout=5)
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _map_entry(item, type_label: str) -> dict | None:
+    """GenelPara item'ini truncgil-stili {Buying, Selling, Change, Type} yapar."""
+    if not isinstance(item, dict):
+        return None
+    alis = _as_float(item.get("alis"))
+    if alis is None:
+        return None
+
+    satis = _as_float(item.get("satis"))
+    degisim = _as_float(item.get("degisim"))
+    change_pct = (degisim / alis) * 100 if (degisim is not None and alis > 0) else None
+
+    return {
+        "Buying": _to_tr_string(item.get("alis")),
+        "Selling": _to_tr_string(item.get("satis")),
+        "Change": f"%{change_pct:.2f}" if change_pct is not None else "0",
+        "Type": type_label,
+    }
+
+
+def _fetch_genelpara(list_name: str, symbols: str | None = None) -> dict:
+    """GenelPara listesini getirir; Redis cache'li.
+
+    Basarisiz/veri yoksa {} doner (cagiran DB fallback'ine duser).
+    """
+    cache_key = f"genelpara:{list_name}" + (f":{symbols}" if symbols else "")
+    cached = r.get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+
+    try:
+        response = requests.get(
+            _genelpara_url(list_name, symbols),
+            timeout=10,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
         response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        return {"error": str(e)}
+        payload = response.json()
+    except (requests.exceptions.RequestException, ValueError) as exc:
+        logger.warning("GenelPara %s istegi basarisiz: %s", list_name, exc)
+        return {}
+
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(data, dict):
+        return {}
+
+    r.set(cache_key, json.dumps(data, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
+    return data
+
+
+def _latest_market_rates(data_type: str) -> dict:
+    """market_rates tablosundaki en son kayitli (saglikli) veriyi dondurur."""
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT data FROM market_rates WHERE data_type = %s ORDER BY id DESC LIMIT 1",
+                (data_type,),
+            )
+            row = cur.fetchone()
+        if row and row[0]:
+            parsed = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+            return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        pass
+    return {}
+
+
+def _cache_result(key: str, data: dict) -> None:
+    """Sonucu cache'ler. Bos/hata durumunda kisa TTL kullanir (saglayiciyi domme)."""
+    ttl = get_config()["economy"]["cache_ttl"] if data and "error" not in data else 60
+    r.set(key, json.dumps(data or {}, ensure_ascii=False), ex=ttl)
 
 
 def _persist_market_data(data_type: str, data: dict) -> None:
@@ -83,14 +183,17 @@ def get_gold_prices():
     if cached:
         return json.loads(cached)
 
-    j = _send_request((get_config()["economy"]["api_url"]))
-    gold_prices = _get_specific_fields(j, ["ons", "gram-altin", "gram-has-altin",
-                                           "ceyrek-altin", "yarim-altin", "tam-altin",
-                                           "cumhuriyet-altini", "ata-altin", "14-ayar-altin",
-                                           "18-ayar-altin", "ikibucuk-altin", "altin", "22-ayar-bilezik", "besli-altin",
-                                           "gremse-altin", "resat-altin", "hamit-altin"])
+    raw = _fetch_genelpara(_GENELPARA_ALTIN)
+    gold_prices = {}
+    for gp_symbol, key in GENELPARA_GOLD_MAP.items():
+        entry = _map_entry(raw.get(gp_symbol), "Gold")
+        if entry:
+            gold_prices[key] = entry
 
-    r.set("gold_prices", json.dumps(gold_prices, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
+    if not gold_prices:
+        gold_prices = _latest_market_rates("gold")
+
+    _cache_result("gold_prices", gold_prices)
     _persist_market_data("gold", gold_prices)
     _persist_economy_rates(gold_prices)
     return gold_prices
@@ -101,36 +204,50 @@ def get_silver_price():
     if cached:
         return json.loads(cached)
 
-    j = _send_request((get_config()["economy"]["api_url"]))
-    silver_price = _get_specific_fields(j, ["gumus"])
+    raw = _fetch_genelpara(_GENELPARA_ALTIN)
+    entry = _map_entry(raw.get("GAG"), "Gold")
+    silver_price = {"gumus": entry} if entry else {}
 
-    r.set("silver_price", json.dumps(silver_price, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
+    if not silver_price:
+        silver_price = _latest_market_rates("silver")
+
+    _cache_result("silver_price", silver_price)
     _persist_market_data("silver", silver_price)
     _persist_economy_rates(silver_price)
     return silver_price
+
 
 def get_gram_platinum_price():
     cached = r.get("gram_platinum_price")
     if cached:
         return json.loads(cached)
 
-    j = _send_request((get_config()["economy"]["api_url"]))
-    gram_platinum_price = _get_specific_fields(j, ["gram-platin"])
+    raw = _fetch_genelpara(_GENELPARA_EMTIA, "XPTUSD")
+    entry = _map_entry(raw.get("XPTUSD"), "Commodity")
+    gram_platinum_price = {"gram-platin": entry} if entry else {}
 
-    r.set("gram_platinum_price", json.dumps(gram_platinum_price, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
+    if not gram_platinum_price:
+        gram_platinum_price = _latest_market_rates("platinum")
+
+    _cache_result("gram_platinum_price", gram_platinum_price)
     _persist_market_data("platinum", gram_platinum_price)
     _persist_economy_rates(gram_platinum_price)
     return gram_platinum_price
+
 
 def get_gram_palladium_price():
     cached = r.get("gram_palladium_price")
     if cached:
         return json.loads(cached)
 
-    j = _send_request((get_config()["economy"]["api_url"]))
-    gram_palladium_price = _get_specific_fields(j, ["gram-paladyum"])
+    raw = _fetch_genelpara(_GENELPARA_EMTIA, "XPDUSD")
+    entry = _map_entry(raw.get("XPDUSD"), "Commodity")
+    gram_palladium_price = {"gram-paladyum": entry} if entry else {}
 
-    r.set("gram_palladium_price", json.dumps(gram_palladium_price, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
+    if not gram_palladium_price:
+        gram_palladium_price = _latest_market_rates("palladium")
+
+    _cache_result("gram_palladium_price", gram_palladium_price)
     _persist_market_data("palladium", gram_palladium_price)
     _persist_economy_rates(gram_palladium_price)
     return gram_palladium_price
@@ -141,11 +258,19 @@ def get_currency():
     if cached:
         return json.loads(cached)
 
-    j = _send_request(get_config()["economy"]["api_url"])
-    currency = _get_all_except(j, EXCLUDED_FIELDS)
+    raw = _fetch_genelpara(_GENELPARA_DOVIZ)
+    currency = {}
+    for code, item in raw.items():
+        if code in _CURRENCY_EXCLUDED:
+            continue
+        entry = _map_entry(item, "Currency")
+        if entry:
+            currency[code] = entry
 
-    r.set("currency", json.dumps(currency, ensure_ascii=False),
-          ex=get_config()["economy"]["cache_ttl"])
+    if not currency:
+        currency = _latest_market_rates("currency")
+
+    _cache_result("currency", currency)
     _persist_market_data("currency", currency)
     _persist_economy_rates(currency)
     return currency
