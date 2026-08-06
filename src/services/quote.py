@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, time, timezone
+from datetime import date, datetime, time, timezone
 from zoneinfo import ZoneInfo
 
 from src.core.database import db
@@ -27,18 +27,16 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
-def _session_start_utc(now: datetime | None = None) -> datetime:
-    """Bugunku BIST seansinin baslangicini (10:00 TRT) UTC olarak dondurur."""
-    current = (now or datetime.now(timezone.utc)).astimezone(MARKET_TIMEZONE)
-    session_start_local = datetime.combine(current.date(), MARKET_OPEN, tzinfo=MARKET_TIMEZONE)
-    return session_start_local.astimezone(timezone.utc)
+def _session_date(ts: datetime) -> date:
+    """Yfinance mum zaman damgasini BIST seans tarihine cevirir (TRT)."""
+    return ts.astimezone(MARKET_TIMEZONE).date()
 
 
 def _read_cached_profile(ticker: str) -> dict:
     """Profil verisini Redis'ten okur. Okunamazsa bos dict doner.
 
     Summary ve price/current her ikisi de bu fonksiyonu kullanir; boylece
-    iki endpoint ayni `previousClose` degerini gorur ve tutarsizlik olusmaz.
+    iki endpoint ayni veriyi gorur ve tutarsizlik olusmaz.
     """
     key = f"{ticker.upper().removesuffix('.IS')}.IS"
     try:
@@ -50,6 +48,27 @@ def _read_cached_profile(ticker: str) -> dict:
     return {}
 
 
+def _completed_daily(daily: list[dict], today: date, status: str) -> list[dict]:
+    """TAMAMLANMIS seanslarin gunluk mumlari (tarihe gore artan).
+
+    Ayni seans gunune denk gelen birden fazla mum varsa en yenisi alinir.
+    - Piyasa acikken bugunku seans dahil edilmez.
+    - Piyasa kapaliyken (kapanis sonrasi / pre-market / hafta sonu) bugunku
+      seans varsa dahil edilir; boylece kapanis sonrasi bugunun degisimi,
+      pre-market'te ise son tamamlanan gunun degisimi gosterilir.
+    """
+    by_date: dict[date, dict] = {}
+    for row in daily:  # ts DESC gelir
+        d = _session_date(row["ts"])
+        by_date.setdefault(d, row)
+
+    result = []
+    for d in sorted(by_date):
+        if d < today or (d == today and status == "closed"):
+            result.append(by_date[d])
+    return result
+
+
 def _build_quote(ticker: str, rows: list[dict]) -> dict:
     by_interval: dict[str, list[dict]] = {}
     for row in rows:
@@ -58,50 +77,50 @@ def _build_quote(ticker: str, rows: list[dict]) -> dict:
     daily = by_interval.get("1d", [])
     intraday = next((by_interval.get(interval, []) for interval in INTRADAY_INTERVALS if by_interval.get(interval)), [])
     status = get_market_status()
-    session_start = _session_start_utc()
+    now_utc = datetime.now(timezone.utc)
+    today = now_utc.astimezone(MARKET_TIMEZONE).date()
 
-    if status == "open" and intraday:
-        current_row = intraday[0]
-    else:
-        current_row = daily[0] if daily else (intraday[0] if intraday else None)
-
-    # Son TAMAMLANMIS seansin günlük mumu. Bugunku (henuz kapanmamis)
-    # mum asla referans olarak kullanilmaz.
-    completed_daily = [row for row in daily if row["ts"] < session_start]
-    previous_row = completed_daily[0] if completed_daily else (daily[1] if len(daily) > 1 else None)
+    completed = _completed_daily(daily, today, status)
+    last_session = completed[-1] if completed else None
+    prev_session = completed[-2] if len(completed) >= 2 else None
 
     profile = _read_cached_profile(ticker)
     market = profile.get("market", {}) or {}
 
-    price = _as_float(current_row["close"]) if current_row else _as_float(market.get("currentPrice"))
+    have_live = status == "open" and bool(intraday)
 
-    # previous_close birincil kaynak: profil (yFinance previousClose).
-    # Bos ise son tamamlanmis seansin mum kapanisi kullanilir.
-    previous_close = _as_float(market.get("previousClose"))
-    previous_close_ts: datetime | None = None
-    if previous_close is None and previous_row is not None:
-        previous_close = _as_float(previous_row["close"])
-        previous_close_ts = previous_row["ts"]
-    elif previous_close is not None and market.get("regularMarketTime"):
-        previous_close_ts = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
+    if have_live:
+        price = _as_float(intraday[0]["close"])
+        previous_close = _as_float(last_session["close"]) if last_session else None
+        as_of = intraday[0]["ts"]
+        previous_close_ts = last_session["ts"] if last_session else None
+    else:
+        price = _as_float(last_session["close"]) if last_session else None
+        previous_close = _as_float(prev_session["close"]) if prev_session else None
+        as_of = last_session["ts"] if last_session else None
+        previous_close_ts = prev_session["ts"] if prev_session else None
 
-    if status == "open":
-        try:
-            cached_live_price = r.get(f"latest_price:{ticker.upper().removesuffix('.IS')}.IS:5m")
-            if cached_live_price is not None:
-                price = float(cached_live_price)
-        except (TypeError, ValueError):
-            pass
-
-    as_of = current_row["ts"] if current_row else None
+    # Mum verisi eksikse profil fallback'i
+    if price is None:
+        price = _as_float(market.get("currentPrice"))
+    if previous_close is None:
+        previous_close = _as_float(market.get("previousClose"))
     if as_of is None and market.get("regularMarketTime"):
         as_of = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
+    if previous_close_ts is None and market.get("regularMarketTime"):
+        previous_close_ts = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
 
     change = price - previous_close if price is not None and previous_close is not None else None
-    change_pct = change / previous_close * 100 if change is not None and previous_close else None
+    # Acik piyasada canli intraday veri yoksa yaniltici 0.00 gostermeyelim;
+    # pre-market/kapanis sonrasinda son tamamlanan seansin degisimi gosterilir.
+    if status == "open" and not intraday:
+        change_pct = None
+    else:
+        change_pct = change / previous_close * 100 if change is not None and previous_close else None
+
     stale = False
     if as_of is not None:
-        age_seconds = (datetime.now(timezone.utc) - as_of).total_seconds()
+        age_seconds = (now_utc - as_of).total_seconds()
         stale = age_seconds > (20 * 60 if status == "open" else 3 * 86400)
 
     return {
@@ -114,7 +133,7 @@ def _build_quote(ticker: str, rows: list[dict]) -> dict:
         "previous_close_as_of": _iso(previous_close_ts),
         "market_status": status,
         "is_stale": stale,
-        "change_window": "previous_session_close",
+        "change_window": "last_session_change" if status == "closed" else "previous_session_close",
     }
 
 
