@@ -40,9 +40,15 @@ app = FastAPI(docs_url="/docs" if docs_enabled else None,
               openapi_url="/openapi.json" if docs_enabled else None,
               lifespan=lifespan)
 
+DESKTOP_ORIGINS = [
+    "tauri://localhost",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[] if is_production() else ["*"],
+    allow_origins=DESKTOP_ORIGINS if is_production() else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
