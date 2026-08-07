@@ -1,21 +1,29 @@
+import asyncio
+import logging
 import os
 import time
-import logging
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from src.core.logging import init_logging
-from src.core.config import init_config, is_production
-from src.core.database import init_db
-from src.clients.llm import init_client as init_llm_client
-from src.clients.embedding import init_client as init_embedding_client
-from src.clients.cron import cron_client
-from src.cron.register import register_cron_jobs
-from src.services.bist import cache_tickers_and_companies
-from src.api.router import router
+
 from src.api.deps import SECRET_KEY, get_current_user_optional
-from src.services.analytics import track_event
+from src.api.router import router
+from src.clients.cron import cron_client
+from src.clients.embedding import init_client as init_embedding_client
+from src.clients.http import close_client
+from src.clients.llm import init_client as init_llm_client
+from src.core.config import init_config, is_production
+from src.core.database import db, init_db
+from src.core.logging import init_logging
+from src.cron.register import register_cron_jobs
+from src.services.analytics import fire_and_forget
+from src.services.bist import cache_tickers_and_companies
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +35,20 @@ if not SECRET_KEY:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    cron_client.init()
-    register_cron_jobs()
-    cron_client.start()
+    # Startuplar: config, DB, external client'lar ve ticker cache'i.
+    init_config()
+    await init_db()
+    init_llm_client()
+    init_embedding_client()
+    await cache_tickers_and_companies()
+
+    await cron_client.init()
+    await register_cron_jobs()
+    await cron_client.start()
     yield
-    cron_client.stop()
+    await cron_client.stop()
+    await db.release_current()
+    await close_client()
 
 
 docs_enabled = not is_production()
@@ -53,12 +70,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-init_config()
-init_db()
-init_llm_client()
-init_embedding_client()
-cache_tickers_and_companies()
 
 
 @app.middleware("http")
@@ -83,8 +94,7 @@ async def auth_and_tracking_middleware(request: Request, call_next):
 
     path = request.url.path
 
-    # CORS preflight (OPTIONS) istekleri auth gerektirmez; aksi halde masaustu
-    # istemcisinin Authorization header'li istekleri preflight'ta 401 alip engellenir.
+    # CORS preflight (OPTIONS) istekleri auth gerektirmez.
     if request.method == "OPTIONS":
         return await call_next(request)
 
@@ -92,7 +102,7 @@ async def auth_and_tracking_middleware(request: Request, call_next):
 
     if path.startswith("/api/") and not is_public:
         try:
-            user_id = get_current_user_optional(request)
+            user_id = await get_current_user_optional(request)
             if user_id is None:
                 return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
             request.state.user_id = user_id
@@ -100,12 +110,17 @@ async def auth_and_tracking_middleware(request: Request, call_next):
             return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
 
     start = time.perf_counter()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    finally:
+        # Her istekten sonra task baglantisini havuza iade et (sizinti onleme).
+        await db.release_current()
+
     duration = int((time.perf_counter() - start) * 1000)
 
     if path.startswith("/api/") and not is_public and path != "/api/v1/analytics/event":
         user_id = getattr(request.state, "user_id", None)
-        track_event("api_request", user_id=user_id, details={
+        fire_and_forget("api_request", user_id=user_id, details={
             "method": request.method,
             "endpoint": path,
             "status_code": response.status_code,
@@ -122,11 +137,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/")
-def root():
+async def root():
     return {}
 
+
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok"}
 
 

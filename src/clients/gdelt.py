@@ -1,8 +1,8 @@
-import requests
+from src.clients.http import get_client
 from src.core.config import get_config
 
 
-def search_gdelt_articles(query: str, max_records: int | None = None) -> dict:
+async def search_gdelt_articles(query: str, max_records: int | None = None) -> dict:
     cfg = get_config()["gdelt_api"]
     if max_records is None:
         max_records = cfg["max_records"]
@@ -13,6 +13,7 @@ def search_gdelt_articles(query: str, max_records: int | None = None) -> dict:
         "format": cfg["format"],
         "maxrecords": max_records,
     }
-    resp = requests.get(cfg["base_url"], params=params, timeout=cfg["timeout"])
+    client = await get_client()
+    resp = await client.get(cfg["base_url"], params=params, timeout=cfg["timeout"])
     resp.raise_for_status()
     return resp.json()

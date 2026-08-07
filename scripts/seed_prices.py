@@ -1,26 +1,35 @@
 """Tüm BIST şirketlerinin fiyat verilerini çeker ve price_candles tablosuna yazar.
 
-Tek seferlik kurulum scriptidir. 50'şerli batch'ler halinde yf.download() ile çeker.
+Tek seferlik kurulum scriptidir. 50'şer batch'ler halinde yf.download() ile çeker.
 
 Kullanım:
   python scripts/seed_prices.py [--batch 50] [--delay 10]
 """
 
-import sys
-import time
 import argparse
-from pathlib import Path
-from contextlib import redirect_stderr, redirect_stdout
+import asyncio
 import os
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
+
 from src.core.database import db
 
 
-def main():
+async def _download(batch, period="5d", interval="1d"):
+    def _do():
+        with open(os.devnull, "w") as devnull:
+            with redirect_stderr(devnull), redirect_stdout(devnull):
+                return yf.download(batch, period=period, interval=interval, group_by="ticker", progress=False)
+    return await asyncio.to_thread(_do)
+
+
+async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch", type=int, default=50)
     parser.add_argument("--delay", type=int, default=10)
@@ -29,7 +38,7 @@ def main():
     args = parser.parse_args()
 
     from src.services.bist import get_bist_companies_as_dict_from_redis
-    companies = get_bist_companies_as_dict_from_redis()
+    companies = await get_bist_companies_as_dict_from_redis()
     all_tickers = [c["ticker"] + ".IS" for c in companies]
 
     tickers = all_tickers[args.start:]
@@ -48,29 +57,26 @@ def main():
         print(f"[{batch_no}/{total_batches}] {batch[0]} .. {batch[-1]}", end=" ")
 
         try:
-            with open(os.devnull, "w") as devnull:
-                with redirect_stderr(devnull), redirect_stdout(devnull):
-                    df = yf.download(batch, period="5d", interval="1d", group_by="ticker", progress=False)
-
+            df = await _download(batch)
             if df is None or df.empty:
                 print("→ veri yok")
-                _maybe_sleep(i, total, batch_size, args.delay)
+                await _maybe_sleep(i, total, batch_size, args.delay)
                 continue
         except Exception as e:
             print(f"→ hata: {e}")
-            _maybe_sleep(i, total, batch_size, args.delay)
+            await _maybe_sleep(i, total, batch_size, args.delay)
             continue
 
-        count = _process_dataframe(df, batch)
+        count = await _process_dataframe(df, batch)
         inserted += count
         print(f"→ {count} kaydedildi")
 
-        _maybe_sleep(i, total, batch_size, args.delay)
+        await _maybe_sleep(i, total, batch_size, args.delay)
 
     print(f"\nTamamlandı. {inserted}/{total} ticker kaydedildi.")
 
 
-def _process_dataframe(df: pd.DataFrame, batch_tickers: list[str]) -> int:
+async def _process_dataframe(df: pd.DataFrame, batch_tickers: list[str]) -> int:
     multi = isinstance(df.columns, pd.MultiIndex)
     if multi:
         available = set(df.columns.levels[0])
@@ -78,7 +84,7 @@ def _process_dataframe(df: pd.DataFrame, batch_tickers: list[str]) -> int:
         available = {batch_tickers[0]} if not df.empty else set()
 
     count = 0
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         for ticker in batch_tickers:
             if ticker not in available:
                 continue
@@ -89,7 +95,7 @@ def _process_dataframe(df: pd.DataFrame, batch_tickers: list[str]) -> int:
                 last = tdf.iloc[-1]
                 ts = last.name.to_pydatetime() if isinstance(last.name, pd.Timestamp) else last.name
 
-                cur.execute(
+                await cur.execute(
                     """INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume)
                        VALUES (%s, '1d', %s, %s, %s, %s, %s, %s)
                        ON CONFLICT (ticker, interval, ts)
@@ -106,14 +112,14 @@ def _process_dataframe(df: pd.DataFrame, batch_tickers: list[str]) -> int:
                 count += 1
             except Exception:
                 continue
-    db.commit()
+    await db.commit()
     return count
 
 
-def _maybe_sleep(i, total, batch_size, delay):
+async def _maybe_sleep(i, total, batch_size, delay):
     if i + batch_size < total:
-        time.sleep(delay)
+        await asyncio.sleep(delay)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

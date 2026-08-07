@@ -32,15 +32,11 @@ def _session_date(ts: datetime) -> date:
     return ts.astimezone(MARKET_TIMEZONE).date()
 
 
-def _read_cached_profile(ticker: str) -> dict:
-    """Profil verisini Redis'ten okur. Okunamazsa bos dict doner.
-
-    Summary ve price/current her ikisi de bu fonksiyonu kullanir; boylece
-    iki endpoint ayni veriyi gorur ve tutarsizlik olusmaz.
-    """
+async def _read_cached_profile(ticker: str) -> dict:
+    """Profil verisini Redis'ten okur. Okunamazsa bos dict doner."""
     key = f"{ticker.upper().removesuffix('.IS')}.IS"
     try:
-        cached = r.get(key)
+        cached = await r.get(key)
         if cached:
             return json.loads(cached)
     except Exception:
@@ -49,14 +45,7 @@ def _read_cached_profile(ticker: str) -> dict:
 
 
 def _completed_daily(daily: list[dict], today: date, status: str) -> list[dict]:
-    """TAMAMLANMIS seanslarin gunluk mumlari (tarihe gore artan).
-
-    Ayni seans gunune denk gelen birden fazla mum varsa en yenisi alinir.
-    - Piyasa acikken bugunku seans dahil edilmez.
-    - Piyasa kapaliyken (kapanis sonrasi / pre-market / hafta sonu) bugunku
-      seans varsa dahil edilir; boylece kapanis sonrasi bugunun degisimi,
-      pre-market'te ise son tamamlanan gunun degisimi gosterilir.
-    """
+    """TAMAMLANMIS seanslarin gunluk mumlari (tarihe gore artan)."""
     by_date: dict[date, dict] = {}
     for row in daily:  # ts DESC gelir
         d = _session_date(row["ts"])
@@ -69,7 +58,7 @@ def _completed_daily(daily: list[dict], today: date, status: str) -> list[dict]:
     return result
 
 
-def _build_quote(ticker: str, rows: list[dict]) -> dict:
+async def _build_quote(ticker: str, rows: list[dict]) -> dict:
     by_interval: dict[str, list[dict]] = {}
     for row in rows:
         by_interval.setdefault(row["interval"], []).append(row)
@@ -84,7 +73,7 @@ def _build_quote(ticker: str, rows: list[dict]) -> dict:
     last_session = completed[-1] if completed else None
     prev_session = completed[-2] if len(completed) >= 2 else None
 
-    profile = _read_cached_profile(ticker)
+    profile = await _read_cached_profile(ticker)
     market = profile.get("market", {}) or {}
 
     have_live = status == "open" and bool(intraday)
@@ -111,8 +100,7 @@ def _build_quote(ticker: str, rows: list[dict]) -> dict:
         previous_close_ts = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
 
     change = price - previous_close if price is not None and previous_close is not None else None
-    # Acik piyasada canli intraday veri yoksa yaniltici 0.00 gostermeyelim;
-    # pre-market/kapanis sonrasinda son tamamlanan seansin degisimi gosterilir.
+    # Acik piyasada canli intraday veri yoksa yaniltici 0.00 gostermeyelim.
     if status == "open" and not intraday:
         change_pct = None
     else:
@@ -137,15 +125,15 @@ def _build_quote(ticker: str, rows: list[dict]) -> dict:
     }
 
 
-def get_quotes(tickers: list[str]) -> dict[str, dict]:
+async def get_quotes(tickers: list[str]) -> dict[str, dict]:
     normalized = [ticker.upper().removesuffix(".IS") for ticker in tickers]
     ticker_values = [f"{ticker}.IS" for ticker in normalized]
     if not ticker_values:
         return {}
 
     placeholders = ",".join(["%s"] * len(ticker_values))
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             f"""
             SELECT ticker, interval, ts, close
             FROM price_candles
@@ -156,7 +144,7 @@ def get_quotes(tickers: list[str]) -> dict[str, dict]:
             """,
             ticker_values,
         )
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
 
     grouped: dict[str, list[dict]] = {}
     for ticker, interval, ts, close in rows:
@@ -165,8 +153,8 @@ def get_quotes(tickers: list[str]) -> dict[str, dict]:
         if len(interval_rows) < 2:
             grouped[key].append({"interval": interval, "ts": ts, "close": close})
 
-    return {ticker: _build_quote(ticker, grouped.get(ticker, [])) for ticker in normalized}
+    return {ticker: await _build_quote(ticker, grouped.get(ticker, [])) for ticker in normalized}
 
 
-def get_quote(ticker: str) -> dict:
-    return get_quotes([ticker])[ticker.upper().removesuffix(".IS")]
+async def get_quote(ticker: str) -> dict:
+    return (await get_quotes([ticker]))[ticker.upper().removesuffix(".IS")]

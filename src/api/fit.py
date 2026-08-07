@@ -47,11 +47,11 @@ class FitRequest(BaseModel):
 
 
 @router.post("/stocks/fit")
-def fit_stocks(body: FitRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
+async def fit_stocks(body: FitRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
     try:
         query = build_query(body.horizon, body.profitability, body.risk_tolerance)
     except KeyError as e:
         raise HTTPException(status_code=400, detail="Invalid filter value")
 
-    results = rank_by_similarity(query, n=body.limit)
+    results = await rank_by_similarity(query, n=body.limit)
     return {"query": query, "results": results}

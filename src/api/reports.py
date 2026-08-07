@@ -1,16 +1,18 @@
-import math
+import asyncio
 import json
+import math
+
 from fastapi import APIRouter, Depends, Query, HTTPException, Response
+from pydantic import BaseModel
+
+from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
 from src.core.database import db
+from src.core.job_slots import require_job_slot
+from src.services.analytics import track_event
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
 from src.services.maintenance import require_feature
 from src.services.report import generate_report, get_report_by_id, report_to_str
-from src.services.analytics import track_event
-from src.api.deps import get_current_user, validate_ticker
-from src.core.job_slots import require_job_slot
-from datetime import datetime
-from pydantic import BaseModel
 from src.utils.file_utils import markdown_to_docx, markdown_to_pdf
 
 router = APIRouter()
@@ -24,7 +26,7 @@ def _compute_cost(total_tokens: int) -> int:
 
 @router.post("/reports/generate")
 async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user), _: bool = Depends(require_feature("report_generate")), __: None = Depends(require_job_slot("report", 900))):
-    validate_ticker(ticker)
+    await validate_ticker(ticker)
 
     if type not in ("quick_report", "deep_report"):
         raise HTTPException(status_code=400, detail="Invalid type")
@@ -33,7 +35,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     max_tokens = cfg["quick_report_max_tokens"] if type == "quick_report" else cfg["deep_report_max_tokens"]
     estimated_cost = _compute_cost(max_tokens)
 
-    ok, remaining_credits = credit_spend(current_user_id, estimated_cost)
+    ok, remaining_credits = await credit_spend(current_user_id, estimated_cost)
     if not ok:
         raise HTTPException(status_code=402, detail="insufficient credit")
 
@@ -42,11 +44,11 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     try:
         report_obj = await generate_report(ticker, mode)
     except Exception as e:
-        credit_refund(current_user_id, estimated_cost)
+        await credit_refund(current_user_id, estimated_cost)
         raise HTTPException(status_code=500, detail="Report generation failed")
 
     if report_obj is None:
-        credit_refund(current_user_id, estimated_cost)
+        await credit_refund(current_user_id, estimated_cost)
         raise HTTPException(status_code=500, detail="Report generation returned no result")
 
     total_tokens = report_obj.token_usage.get("total", 0)
@@ -54,18 +56,18 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     refund = estimated_cost - actual_cost
 
     if refund > 0:
-        credit_refund(current_user_id, refund)
-        remaining_credits = get_credits(current_user_id)
+        await credit_refund(current_user_id, refund)
+        remaining_credits = await get_credits(current_user_id)
     elif actual_cost > estimated_cost:
         extra_cost = actual_cost - estimated_cost
-        extra_ok, remaining_credits = credit_spend(current_user_id, extra_cost)
+        extra_ok, remaining_credits = await credit_spend(current_user_id, extra_cost)
         if not extra_ok:
-            credit_refund(current_user_id, estimated_cost)
+            await credit_refund(current_user_id, estimated_cost)
             raise HTTPException(status_code=500, detail="Report cost could not be charged")
 
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("""
+            await cur.execute("""
                         INSERT INTO reports (user_id, ticker, type, title, token_usage, content, sentiments)
                         VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, created_at
                         """, (
@@ -76,18 +78,18 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
                 json.dumps(report_obj.sentiments) if report_obj.sentiments else "[]",
             ))
 
-            report_row = cur.fetchone()
-            db.commit()
+            report_row = await cur.fetchone()
+            await db.commit()
 
             report_id = report_row[0]
             created_at = report_row[1].isoformat()
         except Exception:
-            db.rollback()
-            credit_refund(current_user_id, actual_cost)
+            await db.rollback()
+            await credit_refund(current_user_id, actual_cost)
             raise HTTPException(status_code=500, detail="Report could not be saved")
 
     if report_id:
-        track_event("report_generated", user_id=current_user_id, ticker=ticker, details={
+        await track_event("report_generated", user_id=current_user_id, ticker=ticker, details={
             "report_type": type, "tokens_used": total_tokens, "cost": actual_cost,
         })
 
@@ -164,7 +166,7 @@ def _parse_history_rows(rows: list) -> list[ReportHistoryItem]:
 
 
 @router.get("/reports/history", response_model=list[ReportHistoryItem])
-def get_report_history(
+async def get_report_history(
     current_user_id: int = Depends(get_current_user),
     sort: str = Query("created_at", description="Sort: created_at, ticker"),
     order: str = Query("desc", description="Order: asc, desc"),
@@ -175,15 +177,15 @@ def get_report_history(
     if order not in ("asc", "desc"):
         raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
 
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(f"""
+            await cur.execute(f"""
                         SELECT id, ticker, type, title, token_usage, created_at
                         FROM reports
                         WHERE user_id = %s
                         ORDER BY {sort} {order}, id DESC
                         """, (current_user_id,))
-            rows = cur.fetchall()
+            rows = await cur.fetchall()
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
@@ -192,7 +194,7 @@ def get_report_history(
 
 
 @router.get("/reports/search", response_model=list[ReportHistoryItem])
-def search_reports(
+async def search_reports(
     q: str = Query(..., min_length=1, description="Search query in title and content"),
     current_user_id: int = Depends(get_current_user),
     sort: str = Query("created_at", description="Sort: created_at, ticker"),
@@ -207,9 +209,9 @@ def search_reports(
         raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
 
     pattern = f"%{q}%"
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(f"""
+            await cur.execute(f"""
                         SELECT id, ticker, type, title, token_usage, created_at
                         FROM reports
                         WHERE user_id = %s
@@ -217,7 +219,7 @@ def search_reports(
                         ORDER BY {sort} {order}, id DESC
                         LIMIT %s OFFSET %s
                         """, (current_user_id, pattern, pattern, limit, offset))
-            rows = cur.fetchall()
+            rows = await cur.fetchall()
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
@@ -225,16 +227,16 @@ def search_reports(
 
 
 @router.get("/reports/{report_id}")
-def get_single_report(report_id: int, current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
+async def get_single_report(report_id: int, current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("""
+            await cur.execute("""
                         SELECT ticker, type, title, token_usage, content, sentiments, created_at
                         FROM reports
                         WHERE id = %s
                           AND user_id = %s
                         """, (report_id, current_user_id))
-            row = cur.fetchone()
+            row = await cur.fetchone()
 
             if not row:
                 raise HTTPException(status_code=404,
@@ -269,8 +271,8 @@ def get_single_report(report_id: int, current_user_id: int = Depends(get_current
 
 
 @router.post("/reports/download")
-def download_report(report_id: int = Query(...), ftype: str = Query(...), current_user_id: int = Depends(get_current_user)):
-    report = get_report_by_id(report_id, current_user_id)
+async def download_report(report_id: int = Query(...), ftype: str = Query(...), current_user_id: int = Depends(get_current_user)):
+    report = await get_report_by_id(report_id, current_user_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found.")
     report_str = report_to_str(report)
@@ -282,14 +284,14 @@ def download_report(report_id: int = Query(...), ftype: str = Query(...), curren
             headers={"Content-Disposition": f'attachment; filename="report_{report_id}.md"'},
         )
     elif ftype == "docx":
-        docx_bytes = markdown_to_docx(report_str)
+        docx_bytes = await asyncio.to_thread(markdown_to_docx, report_str)
         return Response(
             content=docx_bytes,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={"Content-Disposition": f'attachment; filename="report_{report_id}.docx"'},
         )
     elif ftype == "pdf":
-        pdf_bytes = markdown_to_pdf(report_str)
+        pdf_bytes = await asyncio.to_thread(markdown_to_pdf, report_str)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",

@@ -3,6 +3,9 @@
 Her baslatmada cagrilir; `register_job` ON CONFLICT DO UPDATE ile DB'deki
 kaynak kodunu kod ile senkron tutar. Artik kodda olmayan isler temizlenir.
 
+Gorev kaynak kodlari `async def __cron_main__()` tanimlar; CronClient bu
+fonksiyonu await ederek calistirir (bkz. src/clients/cron.py).
+
 Ilk kurulumda isler ayni anda (burst) calismasin diye her ise farkli bir
 ilk offset verilir; sonraki baslatmalarda DB'deki `last_run` korunur.
 """
@@ -25,60 +28,72 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
         (
             "price_bist30",
             10 * 60 * 1000,
-            "from src.cron.tasks import run_update_bist30\nrun_update_bist30()",
+            "from src.cron.tasks import run_update_bist30\n"
+            "async def __cron_main__():\n"
+            "    await run_update_bist30()",
             "BIST30 fiyat guncellemesi (10 dk)",
         ),
         (
             "price_popular",
             60 * 60 * 1000,
-            "from src.cron.tasks import run_update_popular\nrun_update_popular()",
+            "from src.cron.tasks import run_update_popular\n"
+            "async def __cron_main__():\n"
+            "    await run_update_popular()",
             "Populer fiyat + profil guncellemesi (saatlik)",
         ),
         (
             "price_rest",
             12 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_update_rest\nrun_update_rest()",
+            "from src.cron.tasks import run_update_rest\n"
+            "async def __cron_main__():\n"
+            "    await run_update_rest()",
             "Kalan hisseler fiyat guncellemesi (12 saat)",
         ),
         (
             "credit_refill",
             24 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_credit_refill\nrun_credit_refill()",
+            "from src.cron.tasks import run_credit_refill\n"
+            "async def __cron_main__():\n"
+            "    await run_credit_refill()",
             "Gunluk free kredi dolumu",
         ),
         (
             "seed_vectors",
             24 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_seed_vectors\nrun_seed_vectors()",
+            "from src.cron.tasks import run_seed_vectors\n"
+            "async def __cron_main__():\n"
+            "    await run_seed_vectors()",
             "Gunluk stock vector hesaplama",
         ),
         (
             "cleanup_old_data",
             24 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_cleanup_old_data\nrun_cleanup_old_data()",
+            "from src.cron.tasks import run_cleanup_old_data\n"
+            "async def __cron_main__():\n"
+            "    await run_cleanup_old_data()",
             "Eski mum verisi temizligi",
         ),
         (
             "warm_price_cache",
             24 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_warm_price_cache\nrun_warm_price_cache()",
+            "from src.cron.tasks import run_warm_price_cache\n"
+            "async def __cron_main__():\n"
+            "    await run_warm_price_cache()",
             "Redis fiyat cache on-isitma",
         ),
         (
             "daily_close",
             24 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_update_daily_closes\nrun_update_daily_closes()",
+            "from src.cron.tasks import run_update_daily_closes\n"
+            "async def __cron_main__():\n"
+            "    await run_update_daily_closes()",
             "Gunluk kapanis mumlari (18:35 TRT)",
         ),
     ]
 
 
 def _initial_last_run(name: str, interval_ms: int) -> datetime:
-    """Ilk kurulumda bir isin ilk ne zaman calisacagini belirler.
-
-    Kisa aralikli isler boot'tan kisa sure sonra baslar (fiyat akisi hemen
-    gelsin); agir gunluk isler birbirine denk gelmeyecek sekilde yayilir.
-    """
+    """Ilk kurulumda bir isin ilk ne zaman calisacagini belirler."""
     now = datetime.now(UTC)
     interval_s = interval_ms / 1000.0
 
@@ -106,7 +121,7 @@ def _initial_last_run(name: str, interval_ms: int) -> datetime:
     return now - timedelta(hours=24 - offset_hours)
 
 
-def register_cron_jobs() -> None:
+async def register_cron_jobs() -> None:
     specs = _job_specs()
     desired = {name for name, *_ in specs}
 
@@ -114,9 +129,9 @@ def register_cron_jobs() -> None:
 
     for name, interval_ms, snippet, description in specs:
         last_run = existing_last_run.get(name) or _initial_last_run(name, interval_ms)
-        cron_client.register_job(name, interval_ms, snippet, description, last_run=last_run)
+        await cron_client.register_job(name, interval_ms, snippet, description, last_run=last_run)
 
     for existing in cron_client.list_jobs():
         if existing.name not in desired:
             logger.info("Cron job '%s' artik kayitli degil, kaldiriliyor", existing.name)
-            cron_client.remove_job(existing.name)
+            await cron_client.remove_job(existing.name)

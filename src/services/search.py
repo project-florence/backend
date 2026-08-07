@@ -1,5 +1,5 @@
-from src.utils.mapping import load_bist_mapping, ascii_normalize
 from src.services.bist import get_bist_companies_as_dict_from_redis
+from src.utils.mapping import load_bist_mapping, ascii_normalize
 
 SEARCH_ALIASES: dict[str, list[str]] = {
     "VAKIFBANK": ["VAKBN"],
@@ -43,10 +43,10 @@ SEARCH_ALIASES: dict[str, list[str]] = {
 }
 
 
-def _build_dataset() -> dict[str, dict]:
+async def _build_dataset() -> dict[str, dict]:
     mapping = load_bist_mapping()
     try:
-        pykap_companies = {c["ticker"]: c for c in get_bist_companies_as_dict_from_redis()}
+        pykap_companies = {c["ticker"]: c for c in await get_bist_companies_as_dict_from_redis()}
     except Exception:
         pykap_companies = {}
 
@@ -78,10 +78,10 @@ def _build_dataset() -> dict[str, dict]:
 _dataset: dict[str, dict] | None = None
 
 
-def _get_dataset() -> dict[str, dict]:
+async def _get_dataset() -> dict[str, dict]:
     global _dataset
     if _dataset is None:
-        _dataset = _build_dataset()
+        _dataset = await _build_dataset()
     return _dataset
 
 
@@ -101,7 +101,7 @@ def _deduplicate(results: list[dict]) -> list[dict]:
     return deduped
 
 
-def search_companies(query: str, limit: int = 20) -> list[dict]:
+async def search_companies(query: str, limit: int = 20) -> list[dict]:
     q = ascii_normalize(query.strip().upper())
     if not q:
         return []
@@ -110,7 +110,7 @@ def search_companies(query: str, limit: int = 20) -> list[dict]:
 
     results = []
 
-    for ticker, entry in _get_dataset().items():
+    for ticker, entry in (await _get_dataset()).items():
         ticker_upper = ticker.upper()
         name_ascii = ascii_normalize(entry["name"].upper())
 

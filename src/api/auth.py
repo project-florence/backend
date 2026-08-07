@@ -1,14 +1,17 @@
+import asyncio
 import datetime
+import json
+import os
+
+import jwt
+from argon2 import PasswordHasher
+from argon2.exceptions import VerificationError
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
-from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError
-import jwt
-import json
-import os
 
+from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
 from src.services.credits import get_total as get_credits
@@ -20,7 +23,6 @@ from src.services.refresh_token import (
     revoke_token,
     refresh_token_ttl_days,
 )
-from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
 
 ph = PasswordHasher()
 router = APIRouter()
@@ -88,50 +90,50 @@ def create_jwt_token(user_id: int):
 
 
 @router.post("/auth/register")
-def auth_register(request: Request, user: UserRegister):
+async def auth_register(request: Request, user: UserRegister):
     client_ip = request.client.host if request.client else "unknown"
-    rate_limiter.check(f"register:{client_ip}", max_requests=3, window_seconds=60)
+    await rate_limiter.check(f"register:{client_ip}", max_requests=3, window_seconds=60)
 
-    with db.cursor() as cur:
-        cur.execute("SELECT id FROM users WHERE username = %s OR email = %s", (user.username, user.email))
-        if cur.fetchone() is not None:
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT id FROM users WHERE username = %s OR email = %s", (user.username, user.email))
+        if await cur.fetchone() is not None:
             raise HTTPException(status_code=400, detail="Registration failed")
 
-        hashed_pw = ph.hash(user.password)
+        hashed_pw = await asyncio.to_thread(ph.hash, user.password)
 
         try:
-            cur.execute(
+            await cur.execute(
                 "INSERT INTO users (username, email, hashed_pw) VALUES (%s, %s, %s) RETURNING id",
                 (user.username, user.email, hashed_pw)
             )
-            new_user_id = cur.fetchone()[0]
-            db.commit()
+            new_user_id = (await cur.fetchone())[0]
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
     return {"message": "Register successful", "user_id": new_user_id}
 
 
 @router.post("/auth/login")
-def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
-    rate_limiter.check(f"login:{form_data.username}", max_requests=5, window_seconds=60)
+async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+    await rate_limiter.check(f"login:{form_data.username}", max_requests=5, window_seconds=60)
 
-    with db.cursor() as cur:
-        cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
-        user_row = cur.fetchone()
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
+        user_row = await cur.fetchone()
 
         if not user_row:
             raise HTTPException(status_code=400, detail="Incorrect username or password")
 
         user_id, db_password_hash = user_row
         try:
-            ph.verify(db_password_hash, form_data.password)
+            await asyncio.to_thread(ph.verify, db_password_hash, form_data.password)
         except VerificationError:
             raise HTTPException(status_code=400, detail="Incorrect username or password")
 
         access_token = create_jwt_token(user_id)
-        refresh_token = create_refresh_token(user_id, device=request.client.host if request.client else None)
+        refresh_token = await create_refresh_token(user_id, device=request.client.host if request.client else None)
         response = JSONResponse(content={
             "access_token": access_token,
             "refresh_token": refresh_token,
@@ -142,11 +144,11 @@ def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(
 
 
 @router.post("/auth/refresh")
-def auth_refresh(request: Request, payload: RefreshRequest):
+async def auth_refresh(request: Request, payload: RefreshRequest):
     token = payload.refresh_token or request.cookies.get("refresh_token")
-    rate_limiter.check(f"refresh:{hash_token(token) if token else 'none'}", max_requests=5, window_seconds=60)
+    await rate_limiter.check(f"refresh:{hash_token(token) if token else 'none'}", max_requests=5, window_seconds=60)
 
-    result = rotate_token(token)
+    result = await rotate_token(token)
     if result is None:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
@@ -162,32 +164,32 @@ def auth_refresh(request: Request, payload: RefreshRequest):
 
 
 @router.post("/auth/logout")
-def auth_logout(request: Request, payload: RefreshRequest):
+async def auth_logout(request: Request, payload: RefreshRequest):
     token = payload.refresh_token or request.cookies.get("refresh_token")
     if token:
-        revoke_token(token)
+        await revoke_token(token)
     response = JSONResponse(content={"message": "Logged out"})
     _delete_auth_cookies(response)
     return response
 
 
 @router.delete("/auth/delete")
-def auth_delete(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
+async def auth_delete(current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("DELETE FROM users WHERE id = %s", (current_user_id,))
-            db.commit()
+            await cur.execute("DELETE FROM users WHERE id = %s", (current_user_id,))
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=400, detail="Database error")
     return {"message": f"Deleted user {current_user_id}"}
 
 
 @router.put("/auth/change-password")
-def change_password(payload: ChangePassword, current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
-        user_row = cur.fetchone()
+async def change_password(payload: ChangePassword, current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
+        user_row = await cur.fetchone()
 
         if not user_row:
             raise HTTPException(status_code=404, detail="User not found")
@@ -195,89 +197,89 @@ def change_password(payload: ChangePassword, current_user_id: int = Depends(get_
         db_password_hash = user_row[0]
 
         try:
-            ph.verify(db_password_hash, payload.current_password)
+            await asyncio.to_thread(ph.verify, db_password_hash, payload.current_password)
         except VerificationError:
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-        new_hashed_pw = ph.hash(payload.new_password)
+        new_hashed_pw = await asyncio.to_thread(ph.hash, payload.new_password)
         try:
-            cur.execute("UPDATE users SET hashed_pw = %s, password_changed_at = NOW() WHERE id = %s", (new_hashed_pw, current_user_id))
-            db.commit()
+            await cur.execute("UPDATE users SET hashed_pw = %s, password_changed_at = NOW() WHERE id = %s", (new_hashed_pw, current_user_id))
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
-        revoke_all_user_tokens(current_user_id)
+        await revoke_all_user_tokens(current_user_id)
 
     return {"message": "Password changed successfully"}
 
 
 @router.put("/auth/change-email")
-def change_email(payload: UpdateEmail, current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
-        user_row = cur.fetchone()
+async def change_email(payload: UpdateEmail, current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
+        user_row = await cur.fetchone()
         if not user_row:
             raise HTTPException(status_code=404, detail="User not found")
 
         try:
-            ph.verify(user_row[0], payload.current_password)
+            await asyncio.to_thread(ph.verify, user_row[0], payload.current_password)
         except VerificationError:
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-        cur.execute("SELECT id FROM users WHERE email = %s AND id != %s", (payload.new_email, current_user_id))
-        if cur.fetchone():
+        await cur.execute("SELECT id FROM users WHERE email = %s AND id != %s", (payload.new_email, current_user_id))
+        if await cur.fetchone():
             raise HTTPException(status_code=400, detail="Email already in use")
 
         try:
-            cur.execute("UPDATE users SET email = %s WHERE id = %s", (payload.new_email, current_user_id))
-            db.commit()
+            await cur.execute("UPDATE users SET email = %s WHERE id = %s", (payload.new_email, current_user_id))
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
-        revoke_all_user_tokens(current_user_id)
+        await revoke_all_user_tokens(current_user_id)
 
     return {"message": "Email changed successfully", "new_email": payload.new_email}
 
 
 @router.put("/auth/change-username")
-def change_username(payload: UpdateUsername, current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
-        user_row = cur.fetchone()
+async def change_username(payload: UpdateUsername, current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT hashed_pw FROM users WHERE id = %s", (current_user_id,))
+        user_row = await cur.fetchone()
         if not user_row:
             raise HTTPException(status_code=404, detail="User not found")
 
         try:
-            ph.verify(user_row[0], payload.current_password)
+            await asyncio.to_thread(ph.verify, user_row[0], payload.current_password)
         except VerificationError:
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-        cur.execute("SELECT id FROM users WHERE username = %s AND id != %s", (payload.new_username, current_user_id))
-        if cur.fetchone():
+        await cur.execute("SELECT id FROM users WHERE username = %s AND id != %s", (payload.new_username, current_user_id))
+        if await cur.fetchone():
             raise HTTPException(status_code=400, detail="Username already in use")
 
         try:
-            cur.execute("UPDATE users SET username = %s WHERE id = %s", (payload.new_username, current_user_id))
-            db.commit()
+            await cur.execute("UPDATE users SET username = %s WHERE id = %s", (payload.new_username, current_user_id))
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
-        revoke_all_user_tokens(current_user_id)
+        await revoke_all_user_tokens(current_user_id)
 
     return {"message": "Username changed successfully", "new_username": payload.new_username}
 
 
 @router.get("/profile")
-def get_profile(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
+async def get_profile(current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("""
+            await cur.execute("""
                 SELECT username, email, user_type, created_at FROM users WHERE id = %s
             """, (current_user_id,))
-            rows = cur.fetchone()
+            rows = await cur.fetchone()
 
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
@@ -287,13 +289,13 @@ def get_profile(current_user_id: int = Depends(get_current_user)):
         "email": rows[1],
         "user_type": rows[2],
         "created_at": rows[3].isoformat() if rows[3] else None,
-        "credits": get_credits(current_user_id)
+        "credits": await get_credits(current_user_id)
     }
 
 
 @router.get("/credits")
-def get_credits_endpoint(current_user_id: int = Depends(get_current_user)):
-    return {"credits": get_credits(current_user_id)}
+async def get_credits_endpoint(current_user_id: int = Depends(get_current_user)):
+    return {"credits": await get_credits(current_user_id)}
 
 
 class PreferencesUpdate(BaseModel):
@@ -301,29 +303,29 @@ class PreferencesUpdate(BaseModel):
 
 
 @router.get("/user/preferences")
-def get_preferences(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        cur.execute("SELECT prefs FROM user_preferences WHERE user_id = %s", (current_user_id,))
-        row = cur.fetchone()
+async def get_preferences(current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT prefs FROM user_preferences WHERE user_id = %s", (current_user_id,))
+        row = await cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Preferences not found")
     return row[0]
 
 
 @router.put("/user/preferences")
-def update_preferences(payload: PreferencesUpdate, current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
-        cur.execute("SELECT prefs FROM user_preferences WHERE user_id = %s", (current_user_id,))
-        row = cur.fetchone()
+async def update_preferences(payload: PreferencesUpdate, current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT prefs FROM user_preferences WHERE user_id = %s", (current_user_id,))
+        row = await cur.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Preferences not found")
 
         existing = row[0]
         existing.update(payload.prefs)
 
-        cur.execute(
+        await cur.execute(
             "UPDATE user_preferences SET prefs = %s, updated_at = NOW() WHERE user_id = %s",
             (json.dumps(existing), current_user_id)
         )
-        db.commit()
+        await db.commit()
     return existing

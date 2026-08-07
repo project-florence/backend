@@ -1,9 +1,11 @@
-import os
 import logging
-import requests
-from src.core.config import get_config
+import os
+
 from pydantic import BaseModel
 from typing import List
+
+from src.clients.http import get_client
+from src.core.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ class NewsItem(BaseModel):
     source_engine: str = "web"
 
 
-def news_search(query: str, limit: int = 10) -> List[NewsItem]:
+async def news_search(query: str, limit: int = 10) -> List[NewsItem]:
     url = os.getenv("NEWS_SEARCH_URL") or get_config()["news_search"]["search_url"]
     params = {
         "q": query,
@@ -29,7 +31,8 @@ def news_search(query: str, limit: int = 10) -> List[NewsItem]:
         "User-Agent": os.getenv("NEWS_SEARCH_USER_AGENT") or get_config()["news_search"]["user_agent"]
     }
 
-    response = requests.get(url, params=params, headers=headers, timeout=10)
+    client = await get_client()
+    response = await client.get(url, params=params, headers=headers, timeout=10)
 
     if response.status_code == 200:
         data = response.json()
@@ -57,8 +60,9 @@ def news_to_str(news: List[NewsItem]) -> str:
 
     return news_text
 
-def get_news_and_str(query: str, limit: int = 10):
-    news_items = news_search(query, limit)
+
+async def get_news_and_str(query: str, limit: int = 10):
+    news_items = await news_search(query, limit)
     news_text = news_to_str(news_items)
 
     return news_items, news_text

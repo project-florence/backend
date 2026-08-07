@@ -33,23 +33,23 @@ class PortfolioProfileRequest(BaseModel):
 
 
 @router.post("/portfolio/profile")
-def portfolio_profile(body: PortfolioProfileRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
+async def portfolio_profile(body: PortfolioProfileRequest, _auth: int = Depends(get_current_user), _maintenance: bool = Depends(require_feature("advisor"))):
     from src.services.company import get_company_info
 
     tickers = body.tickers
-    redis_data = read_vectors_from_redis(tickers)
+    redis_data = await read_vectors_from_redis(tickers)
 
     missing = [t for t in tickers if redis_data.get(t) is None]
     if missing:
         to_write = []
         for ticker in missing:
-            profile = get_company_info(ticker)
+            profile = await get_company_info(ticker)
             if profile:
                 vec_d = company_vector(profile)
                 to_write.append({"ticker": ticker, **vec_d})
                 redis_data[ticker] = vector_to_list(vec_d)
         if to_write:
-            write_vectors_to_redis(to_write)
+            await write_vectors_to_redis(to_write)
 
     vectors = []
     ticker_vectors = []
@@ -66,19 +66,19 @@ def portfolio_profile(body: PortfolioProfileRequest, _auth: int = Depends(get_cu
     profile = estimate_profile(avg)
 
     from src.services.stats import get_popular_tickers
-    candidates = get_popular_tickers(100)
-    candidate_data = read_vectors_from_redis(candidates)
+    candidates = await get_popular_tickers(100)
+    candidate_data = await read_vectors_from_redis(candidates)
     candidate_missing = [t for t, v in candidate_data.items() if v is None]
     if candidate_missing:
         to_write = []
         for ticker in candidate_missing:
-            p = get_company_info(ticker)
+            p = await get_company_info(ticker)
             if p:
                 vd = company_vector(p)
                 to_write.append({"ticker": ticker, **vd})
                 candidate_data[ticker] = vector_to_list(vd)
         if to_write:
-            write_vectors_to_redis(to_write)
+            await write_vectors_to_redis(to_write)
 
     for t in tickers:
         candidate_data.pop(t, None)

@@ -8,50 +8,50 @@ router = APIRouter()
 
 
 @router.post("/favorites/{ticker}")
-def add_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
-    validate_ticker(ticker)
-    with db.cursor() as cur:
+async def add_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
+    await validate_ticker(ticker)
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("""
+            await cur.execute("""
                 INSERT INTO favorites (user_id, ticker_code)
                 VALUES (%s, %s)
                 ON CONFLICT (user_id, ticker_code) DO NOTHING
             """, (current_user_id, ticker))
-            db.commit()
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=400, detail="Could not add to favorites")
 
-    increment_stat(ticker, "favorite_count")
-    track_event("favorite_toggle", user_id=current_user_id, ticker=ticker, details={"action": "add"})
+    await increment_stat(ticker, "favorite_count")
+    await track_event("favorite_toggle", user_id=current_user_id, ticker=ticker, details={"action": "add"})
     return {"message": f"Added favorite {ticker} or already been added"}
 
 
 @router.delete("/favorites/{ticker}")
-def remove_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
-    validate_ticker(ticker)
+async def remove_favorite(ticker: str, current_user_id: int = Depends(get_current_user)):
+    await validate_ticker(ticker)
 
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("""
+            await cur.execute("""
             DELETE FROM favorites
             WHERE user_id = %s AND ticker_code = %s
             """, (current_user_id, ticker))
-            db.commit()
+            await db.commit()
         except Exception as e:
-            db.rollback()
+            await db.rollback()
 
     return {"message": f"Removed {ticker} from favorites"}
 
 
 @router.get("/favorites")
-def get_favorites(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
+async def get_favorites(current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute("""
+            await cur.execute("""
                 SELECT ticker_code FROM favorites WHERE user_id = %s
             """, (current_user_id,))
-            rows = cur.fetchall()
+            rows = await cur.fetchall()
             favorites_list = [row[0] for row in rows]
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")

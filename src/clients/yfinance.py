@@ -1,14 +1,19 @@
+import asyncio
 import logging
-import yfinance as yf
+import random
 import threading
 import time
-import random
+
+import yfinance as yf
+
 from src.core.config import get_config
 
 logger = logging.getLogger(__name__)
 
 
 class _YFinanceRateLimiter:
+    """yfinance cagrilari arasindaki minimum gecikmeyi uygular (thread-safe)."""
+
     def __init__(self):
         self._lock = threading.Lock()
         self._last_request = 0.0
@@ -60,3 +65,13 @@ def fetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> di
 def fetch_price_history(ticker: str, interval: str, start, end):
     _rate_limiter.wait()
     return yf.Ticker(ticker).history(start=start, end=end, interval=interval)
+
+
+async def afetch_company_info(ticker_symbol: str, max_retries: int | None = None) -> dict:
+    """Async karsiligi: sync cagriyi thread'de calistirir (event loop'u bloklamaz)."""
+    return await asyncio.to_thread(fetch_company_info, ticker_symbol, max_retries)
+
+
+async def afetch_price_history(ticker: str, interval: str, start, end):
+    """Async karsiligi: sync cagriyi thread'de calistirir."""
+    return await asyncio.to_thread(fetch_price_history, ticker, interval, start, end)

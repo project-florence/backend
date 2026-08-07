@@ -1,9 +1,15 @@
-from openai import OpenAI
-from src.core.config import get_config
-from dotenv import load_dotenv
+import json
+import logging
 import os
 
+from dotenv import load_dotenv
+from openai import AsyncOpenAI
+
+from src.core.config import get_config
+
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 _client = None
 _default_model = None
@@ -25,10 +31,10 @@ def init_client(url=None, default_model=None, api_key=None):
         key = api_key or os.getenv("CUSTOM_API_KEY") or llm_cfg.get("api_key", "")
         _default_model = default_model or os.getenv("CUSTOM_MODEL") or llm_cfg.get("custom_model")
 
-    _client = OpenAI(api_key=key, base_url=base_url)
+    _client = AsyncOpenAI(api_key=key, base_url=base_url)
 
 
-def get_response(
+async def get_response(
     prompt: str,
     role: str = "user",
     model: str = None,
@@ -39,6 +45,7 @@ def get_response(
     global _client, _default_model, _client_type
     if _client is None:
         init_client()
+    assert _client is not None
     if model is None:
         model = _default_model
         if model is None:
@@ -54,8 +61,7 @@ def get_response(
         kwargs["extra_body"] = {"reasoning": {"enabled": True}}
 
     try:
-        import json
-        response = _client.chat.completions.create(**kwargs)
+        response = await _client.chat.completions.create(**kwargs)
         choice = response.choices[0]
         usage = getattr(response, "usage", None)
         usage_dict = {
@@ -90,15 +96,16 @@ def get_response(
 
         return result
     except Exception as e:
+        logger.exception("LLM request failed")
         return {"type": "error", "detail": str(e), "usage": None}
 
 
-def health_check():
+async def health_check():
     global _client
     try:
         if _client is None:
             init_client()
-        response = _client.models.list()
+        response = await _client.models.list()
         return response is not None
     except Exception:
         return False

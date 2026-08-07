@@ -1,8 +1,8 @@
 import re
 import json
 from pathlib import Path
-import requests
 from bs4 import BeautifulSoup
+from src.clients.http import get_client
 from src.core.config import get_config
 
 TURKISH_CHAR_MAP = str.maketrans({
@@ -162,10 +162,11 @@ TICKER_ALIASES = ["THYAO", "ISE", "SISE", "CCOLA", "HALKB", "TUPRS",
                    "PGSUS", "TOASO", "EKGYO", "ARCLK"]
 
 
-def scrape_bist_companies(url: str) -> list[dict]:
+async def scrape_bist_companies(url: str) -> list[dict]:
     cfg = get_config()["generate_bist_mapping"]
     headers = {"User-Agent": cfg["user_agent"]}
-    resp = requests.get(url, headers=headers, timeout=cfg["timeout"])
+    client = await get_client()
+    resp = await client.get(url, headers=headers, timeout=cfg["timeout"])
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "lxml")
 
@@ -248,14 +249,14 @@ def build_companies_dict(companies: list[dict]) -> dict[str, dict]:
     return result
 
 
-def generate_bist_mapping() -> dict[str, dict]:
+async def generate_bist_mapping() -> dict[str, dict]:
     url = get_config()["generate_bist_mapping"]["scrape_url"]
-    companies = scrape_bist_companies(url)
+    companies = await scrape_bist_companies(url)
     return build_companies_dict(companies)
 
 
-def save_bist_mapping(path: str | None = None) -> dict[str, dict]:
-    mapping = generate_bist_mapping()
+async def save_bist_mapping(path: str | None = None) -> dict[str, dict]:
+    mapping = await generate_bist_mapping()
     if path is None:
         cfg = get_config()["generate_bist_mapping"]
         path = str(Path(__file__).parent.parent.parent / cfg["output_dir"] / cfg["output_filename"])

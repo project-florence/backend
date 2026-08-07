@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Query
-from src.legal.terms import TERMS_TR, TERMS_EN
-from src.legal.privacy_policy import PRIVACY_POLICY_TR, PRIVACY_POLICY_EN
-from src.legal.cookie_policy import COOKIE_POLICY_TR, COOKIE_POLICY_EN
-from src.legal.disclaimer import DISCLAIMER_TR, DISCLAIMER_EN
+from fastapi import APIRouter, HTTPException, Query
+
 from src.legal.about import ABOUT_TR, ABOUT_EN
 from src.legal.contact import CONTACT
+from src.legal.cookie_policy import COOKIE_POLICY_TR, COOKIE_POLICY_EN
+from src.legal.disclaimer import DISCLAIMER_TR, DISCLAIMER_EN
+from src.legal.privacy_policy import PRIVACY_POLICY_TR, PRIVACY_POLICY_EN
+from src.legal.terms import TERMS_TR, TERMS_EN
 from src.version import VERSION
 
 router = APIRouter()
@@ -22,13 +23,11 @@ POLICIES = {
 
 
 @router.get("/legal")
-def get_legal(policy: str = Query(..., description="Policy name: terms, privacy_policy, cookie_policy, disclaimer"),
-              lang: str = Query("tr", description="Language: tr or en")):
+async def get_legal(policy: str = Query(..., description="Policy name: terms, privacy_policy, cookie_policy, disclaimer"),
+                    lang: str = Query("tr", description="Language: tr or en")):
     if policy not in POLICIES:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=f"Unknown policy: {policy}")
     if lang not in ("tr", "en"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Language must be 'tr' or 'en'")
 
     return {
@@ -40,9 +39,8 @@ def get_legal(policy: str = Query(..., description="Policy name: terms, privacy_
 
 
 @router.get("/legal/all")
-def get_all_legal(lang: str = Query("tr", description="Language: tr or en")):
+async def get_all_legal(lang: str = Query("tr", description="Language: tr or en")):
     if lang not in ("tr", "en"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Language must be 'tr' or 'en'")
 
     return {
@@ -53,9 +51,8 @@ def get_all_legal(lang: str = Query("tr", description="Language: tr or en")):
 
 
 @router.get("/about")
-def get_about(lang: str = Query("tr", description="Language: tr or en")):
+async def get_about(lang: str = Query("tr", description="Language: tr or en")):
     if lang not in ("tr", "en"):
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Language must be 'tr' or 'en'")
 
     return {
@@ -65,10 +62,10 @@ def get_about(lang: str = Query("tr", description="Language: tr or en")):
 
 
 @router.get("/contact")
-def get_contact():
+async def get_contact():
     return CONTACT
 
 
 @router.get("/version")
-def get_version():
+async def get_version():
     return {"version": VERSION}

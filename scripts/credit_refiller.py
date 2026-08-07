@@ -6,8 +6,10 @@ Kullanım:
   python scripts/credit_refiller.py
 """
 
+import asyncio
+
 from src.cron.tasks import run_credit_refill
 
 
 if __name__ == "__main__":
-    run_credit_refill()
+    asyncio.run(run_credit_refill())

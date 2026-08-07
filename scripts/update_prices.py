@@ -16,11 +16,12 @@ Kullanım:
 """
 
 import argparse
+import asyncio
 
 from src.cron.tasks import TIERS, update_tier
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--tier", choices=list(TIERS.keys()), default=None,
                         help="Sadece belirli kademeyi guncelle")
@@ -35,10 +36,10 @@ def main():
     tiers = [args.tier] if args.tier else list(TIERS.keys())
     total_updated = 0
     for tier in tiers:
-        total_updated += update_tier(tier, interval=args.interval, info=args.info, no_lock=args.no_lock)
+        total_updated += await update_tier(tier, interval=args.interval, info=args.info, no_lock=args.no_lock)
 
     print(f"\nToplam {total_updated} ticker guncellendi.")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

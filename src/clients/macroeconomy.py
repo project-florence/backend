@@ -1,12 +1,16 @@
+import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+
 from dotenv import load_dotenv
-from pydantic import BaseModel
 from fredapi import Fred
+from pydantic import BaseModel
+
 from src.core.config import get_config
-from src.core.redis import r
 from src.core.database import db
+from src.core.redis import r
+
 
 class MacroeconomyData(BaseModel):
     usa_gdp: float
@@ -68,10 +72,10 @@ def _fetch_macroeconomy_data() -> MacroeconomyData:
     return MacroeconomyData(**values)
 
 
-def _load_recent_database_snapshot() -> MacroeconomyData | None:
+async def _load_recent_database_snapshot() -> MacroeconomyData | None:
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=get_config()["macroeconomy"]["cache_ttl"])
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             """
             SELECT usa_gdp, usa_real_gdp, fed_funds, fed_funds_rate, usa_unrate,
                    brent_crude_oil_price, wti_crude_oil_price, usa_consumer_cpi,
@@ -81,7 +85,7 @@ def _load_recent_database_snapshot() -> MacroeconomyData | None:
             LIMIT 1
             """
         )
-        row = cur.fetchone()
+        row = await cur.fetchone()
     if not row or row[-1] is None:
         return None
     timestamp = row[-1]
@@ -92,11 +96,11 @@ def _load_recent_database_snapshot() -> MacroeconomyData | None:
     return MacroeconomyData(**dict(zip(_MACRO_FIELDS, row[:-1])))
 
 
-def _cache_and_persist_macroeconomy_data(mdata: MacroeconomyData) -> None:
-    r.set("MacroeconomyData", mdata.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
+async def _cache_and_persist_macroeconomy_data(mdata: MacroeconomyData) -> None:
+    await r.set("MacroeconomyData", mdata.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
 
-    with db.cursor() as cur:
-        cur.execute("""
+    async with db.cursor() as cur:
+        await cur.execute("""
         INSERT INTO macroeconomy
             (usa_gdp, usa_real_gdp, fed_funds, fed_funds_rate, usa_unrate,
              brent_crude_oil_price, wti_crude_oil_price, usa_consumer_cpi,
@@ -107,19 +111,19 @@ def _cache_and_persist_macroeconomy_data(mdata: MacroeconomyData) -> None:
             %(usa_10y_treasury)s, %(dxy)s, %(vix)s, %(sp500)s, %(nasdaq)s, %(bitcoin)s
         );
         """, mdata.model_dump())
-        db.commit()
+        await db.commit()
 
 
-def get_macroeconomy_data() -> MacroeconomyData:
-    mdata = r.get("MacroeconomyData")
+async def get_macroeconomy_data() -> MacroeconomyData:
+    mdata = await r.get("MacroeconomyData")
     if mdata:
         return MacroeconomyData.model_validate_json(mdata)
 
-    snapshot = _load_recent_database_snapshot()
+    snapshot = await _load_recent_database_snapshot()
     if snapshot:
-        r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
+        await r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
         return snapshot
 
-    mdata = _fetch_macroeconomy_data()
-    _cache_and_persist_macroeconomy_data(mdata)
+    mdata = await asyncio.to_thread(_fetch_macroeconomy_data)
+    await _cache_and_persist_macroeconomy_data(mdata)
     return mdata

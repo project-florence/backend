@@ -87,28 +87,28 @@ def company_vector_as_list(profile: dict) -> list[float]:
     return vector_to_list(company_vector(profile))
 
 
-def compute_vectors_for_top_as_dicts(n: int = 10) -> list[dict[str, Any]]:
+async def compute_vectors_for_top_as_dicts(n: int = 10) -> list[dict[str, Any]]:
     from src.services.stats import get_popular_tickers
     from src.services.company import get_company_info
 
-    tickers = get_popular_tickers(n)
+    tickers = await get_popular_tickers(n)
     result = []
     for ticker in tickers:
-        profile = get_company_info(ticker)
+        profile = await get_company_info(ticker)
         if profile:
             vec = company_vector(profile)
             result.append({"ticker": ticker, **vec})
     return result
 
 
-def compute_vectors_for_top_as_lists(n: int = 10) -> list[dict[str, Any]]:
+async def compute_vectors_for_top_as_lists(n: int = 10) -> list[dict[str, Any]]:
     from src.services.stats import get_popular_tickers
     from src.services.company import get_company_info
 
-    tickers = get_popular_tickers(n)
+    tickers = await get_popular_tickers(n)
     result = []
     for ticker in tickers:
-        profile = get_company_info(ticker)
+        profile = await get_company_info(ticker)
         if profile:
             vec = company_vector_as_list(profile)
             result.append({"ticker": ticker, "vector": vec})
@@ -123,11 +123,11 @@ def _vector_ttl() -> int:
         return 86400
 
 
-def _write_to_db(ticker: str, vec: dict[str, float]):
+async def _write_to_db(ticker: str, vec: dict[str, float]):
     from src.core.database import db
     try:
-        with db.cursor() as cur:
-            cur.execute("""
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute("""
                 INSERT INTO stock_vectors (ticker, risk, horizon, profitability, updated_at)
                 VALUES (%s, %s, %s, %s, NOW())
                 ON CONFLICT (ticker) DO UPDATE SET
@@ -136,17 +136,17 @@ def _write_to_db(ticker: str, vec: dict[str, float]):
                     profitability = EXCLUDED.profitability,
                     updated_at = NOW()
             """, (ticker, vec.get("risk", 0.5), vec.get("horizon", 0.5), vec.get("profitability", 0.5)))
-            db.commit()
+            await db.commit()
     except Exception:
         pass
 
 
-def _read_from_db(ticker: str) -> dict[str, float] | None:
+async def _read_from_db(ticker: str) -> dict[str, float] | None:
     from src.core.database import db
     try:
-        with db.cursor() as cur:
-            cur.execute("SELECT risk, horizon, profitability FROM stock_vectors WHERE ticker = %s", (ticker,))
-            row = cur.fetchone()
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute("SELECT risk, horizon, profitability FROM stock_vectors WHERE ticker = %s", (ticker,))
+            row = await cur.fetchone()
             if row:
                 return {"risk": float(row[0]), "horizon": float(row[1]), "profitability": float(row[2])}
     except Exception:
@@ -154,26 +154,24 @@ def _read_from_db(ticker: str) -> dict[str, float] | None:
     return None
 
 
-def write_vectors_to_redis(
+async def write_vectors_to_redis(
     vectors: list[dict[str, Any]], ttl: int | None = None
 ) -> None:
     if ttl is None:
         ttl = _vector_ttl()
     from src.core.redis import r
 
-    pipe = r.pipeline()
     for item in vectors:
         ticker = item["ticker"]
         vec = {k: item[k] for k in VECTOR_KEYS if k in item}
         if not vec:
             vec = dict(zip(VECTOR_KEYS, item.get("vector", [])))
         key = f"stock_vector:{ticker}"
-        pipe.set(key, json.dumps(vec), ex=ttl)
-        _write_to_db(ticker, vec)
-    pipe.execute()
+        await r.set(key, json.dumps(vec), ex=ttl)
+        await _write_to_db(ticker, vec)
 
 
-def read_vectors_from_redis(
+async def read_vectors_from_redis(
     tickers: list[str],
 ) -> dict[str, list[float] | None]:
     from src.core.redis import r
@@ -182,12 +180,12 @@ def read_vectors_from_redis(
     db_fallbacks = {}
     for ticker in tickers:
         key = f"stock_vector:{ticker}"
-        raw = r.get(key)
+        raw = await r.get(key)
         if raw:
             vec = json.loads(raw)
             result[ticker] = vector_to_list(vec)
         else:
-            db_vec = _read_from_db(ticker)
+            db_vec = await _read_from_db(ticker)
             if db_vec:
                 result[ticker] = vector_to_list(db_vec)
                 db_fallbacks[ticker] = db_vec
@@ -197,10 +195,8 @@ def read_vectors_from_redis(
     if db_fallbacks:
         from src.core.redis import r
         ttl = _vector_ttl()
-        pipe = r.pipeline()
         for ticker, vec in db_fallbacks.items():
-            pipe.set(f"stock_vector:{ticker}", json.dumps(vec), ex=ttl)
-        pipe.execute()
+            await r.set(f"stock_vector:{ticker}", json.dumps(vec), ex=ttl)
 
     return result
 
@@ -233,7 +229,7 @@ def weighted_distance(
     return round(dist, 4)
 
 
-def rank_by_similarity(
+async def rank_by_similarity(
     query: dict[str, float],
     n: int = 5,
     top_n: int = 50,
@@ -244,8 +240,8 @@ def rank_by_similarity(
     profitability_target = query["profitability_target"]
     risk_tolerance = query["risk_tolerance"]
 
-    tickers = get_popular_tickers(top_n)
-    redis_data = read_vectors_from_redis(tickers)
+    tickers = await get_popular_tickers(top_n)
+    redis_data = await read_vectors_from_redis(tickers)
 
     missing = [t for t, v in redis_data.items() if v is None]
     if missing:
@@ -253,13 +249,13 @@ def rank_by_similarity(
 
         to_write = []
         for ticker in missing:
-            profile = get_company_info(ticker)
+            profile = await get_company_info(ticker)
             if profile:
                 vec_d = company_vector(profile)
                 to_write.append({"ticker": ticker, **vec_d})
                 redis_data[ticker] = vector_to_list(vec_d)
         if to_write:
-            write_vectors_to_redis(to_write)
+            await write_vectors_to_redis(to_write)
 
     scored = []
     for ticker, vec in redis_data.items():

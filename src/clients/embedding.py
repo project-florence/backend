@@ -1,7 +1,12 @@
+import logging
 import os
-from openai import OpenAI
+
+from openai import AsyncOpenAI
 from sklearn.metrics.pairwise import cosine_similarity
+
 from src.core.config import get_config
+
+logger = logging.getLogger(__name__)
 
 _client = None
 _model = None
@@ -16,15 +21,16 @@ def init_client(url=None, model=None, api_key=None):
         api_key = os.getenv("EMBEDDING_API_KEY") or cfg.get("api_key")
     if model is None:
         model = os.getenv("EMBEDDING_MODEL") or cfg.get("model")
-    _client = OpenAI(api_key=api_key, base_url=url)
+    _client = AsyncOpenAI(api_key=api_key, base_url=url)
     _model = model
 
 
-def create_embedding(text: str) -> list[float]:
+async def create_embedding(text: str) -> list[float]:
     global _client, _model
     if _client is None:
         init_client()
-    response = _client.embeddings.create(model=_model, input=text)
+    assert _client is not None
+    response = await _client.embeddings.create(model=_model, input=text)
     return response.data[0].embedding
 
 

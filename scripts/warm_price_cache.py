@@ -8,8 +8,10 @@ Kullanım:
   python scripts/warm_price_cache.py
 """
 
+import asyncio
+
 from src.cron.tasks import run_warm_price_cache
 
 
 if __name__ == "__main__":
-    run_warm_price_cache()
+    asyncio.run(run_warm_price_cache())

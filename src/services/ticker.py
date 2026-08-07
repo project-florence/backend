@@ -13,7 +13,7 @@ PRECIOUS_METAL_KEYS = [
 ]
 
 
-def is_valid_ticker(ticker: str) -> bool:
+async def is_valid_ticker(ticker: str) -> bool:
     if not ticker:
         return False
 
@@ -21,10 +21,10 @@ def is_valid_ticker(ticker: str) -> bool:
         return True
 
     ticker_upper = ticker.upper()
-    if ticker_upper in get_bist_tickers_as_dict_from_redis():
+    if ticker_upper in await get_bist_tickers_as_dict_from_redis():
         return True
 
-    currency_data = get_currency()
+    currency_data = await get_currency()
     if isinstance(currency_data, dict) and "error" not in currency_data:
         if ticker_upper in currency_data:
             return True
@@ -32,9 +32,9 @@ def is_valid_ticker(ticker: str) -> bool:
     return False
 
 
-def get_all_valid_keys() -> list[str]:
-    bist_tickers = list(get_bist_tickers_as_dict_from_redis())
-    currency_data = get_currency()
+async def get_all_valid_keys() -> list[str]:
+    bist_tickers = list(await get_bist_tickers_as_dict_from_redis())
+    currency_data = await get_currency()
     forex_keys = (
         [k for k in currency_data if k != "error"]
         if isinstance(currency_data, dict)
@@ -43,7 +43,7 @@ def get_all_valid_keys() -> list[str]:
     return bist_tickers + PRECIOUS_METAL_KEYS + forex_keys
 
 
-def get_price_history(ticker: str, start: datetime | None = None, end: datetime | None = None) -> list[dict]:
+async def get_price_history(ticker: str, start: datetime | None = None, end: datetime | None = None) -> list[dict]:
     if not ticker:
         return []
 
@@ -56,13 +56,13 @@ def get_price_history(ticker: str, start: datetime | None = None, end: datetime 
     ticker_lower = ticker.lower()
 
     if ticker_lower in PRECIOUS_METAL_KEYS:
-        return get_economy_rate_history(ticker_lower, start, end)
+        return await get_economy_rate_history(ticker_lower, start, end)
 
     ticker_upper = ticker.upper()
-    currency_data = get_currency()
+    currency_data = await get_currency()
     if isinstance(currency_data, dict) and "error" not in currency_data:
         if ticker_upper in currency_data:
-            return get_economy_rate_history(ticker_upper, start, end)
+            return await get_economy_rate_history(ticker_upper, start, end)
 
     from src.services.price import get_price_history as get_stock_history
     days = (end - start).days
@@ -83,7 +83,7 @@ def get_price_history(ticker: str, start: datetime | None = None, end: datetime 
     else:
         period = "5y"
 
-    candles = get_stock_history(ticker_upper, period=period, interval="1d")
+    candles = await get_stock_history(ticker_upper, period=period, interval="1d")
     return [c for c in candles if start <= datetime.fromisoformat(c["ts"]) <= end]
 
 
@@ -103,36 +103,36 @@ def _extract_price(raw) -> float | None:
         return None
 
 
-def get_current_price(ticker: str, interval: str = "5m") -> float | None:
+async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
     if not ticker:
         return None
 
     ticker_lower = ticker.lower()
 
     if ticker_lower in PRECIOUS_METAL_KEYS:
-        gold_prices = get_gold_prices()
+        gold_prices = await get_gold_prices()
         if isinstance(gold_prices, dict) and ticker_lower in gold_prices:
             return _extract_price(gold_prices[ticker_lower])
         if ticker_lower == "gumus":
-            silver = get_silver_price()
+            silver = await get_silver_price()
             if isinstance(silver, dict):
                 return _extract_price(silver.get("gumus"))
         if ticker_lower == "gram-platin":
-            plat = get_gram_platinum_price()
+            plat = await get_gram_platinum_price()
             if isinstance(plat, dict):
                 return _extract_price(plat.get("gram-platin"))
         if ticker_lower == "gram-paladyum":
-            pal = get_gram_palladium_price()
+            pal = await get_gram_palladium_price()
             if isinstance(pal, dict):
                 return _extract_price(pal.get("gram-paladyum"))
         return None
 
     ticker_upper = ticker.upper()
 
-    currency_data = get_currency()
+    currency_data = await get_currency()
     if isinstance(currency_data, dict) and "error" not in currency_data:
         if ticker_upper in currency_data:
             return _extract_price(currency_data[ticker_upper])
 
     from src.services.price import get_current_price as get_stock_price
-    return get_stock_price(ticker_upper, interval=interval)
+    return await get_stock_price(ticker_upper, interval=interval)

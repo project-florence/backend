@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from pydantic import BaseModel
 
 
@@ -33,5 +34,5 @@ router = APIRouter()
 
 
 @router.get("/contributors")
-def get_contributors():
+async def get_contributors():
     return {"contributors": contributor_list}

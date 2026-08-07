@@ -15,6 +15,19 @@
 - Keep HTTP handlers in `src/api`, domain and data operations in `src/services`, integrations in `src/clients`, and shared infrastructure in `src/core`.
 - `scripts/` contains operational and data-maintenance jobs, not a test suite. They depend on the configured database, Redis, and external APIs.
 
+## Async conventions (2026-08 full refactor)
+
+The codebase is fully async. Follow these rules when editing:
+
+- Endpoints are `async def`; dependencies (`get_current_user`, `validate_ticker`, `require_feature`, `require_job_slot`) are async.
+- **DB:** `src/core/database.py` exposes an async `db` proxy on top of psycopg3 (`AsyncConnectionPool`). `async with db.cursor() as cur:` returns dict rows by default; pass `row_factory=None` for tuple rows (`row[0]` access). One connection per task is held in a ContextVar and returned to the pool by `db.commit()`/`db.rollback()`; `db.release_current()` is called by the auth middleware after each request. Never call sync psycopg2 APIs.
+- **Redis:** `src/core/redis.py` `r` is an async proxy (redis.asyncio): `await r.get(...)`, `await r.set(..., nx=True, ex=...)`. Returns `None` when Redis is down (cache-less mode).
+- **HTTP:** use `src/clients/http.py` shared `httpx.AsyncClient` (`await get_client()`), never `requests`.
+- **LLM/embeddings:** `AsyncOpenAI` clients in `src/clients/llm.py` / `embedding.py`; always `await`.
+- **yfinance / trafilatura / BigQuery / fredapi / argon2 / numpy:** sync libs stay sync — call them via `asyncio.to_thread(...)` so the event loop is never blocked.
+- **Cron:** `src/clients/cron.py` is an asyncio scheduler; job sources must define `async def __cron_main__()`. `src/cron/tasks.py` functions are all async.
+- **Scripts:** each script uses `asyncio.run(main())` with async internals.
+
 ## Database and Operations
 
 - `src/core/database.py:init_db()` is the runtime schema source of truth and runs on API startup; there is no migration runner in the repository.

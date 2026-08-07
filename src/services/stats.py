@@ -11,42 +11,42 @@ STAT_FIELDS = [
 ]
 
 
-def increment_stat(ticker: str, field: str) -> None:
+async def increment_stat(ticker: str, field: str) -> None:
     if field not in STAT_FIELDS:
         raise ValueError(f"Invalid stat field: {field}")
 
     ticker = ticker.upper()
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             f"""INSERT INTO ticker_stats (ticker, {field}, updated_at)
                 VALUES (%s, 1, NOW())
                 ON CONFLICT (ticker)
                 DO UPDATE SET {field} = ticker_stats.{field} + 1, updated_at = NOW()""",
             (ticker,),
         )
-        db.commit()
+        await db.commit()
 
 
-def get_ticker_stats(ticker: str) -> dict:
+async def get_ticker_stats(ticker: str) -> dict:
     ticker = ticker.upper()
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             """SELECT info_count, report_count, news_count, history_count,
                       simulation_count, favorite_count
                FROM ticker_stats WHERE ticker = %s""",
             (ticker,),
         )
-        row = cur.fetchone()
+        row = await cur.fetchone()
         if not row:
             return {f: 0 for f in STAT_FIELDS}
         return dict(zip(STAT_FIELDS, row))
 
 
-def get_top_tickers(limit: int = 50) -> list[dict]:
-    ticker_names = _get_ticker_name_map()
+async def get_top_tickers(limit: int = 50) -> list[dict]:
+    ticker_names = await _get_ticker_name_map()
 
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             f"""SELECT ticker,
                        info_count, report_count, news_count, history_count,
                        simulation_count, favorite_count,
@@ -56,7 +56,7 @@ def get_top_tickers(limit: int = 50) -> list[dict]:
                 LIMIT %s""",
             (limit,),
         )
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
 
     results = []
     for row in rows:
@@ -71,13 +71,13 @@ def get_top_tickers(limit: int = 50) -> list[dict]:
     return results
 
 
-def get_all_stats() -> list[dict]:
-    ticker_names = _get_ticker_name_map()
-    all_tickers = get_bist_tickers_as_dict_from_redis()
+async def get_all_stats() -> list[dict]:
+    ticker_names = await _get_ticker_name_map()
+    all_tickers = await get_bist_tickers_as_dict_from_redis()
 
-    with db.cursor() as cur:
-        cur.execute("SELECT ticker, info_count, report_count, news_count, history_count, simulation_count, favorite_count FROM ticker_stats")
-        rows = cur.fetchall()
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT ticker, info_count, report_count, news_count, history_count, simulation_count, favorite_count FROM ticker_stats")
+        rows = await cur.fetchall()
 
     db_stats = {}
     for row in rows:
@@ -99,28 +99,28 @@ def get_all_stats() -> list[dict]:
     return results
 
 
-def get_popular_tickers(n: int = 10) -> list[str]:
-    stats = get_all_stats()
+async def get_popular_tickers(n: int = 10) -> list[str]:
+    stats = await get_all_stats()
     return [s["ticker"] for s in stats[:n]]
 
 
-def get_popular_companies(n: int = 10) -> list[dict]:
-    companies = get_bist_companies_as_dict_from_redis()
-    stats = get_all_stats()
+async def get_popular_companies(n: int = 10) -> list[dict]:
+    companies = await get_bist_companies_as_dict_from_redis()
+    stats = await get_all_stats()
     ticker_order = {s["ticker"]: i for i, s in enumerate(stats)}
     companies.sort(key=lambda c: (ticker_order.get(c["ticker"], 999), c["ticker"]))
     return companies[:n]
 
 
-def get_popular_company_summaries(n: int = 10) -> list[dict]:
+async def get_popular_company_summaries(n: int = 10) -> list[dict]:
     from src.services.company import get_companies_summary
-    tickers = get_popular_tickers(n)
-    return get_companies_summary(limit=n, tickers_filter=tickers).get("data", [])
+    tickers = await get_popular_tickers(n)
+    return (await get_companies_summary(limit=n, tickers_filter=tickers)).get("data", [])
 
 
-def _get_ticker_name_map() -> dict[str, str]:
+async def _get_ticker_name_map() -> dict[str, str]:
     try:
-        companies = get_bist_companies_as_dict_from_redis()
+        companies = await get_bist_companies_as_dict_from_redis()
         return {c["ticker"]: c.get("name", "") for c in companies}
     except Exception:
         return {}

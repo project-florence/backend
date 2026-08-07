@@ -10,6 +10,7 @@ Kullanım:
 """
 
 import argparse
+import asyncio
 
 from src.cron.tasks import run_seed_vectors
 
@@ -22,7 +23,7 @@ def main():
                         help="İstekler arası bekleme saniyesi")
     args = parser.parse_args()
 
-    run_seed_vectors(count=args.count, delay=args.delay)
+    asyncio.run(run_seed_vectors(count=args.count, delay=args.delay))
 
 
 if __name__ == "__main__":

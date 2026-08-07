@@ -20,21 +20,21 @@ def get_date() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def get_economic_data(ticker: str) -> dict:
+async def get_economic_data(ticker: str) -> dict:
     """Bir hisse senedi için şirket profilleri, finansal ölçümler, güncel fiyat,
     döviz kurları ve altın fiyatları gibi tüm bilgileri tek bir seferde getirir."""
-    if not is_valid_bist_ticker(ticker):
+    if not await is_valid_bist_ticker(ticker):
         return {"error": f"Invalid ticker: {ticker}"}
 
     try:
-        profile = get_company_info(ticker)
+        profile = await get_company_info(ticker)
         if not profile:
             return {"error": f"No data found for {ticker}"}
         metrics = compute_all(profile)
         vector = company_vector(profile)
         economy = {}
         try:
-            economy = {**get_currency(), **get_gold_prices()}
+            economy = {**(await get_currency()), **(await get_gold_prices())}
         except Exception:
             pass
         return {
@@ -54,10 +54,10 @@ def get_economic_data(ticker: str) -> dict:
         return {"error": f"economic_data failed: {e}"}
 
 
-def search_news(query: str) -> list[dict]:
+async def search_news(query: str) -> list[dict]:
     """SearXNG kullanarak, bir hisse senedi kodu veya şirket için en son haberleri getirir. Her haber öğesi başlık, içerik (özet), URL ve kaynak motor bilgilerini içerir."""
     try:
-        items = news_search(query, limit=20)
+        items = await news_search(query, limit=20)
     except Exception as e:
         return [{"error": f"News search failed: {e}"}]
     return [
@@ -67,15 +67,16 @@ def search_news(query: str) -> list[dict]:
     ]
 
 
-def content_fetch(urls: list[str]) -> list[dict]:
+async def content_fetch(urls: list[str]) -> list[dict]:
     """'search_news' kullanılarak bulunan haberlerden seçilen URL'lerin tam metin içeriğini getirir."""
+    import asyncio
     from src.clients.scraping import get_text_from_url as _get_text_from_url
 
     MAX_URLS = 5
     results = []
     for url in urls[:MAX_URLS]:
         try:
-            full_text = _get_text_from_url(url)
+            full_text = await asyncio.to_thread(_get_text_from_url, url)
         except Exception as e:
             full_text = f"[Icerik cekilemedi: {e}]"
         results.append({"url": url, "content": full_text})
@@ -192,24 +193,24 @@ async def generate_report(ticker: str, mode: str) -> Report:
     )
 
 
-def get_report_by_id(report_id: int, user_id: int | None = None) -> Report | None:
+async def get_report_by_id(report_id: int, user_id: int | None = None) -> Report | None:
     import json
     from src.core.database import db
 
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         if user_id is not None:
-            cur.execute("""
+            await cur.execute("""
                 SELECT ticker, title, token_usage, content, sentiments, created_at
                 FROM reports
                 WHERE id = %s AND user_id = %s
             """, (report_id, user_id))
         else:
-            cur.execute("""
+            await cur.execute("""
                 SELECT ticker, title, token_usage, content, sentiments, created_at
                 FROM reports
                 WHERE id = %s
             """, (report_id,))
-        row = cur.fetchone()
+        row = await cur.fetchone()
 
     if not row:
         return None

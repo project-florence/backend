@@ -44,16 +44,16 @@ class Portfolio(BaseModel):
     transactions: list[Transaction] = Field(default_factory=list)
 
 
-def _lock_portfolio(portfolio_id: str) -> None:
-    with db.cursor() as cur:
-        cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s));", (portfolio_id,))
+async def _lock_portfolio(portfolio_id: str) -> None:
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s));", (portfolio_id,))
 
 
-def save_portfolio(portfolio: Portfolio) -> bool:
+async def save_portfolio(portfolio: Portfolio) -> bool:
     portfolio.metadata.updated_at = datetime.now(timezone.utc)
     try:
-        with db.cursor() as cur:
-            cur.execute(
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(
                 """
                 INSERT INTO portfolios (portfolio_id, user_id, portfolio)
                 VALUES (%s, %s, %s)
@@ -68,20 +68,20 @@ def save_portfolio(portfolio: Portfolio) -> bool:
                     portfolio.model_dump_json(),
                 ),
             )
-        db.commit()
+        await db.commit()
         return True
     except Exception:
         return False
 
 
-def load_portfolio(portfolio_id: str, user_id: int) -> Portfolio | None:
+async def load_portfolio(portfolio_id: str, user_id: int) -> Portfolio | None:
     try:
-        with db.cursor() as cur:
-            cur.execute(
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(
                 "SELECT portfolio FROM portfolios WHERE portfolio_id = %s AND user_id = %s;",
                 (portfolio_id, user_id)
             )
-            row = cur.fetchone()
+            row = await cur.fetchone()
             if not row or not row[0]:
                 return None
             return Portfolio.model_validate(row[0])
@@ -89,14 +89,14 @@ def load_portfolio(portfolio_id: str, user_id: int) -> Portfolio | None:
         return None
 
 
-def list_portfolios(user_id: int) -> list[Portfolio]:
+async def list_portfolios(user_id: int) -> list[Portfolio]:
     try:
-        with db.cursor() as cur:
-            cur.execute(
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(
                 "SELECT portfolio FROM portfolios WHERE user_id = %s;",
                 (user_id,)
             )
-            rows = cur.fetchall()
+            rows = await cur.fetchall()
             if not rows:
                 return []
             return [Portfolio.model_validate(row[0]) for row in rows]
@@ -104,7 +104,7 @@ def list_portfolios(user_id: int) -> list[Portfolio]:
         return []
 
 
-def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfolio | None:
+async def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfolio | None:
     now = datetime.now(timezone.utc)
     metadata = Metadata(
         id=f"port-{uuid.uuid4()}",
@@ -116,42 +116,42 @@ def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfol
         updated_at=now,
     )
     portfolio = Portfolio(metadata=metadata, transactions=[])
-    if not save_portfolio(portfolio):
+    if not await save_portfolio(portfolio):
         return None
     return portfolio
 
 
-def delete_portfolio(portfolio_id: str, user_id: int) -> bool:
+async def delete_portfolio(portfolio_id: str, user_id: int) -> bool:
     try:
-        _lock_portfolio(portfolio_id)
-        with db.cursor() as cur:
-            cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s AND user_id = %s", (portfolio_id, user_id))
-            db.commit()
+        await _lock_portfolio(portfolio_id)
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute("DELETE FROM portfolios WHERE portfolio_id = %s AND user_id = %s", (portfolio_id, user_id))
+            await db.commit()
             return cur.rowcount > 0
     except Exception:
         return False
 
 
-def rename_portfolio(portfolio_id: str, user_id: int, new_name: str) -> bool:
-    _lock_portfolio(portfolio_id)
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def rename_portfolio(portfolio_id: str, user_id: int, new_name: str) -> bool:
+    await _lock_portfolio(portfolio_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
     portfolio.metadata.name = new_name
-    return save_portfolio(portfolio)
+    return await save_portfolio(portfolio)
 
 
-def get_portfolio_by_name(user_id: int, name: str) -> Portfolio | None:
-    portfolios = list_portfolios(user_id)
+async def get_portfolio_by_name(user_id: int, name: str) -> Portfolio | None:
+    portfolios = await list_portfolios(user_id)
     for p in portfolios:
         if p.metadata.name.lower() == name.lower():
             return p
     return None
 
 
-def duplicate_portfolio(portfolio_id: str, user_id: int, new_name: str) -> Portfolio | None:
-    _lock_portfolio(portfolio_id)
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def duplicate_portfolio(portfolio_id: str, user_id: int, new_name: str) -> Portfolio | None:
+    await _lock_portfolio(portfolio_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
     now = datetime.now(timezone.utc)
@@ -168,7 +168,7 @@ def duplicate_portfolio(portfolio_id: str, user_id: int, new_name: str) -> Portf
         metadata=metadata,
         transactions=[tx.model_copy(deep=True) for tx in portfolio.transactions],
     )
-    if not save_portfolio(new_portfolio):
+    if not await save_portfolio(new_portfolio):
         return None
     return new_portfolio
 
@@ -222,21 +222,21 @@ def _add_transaction(portfolio: Portfolio, ticker: str, _type: str, quantity: fl
     portfolio.transactions.append(tx)
 
 
-def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: str, quantity: float) -> bool:
+async def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: str, quantity: float) -> bool:
     if quantity <= 0:
         return False
 
-    if not is_valid_ticker(ticker):
+    if not await is_valid_ticker(ticker):
         return False
 
-    _lock_portfolio(portfolio_id)
-    portfolio = load_portfolio(portfolio_id, user_id)
+    await _lock_portfolio(portfolio_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
 
     assets = calculate_assets(portfolio)
 
-    price = get_current_price(ticker)
+    price = await get_current_price(ticker)
     if price is None:
         return False
 
@@ -261,10 +261,10 @@ def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: str, qu
     else:
         return False
 
-    return save_portfolio(portfolio)
+    return await save_portfolio(portfolio)
 
 
-def get_transactions(
+async def get_transactions(
     portfolio_id: str,
     user_id: int,
     ticker: str | None = None,
@@ -272,7 +272,7 @@ def get_transactions(
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> list[Transaction] | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -289,9 +289,9 @@ def get_transactions(
     return sorted(txs, key=lambda tx: tx.date)
 
 
-def undo_last_transaction(portfolio_id: str, user_id: int) -> bool:
-    _lock_portfolio(portfolio_id)
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def undo_last_transaction(portfolio_id: str, user_id: int) -> bool:
+    await _lock_portfolio(portfolio_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None or not portfolio.transactions:
         return False
 
@@ -300,7 +300,7 @@ def undo_last_transaction(portfolio_id: str, user_id: int) -> bool:
         portfolio.transactions.append(last_tx)
         return False
 
-    return save_portfolio(portfolio)
+    return await save_portfolio(portfolio)
 
 
 def _extract_price(raw) -> float | None:
@@ -339,9 +339,9 @@ def _recalculate_portfolio(portfolio: Portfolio) -> bool:
     return True
 
 
-def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float | None = None, quantity: float | None = None) -> bool:
-    _lock_portfolio(portfolio_id)
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float | None = None, quantity: float | None = None) -> bool:
+    await _lock_portfolio(portfolio_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
 
@@ -368,13 +368,13 @@ def update_transaction(portfolio_id: str, user_id: int, tx_id: str, price: float
                 tx.total = original_total
                 _recalculate_portfolio(portfolio)
                 return False
-            return save_portfolio(portfolio)
+            return await save_portfolio(portfolio)
 
     return False
 
 
-def get_transaction_stats(portfolio_id: str, user_id: int) -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_transaction_stats(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -407,8 +407,8 @@ def get_transaction_stats(portfolio_id: str, user_id: int) -> dict | None:
     }
 
 
-def get_portfolio_valuation(portfolio_id: str, user_id: int) -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_portfolio_valuation(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -418,7 +418,7 @@ def get_portfolio_valuation(portfolio_id: str, user_id: int) -> dict | None:
     asset_details = []
 
     for ticker, asset in assets.items():
-        current_price = get_current_price(ticker)
+        current_price = await get_current_price(ticker)
         value = (current_price * asset.amount) if current_price is not None else None
 
         if value is not None:
@@ -452,8 +452,8 @@ def get_portfolio_valuation(portfolio_id: str, user_id: int) -> dict | None:
     }
 
 
-def get_diversification(portfolio_id: str, user_id: int) -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_diversification(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -465,14 +465,14 @@ def get_diversification(portfolio_id: str, user_id: int) -> dict | None:
     asset_details = []
 
     for ticker, asset in assets.items():
-        current_price = get_current_price(ticker)
+        current_price = await get_current_price(ticker)
         value = (current_price * asset.amount) if current_price is not None else None
         if value is not None:
             total_holdings_value += value
 
         ticker_upper = ticker.upper()
         from src.services.economy import get_currency
-        currency_data = get_currency()
+        currency_data = await get_currency()
         is_forex = isinstance(currency_data, dict) and ticker_upper in currency_data
         from src.services.ticker import PRECIOUS_METAL_KEYS
         is_metal = ticker.lower() in PRECIOUS_METAL_KEYS
@@ -504,8 +504,8 @@ def get_diversification(portfolio_id: str, user_id: int) -> dict | None:
     }
 
 
-def get_best_worst_performers(portfolio_id: str, user_id: int, top_n: int = 5) -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_best_worst_performers(portfolio_id: str, user_id: int, top_n: int = 5) -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -515,7 +515,7 @@ def get_best_worst_performers(portfolio_id: str, user_id: int, top_n: int = 5) -
 
     performers = []
     for ticker, asset in assets.items():
-        current_price = get_current_price(ticker)
+        current_price = await get_current_price(ticker)
         if current_price is not None and asset.weighted_price > 0:
             total_cost = asset.weighted_price * asset.amount
             current_value = current_price * asset.amount
@@ -536,7 +536,7 @@ def get_best_worst_performers(portfolio_id: str, user_id: int, top_n: int = 5) -
     }
 
 
-def _compute_portfolio_value_at(
+async def _compute_portfolio_value_at(
     initial_balance: float,
     transactions: list[Transaction],
     date: datetime,
@@ -558,7 +558,7 @@ def _compute_portfolio_value_at(
 
     holdings_value = 0.0
     for ticker, asset in assets.items():
-        hist = get_price_history(ticker, start=date - timedelta(days=5), end=date + timedelta(days=1))
+        hist = await get_price_history(ticker, start=date - timedelta(days=5), end=date + timedelta(days=1))
         if hist:
             closest = min(hist, key=lambda p: abs(
                 datetime.fromisoformat(p["ts"]).replace(tzinfo=timezone.utc) - date
@@ -572,8 +572,8 @@ def _compute_portfolio_value_at(
     return balance, holdings_value
 
 
-def get_portfolio_history(portfolio_id: str, user_id: int, period: str = "1mo") -> list[dict] | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_portfolio_history(portfolio_id: str, user_id: int, period: str = "1mo") -> list[dict] | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -594,7 +594,7 @@ def get_portfolio_history(portfolio_id: str, user_id: int, period: str = "1mo") 
 
     result = []
     for date in dates:
-        cash, holdings = _compute_portfolio_value_at(
+        cash, holdings = await _compute_portfolio_value_at(
             portfolio.metadata.initial_balance, portfolio.transactions, date,
         )
         total = cash + holdings
@@ -608,12 +608,12 @@ def get_portfolio_history(portfolio_id: str, user_id: int, period: str = "1mo") 
     return result
 
 
-def get_returns(portfolio_id: str, user_id: int, period: str = "1mo") -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_returns(portfolio_id: str, user_id: int, period: str = "1mo") -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    history = get_portfolio_history(portfolio_id, user_id, period)
+    history = await get_portfolio_history(portfolio_id, user_id, period)
     if not history or len(history) < 1:
         return None
 
@@ -649,12 +649,12 @@ def _daily_returns(values: list[float]) -> list[float]:
     return [(values[i] - values[i - 1]) / values[i - 1] for i in range(1, len(values)) if values[i - 1] > 0]
 
 
-def get_risk_metrics(portfolio_id: str, user_id: int, period: str = "1y") -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_risk_metrics(portfolio_id: str, user_id: int, period: str = "1y") -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    history = get_portfolio_history(portfolio_id, user_id, period)
+    history = await get_portfolio_history(portfolio_id, user_id, period)
     if not history or len(history) < 3:
         return {"volatility": None, "max_drawdown": None, "sharpe_ratio": None}
 
@@ -683,19 +683,19 @@ def get_risk_metrics(portfolio_id: str, user_id: int, period: str = "1y") -> dic
     }
 
 
-def compare_with_benchmark(portfolio_id: str, user_id: int, benchmark_ticker: str = "XU100") -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def compare_with_benchmark(portfolio_id: str, user_id: int, benchmark_ticker: str = "XU100") -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    history = get_portfolio_history(portfolio_id, user_id, "max")
+    history = await get_portfolio_history(portfolio_id, user_id, "max")
     if not history or len(history) < 2:
         return None
 
     first_date = datetime.fromisoformat(history[0]["ts"]).replace(tzinfo=timezone.utc)
     last_date = datetime.fromisoformat(history[-1]["ts"]).replace(tzinfo=timezone.utc)
 
-    bench_history = get_price_history(benchmark_ticker, start=first_date, end=last_date)
+    bench_history = await get_price_history(benchmark_ticker, start=first_date, end=last_date)
     if not bench_history:
         return None
 
@@ -720,8 +720,8 @@ def compare_with_benchmark(portfolio_id: str, user_id: int, benchmark_ticker: st
     }
 
 
-def analyze_portfolio_performance(portfolio_id: str, user_id: int) -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def analyze_portfolio_performance(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -745,7 +745,7 @@ def analyze_portfolio_performance(portfolio_id: str, user_id: int) -> dict | Non
             for tx in ticker_txs
         )
 
-        price_history = get_price_history(ticker, start=date_min, end=date_max)
+        price_history = await get_price_history(ticker, start=date_min, end=date_max)
 
         optimal_points = None
         efficiency_score = None
@@ -811,16 +811,16 @@ def analyze_portfolio_performance(portfolio_id: str, user_id: int) -> dict | Non
     }
 
 
-def get_portfolio_snapshot(portfolio_id: str, user_id: int) -> dict | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def get_portfolio_snapshot(portfolio_id: str, user_id: int) -> dict | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
-    valuation = get_portfolio_valuation(portfolio_id, user_id)
-    diversification = get_diversification(portfolio_id, user_id)
-    performers = get_best_worst_performers(portfolio_id, user_id)
-    tx_stats = get_transaction_stats(portfolio_id, user_id)
-    recent_txs = get_transactions(portfolio_id, user_id)
+    valuation = await get_portfolio_valuation(portfolio_id, user_id)
+    diversification = await get_diversification(portfolio_id, user_id)
+    performers = await get_best_worst_performers(portfolio_id, user_id)
+    tx_stats = await get_transaction_stats(portfolio_id, user_id)
+    recent_txs = await get_transactions(portfolio_id, user_id)
     recent_txs = recent_txs[-5:] if recent_txs and len(recent_txs) > 5 else recent_txs
 
     return {
@@ -841,8 +841,8 @@ def get_portfolio_snapshot(portfolio_id: str, user_id: int) -> dict | None:
     }
 
 
-def export_portfolio_csv(portfolio_id: str, user_id: int) -> str | None:
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def export_portfolio_csv(portfolio_id: str, user_id: int) -> str | None:
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
 
@@ -863,9 +863,9 @@ def export_portfolio_csv(portfolio_id: str, user_id: int) -> str | None:
     return output.getvalue()
 
 
-def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -> dict:
-    _lock_portfolio(portfolio_id)
-    portfolio = load_portfolio(portfolio_id, user_id)
+async def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -> dict:
+    await _lock_portfolio(portfolio_id)
+    portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return {"success": False, "message": "Portfolio not found", "imported": 0, "failed": 0}
 
@@ -877,7 +877,7 @@ def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -
     for row in reader:
         try:
             ticker = row.get("ticker", "").strip().upper()
-            if not ticker or not is_valid_ticker(ticker):
+            if not ticker or not await is_valid_ticker(ticker):
                 failed += 1
                 errors.append(f"Invalid ticker: {ticker}")
                 continue
@@ -933,7 +933,7 @@ def import_transactions_csv(portfolio_id: str, user_id: int, csv_content: str) -
             errors.append(str(e))
 
     if imported > 0:
-        if not _recalculate_portfolio(portfolio) or not save_portfolio(portfolio):
+        if not _recalculate_portfolio(portfolio) or not await save_portfolio(portfolio):
             return {
                 "success": False,
                 "message": "Could not save imported transactions",

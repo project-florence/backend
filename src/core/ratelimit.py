@@ -1,25 +1,27 @@
+import asyncio
 import time
-import threading
 from collections import defaultdict
+
 from fastapi import HTTPException
+
 from src.core.redis import r
 
 
 class RateLimiter:
     def __init__(self):
         self._buckets: dict[str, list[float]] = defaultdict(list)
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
-    def check(self, key: str, max_requests: int, window_seconds: int):
+    async def check(self, key: str, max_requests: int, window_seconds: int):
         now = time.time()
         cutoff = now - window_seconds
 
         redis_key = f"ratelimit:{key}"
         try:
-            count = r.incr(redis_key)
+            count = await r.incr(redis_key)
             if count is not None:
                 if count == 1:
-                    r.expire(redis_key, window_seconds)
+                    await r.expire(redis_key, window_seconds)
                 if count > max_requests:
                     raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
                 return
@@ -28,7 +30,7 @@ class RateLimiter:
         except Exception:
             pass
 
-        with self._lock:
+        async with self._lock:
             bucket = self._buckets[key]
             bucket[:] = [t for t in bucket if t > cutoff]
             if len(bucket) >= max_requests:

@@ -5,7 +5,7 @@ import random
 from datetime import datetime, timezone
 from src.core.redis import r
 from src.core.config import get_config
-from src.clients.yfinance import fetch_company_info
+from src.clients.yfinance import afetch_company_info
 from src.services.bist import get_bist_tickers_as_dict_from_redis, get_bist_companies_as_dict_from_redis
 from src.services.stats import get_all_stats
 from src.core.database import db
@@ -136,14 +136,14 @@ def company_info_to_md(profile: dict) -> str:
     return "\n".join(lines)
 
 
-def _get_bist_tickers() -> list[str]:
-    return [t + ".IS" for t in get_bist_tickers_as_dict_from_redis()]
+async def _get_bist_tickers() -> list[str]:
+    return [t + ".IS" for t in await get_bist_tickers_as_dict_from_redis()]
 
 
-def _save_company_to_redis(ticker: str, profile: dict) -> bool:
+async def _save_company_to_redis(ticker: str, profile: dict) -> bool:
     try:
         cfg = get_config()["company_info"]
-        r.set(ticker, json.dumps(profile), ex=cfg["cache_ttl"])
+        await r.set(ticker, json.dumps(profile), ex=cfg["cache_ttl"])
         return True
     except Exception as e:
         logger.error("Redis save error (%s): %s", ticker, e)
@@ -234,29 +234,29 @@ def build_company_profile(raw_info: dict) -> dict:
     }
 
 
-def get_company_info(ticker: str, use_cache: bool = True) -> dict:
+async def get_company_info(ticker: str, use_cache: bool = True) -> dict:
     ticker = ticker.upper()
     if not ticker.endswith(".IS"):
         ticker = f"{ticker}.IS"
 
     if use_cache:
         try:
-            cached = r.get(ticker)
+            cached = await r.get(ticker)
             if cached:
                 return json.loads(cached)
         except Exception as e:
             logger.warning("Redis read error: %s", e)
 
-    raw = fetch_company_info(ticker)
+    raw = await afetch_company_info(ticker)
     profile = build_company_profile(raw)
     if profile:
-        _save_company_to_redis(ticker, profile)
+        await _save_company_to_redis(ticker, profile)
 
     return profile
 
 
-def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular", tickers_filter: list[str] | None = None) -> dict:
-    bist_companies = get_bist_companies_as_dict_from_redis()
+async def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular", tickers_filter: list[str] | None = None) -> dict:
+    bist_companies = await get_bist_companies_as_dict_from_redis()
     company_map = {c["ticker"]: c.get("name", "") for c in bist_companies}
 
     needs_full_compute = sort in ("gainers", "losers", "price_high", "price_low", "volume", "market_cap")
@@ -265,11 +265,11 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
         ticker_list = [t.upper() for t in tickers_filter if t.upper() in company_map]
         total = len(ticker_list)
     elif sort == "popular":
-        stats = get_all_stats()
+        stats = await get_all_stats()
         total = len(stats)
         ticker_list = [s["ticker"] for s in stats[offset:offset + limit]]
     elif needs_full_compute:
-        stats = get_all_stats()
+        stats = await get_all_stats()
         total = len(stats)
         ticker_list = [s["ticker"] for s in stats]
     else:
@@ -282,13 +282,13 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
     cached_profiles: dict[str, dict] = {}
     for ticker in ticker_list:
         try:
-            cached_raw = r.get(f"{ticker}.IS")
+            cached_raw = await r.get(f"{ticker}.IS")
             if cached_raw:
                 cached_profiles[ticker] = json.loads(cached_raw)
         except Exception:
             cached_profiles[ticker] = {}
 
-    quotes = get_quotes(ticker_list)
+    quotes = await get_quotes(ticker_list)
     results = []
     for ticker in ticker_list:
         cached = cached_profiles.get(ticker, {})
@@ -350,22 +350,22 @@ def get_companies_summary(limit: int = 50, offset: int = 0, sort: str = "popular
     return {"data": results, "total": total}
 
 
-def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, list[dict]]:
+async def _fetch_latest_candles(ticker_list: list[str]) -> dict[str, list[dict]]:
     if not ticker_list:
         return {}
 
     tickers_is = [t + ".IS" for t in ticker_list]
     placeholders = ",".join(["%s"] * len(tickers_is))
 
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             f"""SELECT ticker, ts, open, high, low, close, volume
                 FROM price_candles
                 WHERE ticker IN ({placeholders}) AND interval = '1d'
                 ORDER BY ticker, ts DESC""",
             tickers_is,
         )
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
 
     result: dict[str, list[dict]] = {}
     for r in rows:

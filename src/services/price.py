@@ -1,10 +1,10 @@
+import asyncio
 import json
 import math
 import time
-import psycopg2.extras
 from datetime import datetime, timedelta, timezone
 
-from src.clients.yfinance import fetch_price_history
+from src.clients.yfinance import afetch_price_history
 from src.core.database import db, price_write_lock
 from src.core.redis import r
 
@@ -21,25 +21,24 @@ def _clean(val):
     return val
 
 
-def _acquire_refresh_lock(ticker: str, interval: str, ttl: int = 15) -> bool:
+async def _acquire_refresh_lock(ticker: str, interval: str, ttl: int = 15) -> bool:
     lock_key = f"refresh_lock:{ticker}:{interval}"
-    return r.set(lock_key, "1", ex=ttl, nx=True) is not None
+    return (await r.set(lock_key, "1", ex=ttl, nx=True)) is not None
 
 
-def invalidate_price_cache(ticker: str, interval: str):
-    r.delete(_current_price_cache_key(ticker, interval))
+async def invalidate_price_cache(ticker: str, interval: str):
+    await r.delete(_current_price_cache_key(ticker, interval))
 
 
 _db_initialized = False
 
 
-def _init_db():
+async def _init_db():
     global _db_initialized
     if _db_initialized:
         return
-    conn = db.get_connection()
-    with conn.cursor() as cur:
-        cur.execute("""
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("""
             CREATE TABLE IF NOT EXISTS price_candles (
                 ticker    TEXT NOT NULL,
                 interval  TEXT NOT NULL,
@@ -52,10 +51,11 @@ def _init_db():
                 PRIMARY KEY (ticker, interval, ts)
             );
         """)
-        cur.execute("""
+        await cur.execute("""
             CREATE INDEX IF NOT EXISTS idx_price_candles_lookup
             ON price_candles (ticker, interval, ts DESC)
         """)
+    await db.commit()
     _db_initialized = True
 
 
@@ -80,8 +80,8 @@ def _parse_period(period: str) -> tuple[datetime, datetime]:
     return start, end
 
 
-def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: datetime):
-    data = fetch_price_history(ticker, interval, start, end)
+async def _fetch_and_store(ticker: str, interval: str, start: datetime, end: datetime):
+    data = await afetch_price_history(ticker, interval, start, end)
     if data.empty:
         return
 
@@ -103,19 +103,20 @@ def _fetch_and_store(conn, ticker: str, interval: str, start: datetime, end: dat
     if not values:
         return
 
-    with price_write_lock:
+    async with price_write_lock:
         try:
-            with conn.cursor() as cur:
-                psycopg2.extras.execute_values(cur,
-                    "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) VALUES %s "
+            async with db.cursor(row_factory=None) as cur:
+                await cur.executemany(
+                    "INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
                     "ON CONFLICT (ticker, interval, ts) DO UPDATE SET "
                     "open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low, "
                     "close = EXCLUDED.close, volume = EXCLUDED.volume",
                     values,
                 )
-            conn.commit()
+            await db.commit()
         except Exception:
-            conn.rollback()
+            await db.rollback()
             raise
 
 
@@ -142,7 +143,6 @@ def _validate_interval_period(interval: str, period: str):
         elif period.endswith("y"):
             days = int(period[:-1]) * 365
         elif period == "ytd":
-            from datetime import datetime, timezone
             days = (datetime.now(timezone.utc) - datetime.now(timezone.utc).replace(month=1, day=1)).days
         elif period == "max":
             days = 3650
@@ -160,7 +160,7 @@ def _cache_key(ticker: str, period: str, interval: str) -> str:
     return f"price_history:{ticker}:{period}:{interval}"
 
 
-def get_price_history(ticker: str, period: str, interval: str, hot: bool = False) -> list[dict]:
+async def get_price_history(ticker: str, period: str, interval: str, hot: bool = False) -> list[dict]:
     from src.core.config import get_config
 
     _validate_interval_period(interval, period)
@@ -174,7 +174,7 @@ def get_price_history(ticker: str, period: str, interval: str, hot: bool = False
         ticker = f"{ticker}.IS"
 
     if cache_ttl > 0:
-        cached = r.get(_cache_key(ticker, period, interval))
+        cached = await r.get(_cache_key(ticker, period, interval))
         if cached:
             try:
                 entry = json.loads(cached)
@@ -187,41 +187,40 @@ def get_price_history(ticker: str, period: str, interval: str, hot: bool = False
             except (json.JSONDecodeError, TypeError):
                 pass
 
-    _init_db()
+    await _init_db()
 
     start, end = _parse_period(period)
-    conn = db.get_connection()
 
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
+    async with db.cursor() as cur:
+        await cur.execute(
             "SELECT ts, open, high, low, close, volume FROM price_candles "
             "WHERE ticker = %s AND interval = %s AND ts >= %s AND ts <= %s ORDER BY ts",
             (ticker, interval, start, end),
         )
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
 
     fetched = False
     if rows:
         db_start = rows[0]["ts"]
         db_end = rows[-1]["ts"]
         if db_start > start:
-            _fetch_and_store(conn, ticker, interval, start, db_start)
+            await _fetch_and_store(ticker, interval, start, db_start)
             fetched = True
         if db_end < end:
-            _fetch_and_store(conn, ticker, interval, db_end, end)
+            await _fetch_and_store(ticker, interval, db_end, end)
             fetched = True
     else:
-        _fetch_and_store(conn, ticker, interval, start, end)
+        await _fetch_and_store(ticker, interval, start, end)
         fetched = True
 
     if fetched:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
+        async with db.cursor() as cur:
+            await cur.execute(
                 "SELECT ts, open, high, low, close, volume FROM price_candles "
                 "WHERE ticker = %s AND interval = %s AND ts >= %s AND ts <= %s ORDER BY ts",
                 (ticker, interval, start, end),
             )
-            rows = cur.fetchall()
+            rows = await cur.fetchall()
 
     result = [
         {"ts": row["ts"].isoformat(), "open": _clean(row["open"]), "high": _clean(row["high"]),
@@ -232,7 +231,7 @@ def get_price_history(ticker: str, period: str, interval: str, hot: bool = False
 
     if cache_ttl > 0:
         cache_entry = json.dumps({"d": result, "t": time.time()}, ensure_ascii=False)
-        r.set(_cache_key(ticker, period, interval), cache_entry, ex=cache_ttl + stale_ttl)
+        await r.set(_cache_key(ticker, period, interval), cache_entry, ex=cache_ttl + stale_ttl)
 
     return result
 
@@ -241,7 +240,7 @@ def _current_price_cache_key(ticker: str, interval: str) -> str:
     return f"latest_price:{ticker}:{interval}"
 
 
-def get_current_price(ticker: str, interval: str = "5m") -> float | None:
+async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
     ticker = ticker.upper()
     if not ticker.endswith(".IS"):
         ticker = f"{ticker}.IS"
@@ -249,61 +248,60 @@ def get_current_price(ticker: str, interval: str = "5m") -> float | None:
     intraday = interval in INTRADAY_INTERVALS
 
     if intraday:
-        cached = r.get(_current_price_cache_key(ticker, interval))
+        cached = await r.get(_current_price_cache_key(ticker, interval))
         if cached is not None:
             try:
                 return float(cached)
             except (TypeError, ValueError):
                 pass
 
-    _init_db()
-    conn = db.get_connection()
+    await _init_db()
 
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
+    async with db.cursor() as cur:
+        await cur.execute(
             "SELECT close, ts FROM price_candles "
             "WHERE ticker = %s AND interval = %s ORDER BY ts DESC LIMIT 1",
             (ticker, interval),
         )
-        row = cur.fetchone()
+        row = await cur.fetchone()
 
     if row and _clean(row["close"]) is not None:
         price = float(row["close"])
         if intraday:
-            r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+            await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
         return price
 
     if intraday:
-        if _acquire_refresh_lock(ticker, interval):
+        if await _acquire_refresh_lock(ticker, interval):
             now = datetime.now(timezone.utc)
             start = now - timedelta(days=1)
-            _fetch_and_store(conn, ticker, interval, start, now)
+            await _fetch_and_store(ticker, interval, start, now)
 
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
+            async with db.cursor() as cur:
+                await cur.execute(
                     "SELECT close FROM price_candles "
                     "WHERE ticker = %s AND interval = %s ORDER BY ts DESC LIMIT 1",
                     (ticker, interval),
                 )
-                row = cur.fetchone()
+                row = await cur.fetchone()
             if row and _clean(row["close"]) is not None:
                 price = float(row["close"])
-                r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+                await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
                 return price
 
-        return get_current_price(ticker, "1d")
+        return await get_current_price(ticker, "1d")
 
-    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-        cur.execute(
+    async with db.cursor() as cur:
+        await cur.execute(
             "SELECT close FROM price_candles "
             "WHERE ticker = %s AND interval = '1d' ORDER BY ts DESC LIMIT 1",
             (ticker,),
         )
-        row = cur.fetchone()
+        row = await cur.fetchone()
     if row and _clean(row["close"]) is not None:
         return float(row["close"])
 
-    prices = get_price_history(ticker, "5d", "1d")
+    prices = await get_price_history(ticker, "5d", "1d")
     if prices:
         return float(prices[-1]["close"])
     return None

@@ -4,19 +4,19 @@ Kullanim:
   python scripts/export_analytics.py [--since 2026-01-01] [--until 2026-07-28] [--output analytics_export.csv]
 """
 
-import sys
-import csv
 import argparse
+import asyncio
+import csv
+import sys
 from pathlib import Path
-from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.core.database import db
 
 
-def export_analytics(since: str | None, until: str | None, output: str):
-    with db.cursor() as cur:
+async def export_analytics(since: str | None, until: str | None, output: str):
+    async with db.cursor(row_factory=None) as cur:
         query = "SELECT id, event_type, user_id, session_id, ticker, details, created_at FROM analytics_events WHERE 1=1"
         params = []
 
@@ -29,8 +29,8 @@ def export_analytics(since: str | None, until: str | None, output: str):
 
         query += " ORDER BY created_at ASC"
 
-        cur.execute(query, params)
-        rows = cur.fetchall()
+        await cur.execute(query, params)
+        rows = await cur.fetchall()
 
     with open(output, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -47,4 +47,4 @@ if __name__ == "__main__":
     parser.add_argument("--until", help="End date (YYYY-MM-DD)")
     parser.add_argument("--output", default="analytics_export.csv", help="Output CSV file")
     args = parser.parse_args()
-    export_analytics(args.since, args.until, args.output)
+    asyncio.run(export_analytics(args.since, args.until, args.output))

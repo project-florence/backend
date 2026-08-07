@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
+
 from src.core.database import db
 
 
-def log_token_usage(
+async def log_token_usage(
     model: str,
     prompt_tokens: int,
     completion_tokens: int,
@@ -10,8 +11,8 @@ def log_token_usage(
     endpoint: str = "unknown",
     user_id: int | None = None,
 ) -> None:
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             """INSERT INTO token_usage
                (model, prompt_tokens, completion_tokens, total_tokens, endpoint, user_id, created_at)
                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
@@ -25,10 +26,10 @@ def log_token_usage(
                 datetime.now(timezone.utc),
             ),
         )
-        db.commit()
+        await db.commit()
 
 
-def get_token_summary(
+async def get_token_summary(
     since: datetime | None = None,
     endpoint: str | None = None,
 ) -> dict:
@@ -44,17 +45,17 @@ def get_token_summary(
 
     where = "WHERE " + " AND ".join(conditions) if conditions else ""
 
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             f"""SELECT
-                   COUNT(*) AS call_count,
-                   COALESCE(SUM(prompt_tokens), 0) AS total_prompt,
-                   COALESCE(SUM(completion_tokens), 0) AS total_completion,
-                   COALESCE(SUM(total_tokens), 0) AS total_tokens
-               FROM token_usage {where}""",
+                  COUNT(*) AS call_count,
+                  COALESCE(SUM(prompt_tokens), 0) AS total_prompt,
+                  COALESCE(SUM(completion_tokens), 0) AS total_completion,
+                  COALESCE(SUM(total_tokens), 0) AS total_tokens
+              FROM token_usage {where}""",
             params,
         )
-        row = cur.fetchone()
+        row = await cur.fetchone()
 
     return {
         "call_count": row[0],

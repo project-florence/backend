@@ -2,12 +2,14 @@
 
 Bu fonksiyonlar hem `scripts/` altindaki CLI wrapper'larindan hem de
 `src/cron/register.py` uzerinden in-process cron tarafindan calistirilir.
+Hepsi async'dir; yfinance gibi sync agirlikli isler `asyncio.to_thread`
+ile event loop'u bloklamadan calistirilir.
 """
 
+import asyncio
 import json
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
 
@@ -48,20 +50,20 @@ TIERS = {
 # ----------------------------------------------------------------------
 # Fiyat guncelleme
 # ----------------------------------------------------------------------
-def _acquire_cron_lock(tier_name: str, ttl: int = 600) -> bool:
+async def _acquire_cron_lock(tier_name: str, ttl: int = 600) -> bool:
     lock_key = f"lock:cron:{tier_name}"
-    acquired = r.set(lock_key, "1", ex=ttl, nx=True)
+    acquired = await r.set(lock_key, "1", ex=ttl, nx=True)
     return acquired is not None
 
 
-def _release_cron_lock(tier_name: str) -> None:
-    r.delete(f"lock:cron:{tier_name}")
+async def _release_cron_lock(tier_name: str) -> None:
+    await r.delete(f"lock:cron:{tier_name}")
 
 
-def _ticker_sets() -> dict[str, list[str]]:
+async def _ticker_sets() -> dict[str, list[str]]:
     mapping = load_bist_mapping()
     popular_tickers = list(mapping.keys())
-    companies = get_bist_companies_as_dict_from_redis()
+    companies = await get_bist_companies_as_dict_from_redis()
     all_tickers = {c["ticker"] for c in companies}
 
     bist30_set = set(BIST30_TICKERS)
@@ -75,22 +77,22 @@ def _ticker_sets() -> dict[str, list[str]]:
     }
 
 
-def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta, interval: str = "1d") -> list[str]:
+async def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta, interval: str = "1d") -> list[str]:
     if not ticker_list:
         return []
 
     placeholders = ",".join(["%s"] * len(ticker_list))
     tickers_is = [t + ".IS" for t in ticker_list]
 
-    with db.cursor() as cur:
-        cur.execute(
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
             f"""SELECT ticker, MAX(ts) as last_ts
                 FROM price_candles
                 WHERE ticker IN ({placeholders}) AND interval = %s
                 GROUP BY ticker""",
             tickers_is + [interval],
         )
-        rows = cur.fetchall()
+        rows = await cur.fetchall()
         last_ts_map = {r[0]: r[1] for r in rows}
 
     need = []
@@ -102,14 +104,20 @@ def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelta, int
     return need
 
 
-def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_name: str, offset: int, total: int) -> None:
+async def _download_prices(batch_tickers: list[str], period: str, interval: str):
+    """yfinance batch indirmesini thread'de calistirir (event loop'u bloklamaz)."""
+    def _do():
+        with open("/dev/null", "w") as devnull:
+            with redirect_stderr(devnull), redirect_stdout(devnull):
+                return yf.download(batch_tickers, period=period, interval=interval, group_by="ticker", progress=False)
+    return await asyncio.to_thread(_do)
+
+
+async def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_name: str, offset: int, total: int) -> None:
     logger.info("  %s [%s-%s/%s] %s indiriliyor...", tier_name, offset + 1, offset + len(batch_tickers), total, interval)
 
     try:
-        with open("/dev/null", "w") as devnull:
-            with redirect_stderr(devnull), redirect_stdout(devnull):
-                df = yf.download(batch_tickers, period=period, interval=interval, group_by="ticker", progress=False)
-
+        df = await _download_prices(batch_tickers, period, interval)
         if df is None or df.empty:
             logger.info("veri yok")
             return
@@ -126,9 +134,9 @@ def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_nam
     count = 0
     updated_tickers = []
 
-    with price_write_lock:
+    async with price_write_lock:
         try:
-            with db.cursor() as cur:
+            async with db.cursor(row_factory=None) as cur:
                 for ticker in batch_tickers:
                     if ticker not in available:
                         continue
@@ -138,42 +146,47 @@ def _update_batch(batch_tickers: list[str], interval: str, period: str, tier_nam
                         if tdf.empty:
                             continue
 
+                        values = []
                         for ts, row in tdf.iterrows():
                             ts_dt = ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else ts
-                            cur.execute(
+                            values.append((
+                                ticker, interval, ts_dt,
+                                float(row["Open"]) if pd.notna(row["Open"]) else None,
+                                float(row["High"]) if pd.notna(row["High"]) else None,
+                                float(row["Low"]) if pd.notna(row["Low"]) else None,
+                                float(row["Close"]) if pd.notna(row["Close"]) else None,
+                                int(row["Volume"]) if pd.notna(row["Volume"]) else 0,
+                            ))
+                        if values:
+                            await cur.executemany(
                                 """INSERT INTO price_candles (ticker, interval, ts, open, high, low, close, volume)
                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                                    ON CONFLICT (ticker, interval, ts)
                                    DO UPDATE SET open = EXCLUDED.open, high = EXCLUDED.high,
                                                  low = EXCLUDED.low, close = EXCLUDED.close,
                                                  volume = EXCLUDED.volume""",
-                                (ticker, interval, ts_dt,
-                                 float(row["Open"]) if pd.notna(row["Open"]) else None,
-                                 float(row["High"]) if pd.notna(row["High"]) else None,
-                                 float(row["Low"]) if pd.notna(row["Low"]) else None,
-                                 float(row["Close"]) if pd.notna(row["Close"]) else None,
-                                 int(row["Volume"]) if pd.notna(row["Volume"]) else 0),
+                                values,
                             )
-                            count += 1
+                            count += len(values)
                         updated_tickers.append(ticker)
                     except Exception:
-                        db.rollback()
+                        await db.rollback()
                         logger.warning("Batch '{}' icin yazma hatasi, kalan tickerlar atlaniyor".format(ticker))
                         break
-            db.commit()
+            await db.commit()
         except Exception:
-            db.rollback()
+            await db.rollback()
             logger.warning("Batch commit basarisiz, {} ticker yazilamadi".format(len(batch_tickers)))
             count = 0
             updated_tickers = []
 
     for ticker in updated_tickers:
-        invalidate_price_cache(ticker, interval)
+        await invalidate_price_cache(ticker, interval)
 
     logger.info("%s mum kaydedildi, %s cache invalidated", count, len(updated_tickers))
 
 
-def _refresh_company_info(tier_keys: list[str]) -> None:
+async def _refresh_company_info(tier_keys: list[str]) -> None:
     logger.info("[INFO] Company info tazeleniyor...")
 
     if "popular" not in tier_keys:
@@ -187,7 +200,7 @@ def _refresh_company_info(tier_keys: list[str]) -> None:
     for i, ticker in enumerate(popular_tickers, 1):
         logger.info("  [%s/%s] %s...", i, total, ticker)
         try:
-            profile = get_company_info(ticker, use_cache=False)
+            profile = await get_company_info(ticker, use_cache=False)
             if profile:
                 logger.info("OK (%s alan)", len(profile))
             else:
@@ -196,81 +209,76 @@ def _refresh_company_info(tier_keys: list[str]) -> None:
             logger.warning("hata: %s", e)
 
         if i < total:
-            time.sleep(INFO_TICKER_DELAY)
+            await asyncio.sleep(INFO_TICKER_DELAY)
 
     logger.info("[INFO] Company info tazeleme tamamlandi.")
 
 
-def update_tier(tier_name: str, interval: str | None = None, info: bool = False, no_lock: bool = False) -> int:
+async def update_tier(tier_name: str, interval: str | None = None, info: bool = False, no_lock: bool = False) -> int:
     if tier_name not in TIERS:
         raise ValueError(f"Bilinmeyen tier: {tier_name}")
 
     name, freq, default_interval, batch_size = TIERS[tier_name]
     effective_interval = interval or default_interval
-    ticker_list = _ticker_sets()[tier_name]
+    ticker_list = (await _ticker_sets())[tier_name]
 
-    if not no_lock and not _acquire_cron_lock(tier_name):
+    if not no_lock and not await _acquire_cron_lock(tier_name):
         logger.info("[%s] %s — lock alinamadi (baskasi calisiyor), atlaniyor", name, effective_interval)
         return 0
 
     total_updated = 0
     try:
         now = datetime.now(timezone.utc)
-        need_update = _needs_update(ticker_list, now, freq, effective_interval)
+        need_update = await _needs_update(ticker_list, now, freq, effective_interval)
         if not need_update:
             logger.info("[%s] %s — guncelleme gerektiren yok (%s ticker)", name, effective_interval, len(ticker_list))
         else:
             logger.info("[%s] %s — %s/%s ticker guncellenecek...", name, effective_interval, len(need_update), len(ticker_list))
             tickers_is = [t + ".IS" for t in need_update]
-            period = "5d" if effective_interval in INTRADAY_INTERVALS else "5d"
+            period = "5d"
             for i in range(0, len(tickers_is), batch_size):
                 batch = tickers_is[i: i + batch_size]
-                _update_batch(batch, effective_interval, period, name, i, len(tickers_is))
+                await _update_batch(batch, effective_interval, period, name, i, len(tickers_is))
                 total_updated += len(batch)
 
                 if i + batch_size < len(tickers_is):
                     logger.info("  %ss bekleniyor...", BATCH_DELAY)
-                    time.sleep(BATCH_DELAY)
+                    await asyncio.sleep(BATCH_DELAY)
     finally:
-        _release_cron_lock(tier_name)
+        await _release_cron_lock(tier_name)
 
     if info and tier_name == "popular":
-        _refresh_company_info([tier_name])
+        await _refresh_company_info([tier_name])
 
     logger.info("Toplam %s ticker guncellendi.", total_updated)
     return total_updated
 
 
-def run_update_bist30() -> None:
-    update_tier("bist30")
+async def run_update_bist30() -> None:
+    await update_tier("bist30")
 
 
-def run_update_popular() -> None:
-    update_tier("popular", info=True)
+async def run_update_popular() -> None:
+    await update_tier("popular", info=True)
 
 
-def run_update_rest() -> None:
-    update_tier("rest")
+async def run_update_rest() -> None:
+    await update_tier("rest")
 
 
-def run_update_daily_closes() -> None:
-    """Tum hisselerin gunluk (1d) kapanis mumlarini tazeler.
-
-    Piyasa kapanisindan sonra (~18:35 TRT) calisir; boylece bist30/popular
-    hisselerin de gunluk kapanislari final degerine ulasir (bist30=5m ve
-    popular=30m kademeleri 1d mum yazmadigi icin bu is gerekli).
-    """
-    companies = get_bist_companies_as_dict_from_redis()
+async def run_update_daily_closes() -> None:
+    """Tum hisselerin gunluk (1d) kapanis mumlarini tazeler."""
+    companies = await get_bist_companies_as_dict_from_redis()
     all_tickers = sorted({c["ticker"] for c in companies})
     total = len(all_tickers)
     logger.info("Gunluk kapanis mumlari guncelleniyor: %s ticker", total)
 
     for i in range(0, total, 50):
         batch = [f"{t}.IS" for t in all_tickers[i:i + 50]]
-        _update_batch(batch, "1d", "5d", "DAILY-CLOSE", i, total)
+        await _update_batch(batch, "1d", "5d", "DAILY-CLOSE", i, total)
         if i + 50 < total:
             logger.info("  %ss bekleniyor...", BATCH_DELAY)
-            time.sleep(BATCH_DELAY)
+            await asyncio.sleep(BATCH_DELAY)
 
     logger.info("Gunluk kapanis guncellemesi tamamlandi.")
 
@@ -278,18 +286,18 @@ def run_update_daily_closes() -> None:
 # ----------------------------------------------------------------------
 # Kredi dolumu
 # ----------------------------------------------------------------------
-def run_credit_refill() -> None:
+async def run_credit_refill() -> None:
     from src.services.credits import daily_refill
 
-    count = daily_refill()
+    count = await daily_refill()
     logger.info("Free credits yenilendi. Etkilenen kullanici: %s", count)
 
 
 # ----------------------------------------------------------------------
 # Stock vector hesaplama
 # ----------------------------------------------------------------------
-def run_seed_vectors(count: int = 200, delay: float | None = None) -> None:
-    stats = get_all_stats()
+async def run_seed_vectors(count: int = 200, delay: float | None = None) -> None:
+    stats = await get_all_stats()
     all_tickers = [s["ticker"] for s in stats]
 
     if count == -1:
@@ -306,7 +314,7 @@ def run_seed_vectors(count: int = 200, delay: float | None = None) -> None:
     for i, ticker in enumerate(tickers, 1):
         logger.info("  [%s/%s] %s...", i, total, ticker)
         try:
-            profile = get_company_info(ticker, use_cache=True)
+            profile = await get_company_info(ticker, use_cache=True)
             if not profile:
                 logger.info("profil verisi yok")
                 errors += 1
@@ -321,15 +329,15 @@ def run_seed_vectors(count: int = 200, delay: float | None = None) -> None:
 
         batch_size = 50
         if len(vectors) >= batch_size:
-            write_vectors_to_redis(vectors)
+            await write_vectors_to_redis(vectors)
             logger.info("    → %s vector Redis'e yazildi", len(vectors))
             vectors = []
 
         if delay is not None and i < total:
-            time.sleep(delay)
+            await asyncio.sleep(delay)
 
     if vectors:
-        write_vectors_to_redis(vectors)
+        await write_vectors_to_redis(vectors)
         logger.info("  → %s vector Redis'e yazildi", len(vectors))
 
     written = total - errors
@@ -351,19 +359,19 @@ RETENTION = {
 }
 
 
-def run_cleanup_old_data() -> None:
+async def run_cleanup_old_data() -> None:
     total_deleted = 0
     now = datetime.now(timezone.utc)
 
     for interval, max_age in RETENTION.items():
         cutoff = now - max_age
-        with db.cursor() as cur:
-            cur.execute(
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(
                 "DELETE FROM price_candles WHERE interval = %s AND ts < %s",
                 (interval, cutoff),
             )
             deleted = cur.rowcount
-        db.commit()
+        await db.commit()
         if deleted:
             logger.info("  %s: %s satir silindi (before %s)", interval, deleted, cutoff.date())
             total_deleted += deleted
@@ -377,36 +385,39 @@ def run_cleanup_old_data() -> None:
 # ----------------------------------------------------------------------
 # Redis fiyat cache on-isitma
 # ----------------------------------------------------------------------
-def _warm_one(ticker: str) -> None:
-    get_price_history(ticker, "5y", "1d", hot=True)
+async def _warm_one(ticker: str) -> None:
+    await get_price_history(ticker, "5y", "1d", hot=True)
 
 
-def run_warm_price_cache() -> None:
+async def run_warm_price_cache() -> None:
     from src.services.bist import get_bist_tickers_as_json_from_redis
 
-    tickers = json.loads(get_bist_tickers_as_json_from_redis())
+    tickers = json.loads(await get_bist_tickers_as_json_from_redis())
     logger.info("Warming %s tickers with 3 parallel workers...", len(tickers))
 
     start_time = time.time()
     done = 0
     errors = 0
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        futures = {}
-        for raw in tickers:
-            ticker = raw if raw.endswith(".IS") else f"{raw}.IS"
-            future = executor.submit(_warm_one, ticker)
-            futures[future] = ticker
+    sem = asyncio.Semaphore(3)
 
-        for future in as_completed(futures):
-            ticker = futures[future]
+    async def _warm(ticker: str) -> None:
+        nonlocal done, errors
+        try:
+            async with sem:
+                await _warm_one(ticker)
             done += 1
-            try:
-                future.result()
-                logger.info("[%s/%s] OK  %s", done, len(tickers), ticker)
-            except Exception as e:
-                errors += 1
-                logger.warning("[%s/%s] ERR %s: %s", done, len(tickers), ticker, e)
+            logger.info("[%s/%s] OK  %s", done, len(tickers), ticker)
+        except Exception as e:
+            done += 1
+            errors += 1
+            logger.warning("[%s/%s] ERR %s: %s", done, len(tickers), ticker, e)
+
+    tasks = []
+    for raw in tickers:
+        ticker = raw if raw.endswith(".IS") else f"{raw}.IS"
+        tasks.append(asyncio.create_task(_warm(ticker)))
+    await asyncio.gather(*tasks)
 
     elapsed = time.time() - start_time
     logger.info("Done. %s tickers warmed in %ss (%s min), %s errors", len(tickers), int(elapsed), round(elapsed / 60, 1), errors)

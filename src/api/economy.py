@@ -14,28 +14,28 @@ router = APIRouter()
 
 
 @router.get("/economy/gold-prices")
-def gold_prices():
-    return get_gold_prices()
+async def gold_prices():
+    return await get_gold_prices()
 
 
 @router.get("/economy/silver-price")
-def silver_prices():
-    return get_silver_price()
+async def silver_prices():
+    return await get_silver_price()
 
 
 @router.get("/economy/gram-platinum-price")
-def gram_platinum_price():
-    return get_gram_platinum_price()
+async def gram_platinum_price():
+    return await get_gram_platinum_price()
 
 
 @router.get("/economy/gram-palladium-price")
-def gram_palladium_price():
-    return get_gram_palladium_price()
+async def gram_palladium_price():
+    return await get_gram_palladium_price()
 
 
 @router.get("/economy/currency")
-def currency(symbols: Optional[str] = None):
-    data = get_currency()
+async def currency(symbols: Optional[str] = None):
+    data = await get_currency()
     if symbols:
         keys = [s.strip().upper() for s in symbols.split(",")]
         return {k: data[k] for k in keys if k in data}
@@ -43,8 +43,8 @@ def currency(symbols: Optional[str] = None):
 
 
 @router.get("/macroeconomy")
-def macroeconomy_all():
-    mdata = get_macroeconomy_data()
+async def macroeconomy_all():
+    mdata = await get_macroeconomy_data()
     if mdata:
         return mdata
     raise HTTPException(status_code=500, detail="Internal server error")

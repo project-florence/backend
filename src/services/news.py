@@ -1,6 +1,7 @@
 import json
 import math
 import re
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from google.cloud import bigquery
@@ -78,7 +79,7 @@ def _build_gkg_clause(terms: list[str]) -> str:
     return " OR ".join(f"UPPER(V2Organizations) LIKE '%{t}%'" for t in safe_terms)
 
 
-def collect_articles(
+async def collect_articles(
     query: str,
     from_date: datetime | None = None,
     limit: int | None = None,
@@ -146,7 +147,9 @@ def collect_articles(
     if max_bytes is not None:
         job_config.maximum_bytes_billed = max_bytes
 
-    results = _get_client().query(sql, job_config=job_config).result().to_dataframe()
+    results = await asyncio.to_thread(
+        lambda: _get_client().query(sql, job_config=job_config).result().to_dataframe()
+    )
 
     articles: list[Article] = []
     for _, row in results.iterrows():
@@ -191,18 +194,18 @@ def _cache_key(ticker: str, amount: int) -> str:
     return f"news:{ticker.upper()}:{normalized}"
 
 
-def get_latest_news(ticker: str, amount: int) -> list[Article]:
+async def get_latest_news(ticker: str, amount: int) -> list[Article]:
     key = _cache_key(ticker, amount)
-    cached = r.get(key)
+    cached = await r.get(key)
     if cached:
         articles = _deserialize_articles(cached)
         return articles[:amount]
 
     normalized = max(1, math.ceil(amount / 10) * 10)
     from_date = datetime.now(timezone.utc) - timedelta(days=90)
-    articles = collect_articles(ticker, from_date=from_date, limit=normalized, lang=["TURKISH"], diverse=False)
+    articles = await collect_articles(ticker, from_date=from_date, limit=normalized, lang=["TURKISH"], diverse=False)
 
     cfg = get_config()["article_collector"]
-    r.set(key, _serialize_articles(articles), ex=cfg["cache_ttl"])
+    await r.set(key, _serialize_articles(articles), ex=cfg["cache_ttl"])
 
     return articles[:amount]

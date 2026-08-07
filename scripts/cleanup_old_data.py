@@ -13,8 +13,10 @@ Kullanım:
   python scripts/cleanup_old_data.py
 """
 
+import asyncio
+
 from src.cron.tasks import run_cleanup_old_data
 
 
 if __name__ == "__main__":
-    run_cleanup_old_data()
+    asyncio.run(run_cleanup_old_data())

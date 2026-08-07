@@ -6,23 +6,23 @@ router = APIRouter()
 
 
 @router.get("/ipos/upcoming")
-def ipos_upcoming(after: str | None = Query(default=None, description="ISO date filter (e.g. 2026-06-01T00:00:00). Defaults to last 30 days.")):
-    return json.loads(get_upcoming_ipos(after=after))
+async def ipos_upcoming(after: str | None = Query(default=None, description="ISO date filter (e.g. 2026-06-01T00:00:00). Defaults to last 30 days.")):
+    return json.loads(await get_upcoming_ipos(after=after))
 
 
 @router.get("/ipos/draft")
-def ipos_draft(after: str | None = Query(default=None, description="ISO date filter. Defaults to last 30 days.")):
-    return json.loads(get_draft_ipos(after=after))
+async def ipos_draft(after: str | None = Query(default=None, description="ISO date filter. Defaults to last 30 days.")):
+    return json.loads(await get_draft_ipos(after=after))
 
 
 @router.get("/ipos/active")
-def ipos_active(after: str | None = Query(default=None, description="ISO date filter. Defaults to last 30 days.")):
-    return json.loads(get_active_ipos(after=after))
+async def ipos_active(after: str | None = Query(default=None, description="ISO date filter. Defaults to last 30 days.")):
+    return json.loads(await get_active_ipos(after=after))
 
 
 @router.get("/ipos/{slug}")
-def ipos_detail(slug: str):
-    data = json.loads(get_ipo_detail_by_slug(slug))
+async def ipos_detail(slug: str):
+    data = json.loads(await get_ipo_detail_by_slug(slug))
     if data is None:
         raise HTTPException(status_code=404, detail="IPO not found")
     return data

@@ -1,7 +1,9 @@
 import re
-import requests
-from bs4 import BeautifulSoup
 from datetime import datetime, timedelta, timezone
+
+from bs4 import BeautifulSoup
+
+from src.clients.http import get_client
 from src.core.config import get_config
 
 CATEGORY_IDS = {
@@ -15,7 +17,7 @@ def _cfg():
     return get_config()["halkarz"]
 
 
-def list_ipos(category_slug: str, after: str | None = None) -> list[dict]:
+async def list_ipos(category_slug: str, after: str | None = None) -> list[dict]:
     cfg = _cfg()
     cat_id = CATEGORY_IDS.get(category_slug)
     if cat_id is None:
@@ -27,6 +29,7 @@ def list_ipos(category_slug: str, after: str | None = None) -> list[dict]:
     page = 1
     results = []
     headers = {"User-Agent": cfg["user_agent"]}
+    client = await get_client()
 
     while True:
         params = {
@@ -36,7 +39,7 @@ def list_ipos(category_slug: str, after: str | None = None) -> list[dict]:
             "after": after,
             "_fields": "id,date,modified,slug,title,link",
         }
-        resp = requests.get(cfg["wp_api"], params=params, headers=headers, timeout=15)
+        resp = await client.get(cfg["wp_api"], params=params, headers=headers, timeout=15)
         resp.raise_for_status()
         posts = resp.json()
 
@@ -127,11 +130,12 @@ def _extract_company_info(soup: BeautifulSoup) -> dict:
     return info
 
 
-def get_ipo_detail(slug: str) -> dict | None:
+async def get_ipo_detail(slug: str) -> dict | None:
     cfg = _cfg()
     url = f"{cfg['base_url']}/{slug}/"
     headers = {"User-Agent": cfg["user_agent"]}
-    resp = requests.get(url, headers=headers, timeout=15)
+    client = await get_client()
+    resp = await client.get(url, headers=headers, timeout=15)
     if resp.status_code != 200:
         return None
 

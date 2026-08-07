@@ -1,23 +1,25 @@
 import json
+
 from fastapi import APIRouter, Depends, HTTPException
-from src.core.database import db
+
 from src.api.deps import get_current_user
+from src.core.database import db
 
 router = APIRouter()
 
 
 @router.get("/user/export")
-def export_user_data(current_user_id: int = Depends(get_current_user)):
-    with db.cursor() as cur:
+async def export_user_data(current_user_id: int = Depends(get_current_user)):
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(
+            await cur.execute(
                 "SELECT u.username, u.email, COALESCE(uc.amount, 0) "
                 "FROM users u "
                 "LEFT JOIN user_credits uc ON uc.user_id = u.id AND uc.credit_type = 'free_credits' "
                 "WHERE u.id = %s",
                 (current_user_id,),
             )
-            profile_row = cur.fetchone()
+            profile_row = await cur.fetchone()
             if not profile_row:
                 raise HTTPException(status_code=404, detail="User not found")
         except Exception as e:
@@ -30,13 +32,13 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
     }
 
     favorites = []
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(
+            await cur.execute(
                 "SELECT ticker_code, created_at FROM favorites WHERE user_id = %s ORDER BY created_at",
                 (current_user_id,),
             )
-            for row in cur.fetchall():
+            for row in await cur.fetchall():
                 favorites.append({
                     "ticker_code": row[0],
                     "created_at": row[1].isoformat(),
@@ -45,15 +47,15 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
             raise HTTPException(status_code=500, detail="Database error")
 
     reports = []
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(
+            await cur.execute(
                 """SELECT id, ticker, type, title, token_usage, content, created_at
                    FROM reports WHERE user_id = %s
                    ORDER BY created_at DESC""",
                 (current_user_id,),
             )
-            for row in cur.fetchall():
+            for row in await cur.fetchall():
                 tu = row[4]
                 if isinstance(tu, str):
                     tu = json.loads(tu) if tu else None
@@ -70,15 +72,15 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
             raise HTTPException(status_code=500, detail="Database error")
 
     token_usage = []
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(
+            await cur.execute(
                 """SELECT model, prompt_tokens, completion_tokens, total_tokens, endpoint, created_at
                    FROM token_usage WHERE user_id = %s
                    ORDER BY created_at DESC""",
                 (current_user_id,),
             )
-            for row in cur.fetchall():
+            for row in await cur.fetchall():
                 token_usage.append({
                     "model": row[0],
                     "prompt_tokens": row[1],
@@ -91,15 +93,15 @@ def export_user_data(current_user_id: int = Depends(get_current_user)):
             raise HTTPException(status_code=500, detail="Database error")
 
     simulations = []
-    with db.cursor() as cur:
+    async with db.cursor(row_factory=None) as cur:
         try:
-            cur.execute(
+            await cur.execute(
                 """SELECT id, ticker, days, bounds, target, result, cost, created_at
                    FROM simulations WHERE user_id = %s
                    ORDER BY created_at DESC""",
                 (current_user_id,),
             )
-            for row in cur.fetchall():
+            for row in await cur.fetchall():
                 result_raw = row[5]
                 if isinstance(result_raw, str):
                     result_raw = json.loads(result_raw) if result_raw else {}

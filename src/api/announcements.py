@@ -1,8 +1,10 @@
-from datetime import timedelta, timezone
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from src.core.database import db
+
 from src.api.deps import get_current_user
+from src.core.database import db
 from src.services.announcement import create_announcement, get_announcements, get_announcement, update_announcement, delete_announcement
 
 router = APIRouter()
@@ -18,29 +20,29 @@ class AnnouncementUpdate(BaseModel):
     content: str
 
 
-def _is_admin(user_id: int) -> bool:
-    with db.cursor() as cur:
-        cur.execute("SELECT user_type FROM users WHERE id = %s", (user_id,))
-        row = cur.fetchone()
+async def _is_admin(user_id: int) -> bool:
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT user_type FROM users WHERE id = %s", (user_id,))
+        row = await cur.fetchone()
         return row is not None and row[0] == "admin"
 
 
 @router.get("/announcements")
-def list_announcements(current_user_id: int = Depends(get_current_user)):
+async def list_announcements(current_user_id: int = Depends(get_current_user)):
     try:
-        with db.cursor() as cur:
-            cur.execute("SELECT created_at FROM users WHERE id = %s", (current_user_id,))
-            user_row = cur.fetchone()
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute("SELECT created_at FROM users WHERE id = %s", (current_user_id,))
+            user_row = await cur.fetchone()
             user_created_at = user_row[0] if user_row else None
 
-            cur.execute("SELECT last_announcement_viewed_at FROM users WHERE id = %s", (current_user_id,))
-            viewed_row = cur.fetchone()
+            await cur.execute("SELECT last_announcement_viewed_at FROM users WHERE id = %s", (current_user_id,))
+            viewed_row = await cur.fetchone()
             last_viewed = viewed_row[0] if viewed_row else None
 
-            cur.execute(
+            await cur.execute(
                 "SELECT id, title, content, sent_by, created_at, updated_at FROM announcements ORDER BY created_at DESC"
             )
-            rows = cur.fetchall()
+            rows = await cur.fetchall()
 
         result = []
         for r in rows:
@@ -67,53 +69,53 @@ def list_announcements(current_user_id: int = Depends(get_current_user)):
 
 
 @router.get("/announcements/{announcement_id}")
-def get_single_announcement(announcement_id: int, current_user_id: int = Depends(get_current_user)):
-    ann = get_announcement(announcement_id)
+async def get_single_announcement(announcement_id: int, current_user_id: int = Depends(get_current_user)):
+    ann = await get_announcement(announcement_id)
     if ann is None:
         raise HTTPException(status_code=404, detail="Announcement not found")
     return ann
 
 
 @router.post("/announcements")
-def create_new_announcement(body: AnnouncementCreate, current_user_id: int = Depends(get_current_user)):
-    if not _is_admin(current_user_id):
+async def create_new_announcement(body: AnnouncementCreate, current_user_id: int = Depends(get_current_user)):
+    if not await _is_admin(current_user_id):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    ann = create_announcement(body.title, body.content, current_user_id)
+    ann = await create_announcement(body.title, body.content, current_user_id)
     if ann is None:
         raise HTTPException(status_code=500, detail="Failed to create announcement")
     return ann
 
 
 @router.put("/announcements/{announcement_id}")
-def update_existing_announcement(announcement_id: int, body: AnnouncementUpdate, current_user_id: int = Depends(get_current_user)):
-    if not _is_admin(current_user_id):
+async def update_existing_announcement(announcement_id: int, body: AnnouncementUpdate, current_user_id: int = Depends(get_current_user)):
+    if not await _is_admin(current_user_id):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    if not update_announcement(announcement_id, body.title, body.content):
+    if not await update_announcement(announcement_id, body.title, body.content):
         raise HTTPException(status_code=404, detail="Announcement not found")
     return {"message": "Announcement updated"}
 
 
 @router.delete("/announcements/{announcement_id}")
-def delete_existing_announcement(announcement_id: int, current_user_id: int = Depends(get_current_user)):
-    if not _is_admin(current_user_id):
+async def delete_existing_announcement(announcement_id: int, current_user_id: int = Depends(get_current_user)):
+    if not await _is_admin(current_user_id):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    if not delete_announcement(announcement_id):
+    if not await delete_announcement(announcement_id):
         raise HTTPException(status_code=404, detail="Announcement not found")
     return {"message": "Announcement deleted"}
 
 
 @router.post("/announcements/read")
-def mark_announcements_read(current_user_id: int = Depends(get_current_user)):
+async def mark_announcements_read(current_user_id: int = Depends(get_current_user)):
     try:
-        with db.cursor() as cur:
-            cur.execute(
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(
                 "UPDATE users SET last_announcement_viewed_at = NOW() WHERE id = %s",
                 (current_user_id,),
             )
-        db.commit()
+        await db.commit()
         return {"message": "Marked as read"}
     except Exception:
         raise HTTPException(status_code=500, detail="Database error")
