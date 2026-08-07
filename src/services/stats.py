@@ -78,6 +78,7 @@ async def get_all_stats() -> list[dict]:
     async with db.cursor(row_factory=None) as cur:
         await cur.execute("SELECT ticker, info_count, report_count, news_count, history_count, simulation_count, favorite_count FROM ticker_stats")
         rows = await cur.fetchall()
+    await db.release_current()
 
     db_stats = {}
     for row in rows:

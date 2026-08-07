@@ -94,6 +94,7 @@ async def _needs_update(ticker_list: list[str], now: datetime, max_age: timedelt
         )
         rows = await cur.fetchall()
         last_ts_map = {r[0]: r[1] for r in rows}
+    await db.release_current()
 
     need = []
     for t, t_is in zip(ticker_list, tickers_is):

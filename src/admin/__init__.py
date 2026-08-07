@@ -19,6 +19,15 @@ admin_app = FastAPI(docs_url="/docs" if docs_enabled else None,
                     openapi_url="/openapi.json" if docs_enabled else None)
 
 
+@admin_app.middleware("http")
+async def admin_release_middleware(request, call_next):
+    """Her admin isteginden sonra task baglantisini havuza iade et (sizinti onleme)."""
+    try:
+        return await call_next(request)
+    finally:
+        await db.release_current()
+
+
 class GiftTarget(str, Enum):
     EVERYONE = "everyone"
     USER = "user"

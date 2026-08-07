@@ -222,6 +222,10 @@ async def get_price_history(ticker: str, period: str, interval: str, hot: bool =
             )
             rows = await cur.fetchall()
 
+    # Okuma yolunda baglanti commit edilmez; task bitmeden havuza iade et
+    # (aksi halde cron/uzun sureli task'larda havuz tukenir).
+    await db.release_current()
+
     result = [
         {"ts": row["ts"].isoformat(), "open": _clean(row["open"]), "high": _clean(row["high"]),
          "low": _clean(row["low"]), "close": _clean(row["close"]), "volume": row["volume"]}
@@ -269,6 +273,7 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         price = float(row["close"])
         if intraday:
             await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+        await db.release_current()
         return price
 
     if intraday:
@@ -287,8 +292,10 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
             if row and _clean(row["close"]) is not None:
                 price = float(row["close"])
                 await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+                await db.release_current()
                 return price
 
+        await db.release_current()
         return await get_current_price(ticker, "1d")
 
     async with db.cursor() as cur:
@@ -299,9 +306,11 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         )
         row = await cur.fetchone()
     if row and _clean(row["close"]) is not None:
+        await db.release_current()
         return float(row["close"])
 
     prices = await get_price_history(ticker, "5d", "1d")
+    await db.release_current()
     if prices:
         return float(prices[-1]["close"])
     return None

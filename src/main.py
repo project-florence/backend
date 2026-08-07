@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
     await cron_client.start()
     yield
     await cron_client.stop()
-    await db.release_current()
+    await db.close()
     await close_client()
 
 
@@ -132,6 +132,11 @@ async def auth_and_tracking_middleware(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # Baglanti havuzu tukenirse (cron sizintisi / asiri yuk) kullaniciya anlamli
+    # bir 503 ver; 30sn bekleyip 500 donmek yerine hizli cevap ver.
+    if exc.__class__.__name__ == "PoolTimeout":
+        logger.error("DB pool exhausted on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=503, content={"detail": "Database busy, please retry"})
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 

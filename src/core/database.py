@@ -118,6 +118,18 @@ class _AsyncDatabase:
     async def release_current(self) -> None:
         await _release_conn()
 
+    async def close(self) -> None:
+        """Havuzu kapatir (uygulama kapanisinda)."""
+        global _pool
+        await _release_conn()
+        pool = _pool
+        _pool = None
+        if pool is not None:
+            try:
+                await pool.close()
+            except Exception:
+                pass
+
 
 db = _AsyncDatabase()
 

@@ -190,9 +190,18 @@ class CronClient:
         except Exception:
             logger.exception("Cron job '%s' calistirilirken hata", name)
         finally:
-            await self._mark_done(name)
-            async with self._lock:
-                self._running.discard(name)
+            try:
+                await self._mark_done(name)
+            except Exception:
+                logger.exception("Cron job '%s' last_run guncellenemedi", name)
+            finally:
+                # Kritik: is ne yaparsa yapsin, task'a ait DB baglantisi havuzdan
+                # cikarilmis olabilir; commit edilmemisse burada iade edilir.
+                # (Aksi halde baglantilar havuza donmez -> havuz tukenir -> 30sn
+                # PoolTimeout -> tum DB islemleri 500 verir.)
+                await db.release_current()
+                async with self._lock:
+                    self._running.discard(name)
 
     async def run_due_jobs(self) -> None:
         for job in list(self._jobs.values()):
@@ -210,9 +219,12 @@ class CronClient:
         """Kayitlari veritabanindan yukler ve derlenmis kodlari olusturur."""
         if self._initialized:
             return
-        for job in await self._load_from_db():
-            self._jobs[job.name] = job
-            self._code_dict[job.name] = self._compile(job.source, job.name)
+        try:
+            for job in await self._load_from_db():
+                self._jobs[job.name] = job
+                self._code_dict[job.name] = self._compile(job.source, job.name)
+        finally:
+            await db.release_current()
         self._initialized = True
         logger.info("Cron %d is yuklendi", len(self._jobs))
 
