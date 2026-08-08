@@ -21,14 +21,15 @@ jobs:
 
       - name: Tag from version text
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SYNC_TOKEN: ${{ secrets.DESKTOP_SYNC_TOKEN }}
         run: |
           set -e
           VER=$(grep -oP 'VERSION = "\K[^"]+' src/version.py)
           TAG="v${VER}"
           echo "version text: ${VER} -> tag: ${TAG}"
-          # git push icin token'li origin (git, GH_TOKEN'i otomatik kullanmaz)
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/project-florence/backend.git"
+          # PAT ile push: GITHUB_TOKEN ile yapilan push'lar baska workflow'lari
+          # tetiklemez (deploy tetiklenmez); PAT ile tetiklenir.
+          git remote set-url origin "https://x-access-token:${SYNC_TOKEN}@github.com/project-florence/backend.git"
           # annotated tag icin git kimligi gerekir
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
