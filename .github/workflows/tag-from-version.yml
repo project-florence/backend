@@ -27,6 +27,8 @@ jobs:
           VER=$(grep -oP 'VERSION = "\K[^"]+' src/version.py)
           TAG="v${VER}"
           echo "version text: ${VER} -> tag: ${TAG}"
+          # git push icin token'li origin (git, GH_TOKEN'i otomatik kullanmaz)
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/project-florence/backend.git"
           if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
             echo "Tag ${TAG} zaten var, atlaniyor (deploy tetiklenmez)"
           else
