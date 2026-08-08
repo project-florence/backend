@@ -1,0 +1,36 @@
+name: tag-from-version
+
+# Versiyon text'i tek kaynak: src/version.py'deki VERSION degisince
+# (main'e push), v${VERSION} tag'i otomatik atilir (varsa atlanir).
+# Tag atilinca deploy workflow'u (tag tetiklemeli) otomatik calisir.
+#
+# Kullanim: version.py'de VERSION = "0.4.0" yap -> push -> tag + deploy otomatik.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag from version text
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          VER=$(grep -oP 'VERSION = "\K[^"]+' src/version.py)
+          TAG="v${VER}"
+          echo "version text: ${VER} -> tag: ${TAG}"
+          if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
+            echo "Tag ${TAG} zaten var, atlaniyor (deploy tetiklenmez)"
+          else
+            git tag -a "${TAG}" -m "release ${TAG} (otomatik, version text'inden)"
+            git push origin "${TAG}"
+            echo "Tag ${TAG} atildi -> deploy otomatik tetiklendi"
+          fi
