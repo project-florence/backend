@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from src.clients.yfinance import afetch_price_history
 from src.core.database import db, price_write_lock
 from src.core.redis import r
+from src.services.quote import get_market_status
 
 INTRADAY_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
 
@@ -269,7 +270,20 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         )
         row = await cur.fetchone()
 
-    if row and _clean(row["close"]) is not None:
+    # Staleness guard: son mum 30 dk'dan eskiyse taze sayma. Piyasa kapaliyken
+    # bayat intraday mumu dondurmek yerine en son 1d kapanisini kullan;
+    # piyasa acikken tazeleme tetikle (asagidaki refresh akisi).
+    stale = False
+    if row is not None and intraday:
+        ts = row["ts"]
+        if ts is not None and (datetime.now(timezone.utc) - ts) > timedelta(minutes=30):
+            stale = True
+
+    if stale and get_market_status() == "closed":
+        await db.release_current()
+        return await get_current_price(ticker, "1d")
+
+    if row is not None and _clean(row["close"]) is not None and not stale:
         price = float(row["close"])
         if intraday:
             await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)

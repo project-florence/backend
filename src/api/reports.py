@@ -19,6 +19,20 @@ router = APIRouter()
 
 TOKEN_COST_PER_1K = get_config()["report"]["token_cost_per_1k"]
 
+# ORDER BY ifadeleri icin allowlist (SQL injection kapali; gecersiz anahtar 400).
+SORT_COLUMNS = {"created_at": "created_at", "ticker": "ticker"}
+ORDER = {"asc": "ASC", "desc": "DESC"}
+
+
+def _sort_order_clause(sort: str, order: str) -> tuple[str, str]:
+    sort_col = SORT_COLUMNS.get(sort)
+    if sort_col is None:
+        raise HTTPException(status_code=400, detail=f"Invalid sort. Allowed: {sorted(SORT_COLUMNS)}")
+    order_dir = ORDER.get(order)
+    if order_dir is None:
+        raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
+    return sort_col, order_dir
+
 
 def _compute_cost(total_tokens: int) -> int:
     return max(1, math.ceil(total_tokens / 1000 * TOKEN_COST_PER_1K))
@@ -42,7 +56,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     mode = type.replace("_report", "")
 
     try:
-        report_obj = await generate_report(ticker, mode)
+        report_obj = await generate_report(ticker, mode, user_id=current_user_id)
     except Exception as e:
         await credit_refund(current_user_id, estimated_cost)
         raise HTTPException(status_code=500, detail="Report generation failed")
@@ -109,7 +123,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
 
 
 @router.get("/reports/info")
-def report_info():
+async def report_info():
     token_cost = get_config()["report"]["token_cost_per_1k"]
     return {
         "quick_report": {
@@ -171,11 +185,7 @@ async def get_report_history(
     sort: str = Query("created_at", description="Sort: created_at, ticker"),
     order: str = Query("desc", description="Order: asc, desc"),
 ):
-    valid_sorts = {"created_at", "ticker"}
-    if sort not in valid_sorts:
-        raise HTTPException(status_code=400, detail=f"Invalid sort. Allowed: {valid_sorts}")
-    if order not in ("asc", "desc"):
-        raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
+    sort_col, order_dir = _sort_order_clause(sort, order)
 
     async with db.cursor(row_factory=None) as cur:
         try:
@@ -183,7 +193,7 @@ async def get_report_history(
                         SELECT id, ticker, type, title, token_usage, created_at
                         FROM reports
                         WHERE user_id = %s
-                        ORDER BY {sort} {order}, id DESC
+                        ORDER BY {sort_col} {order_dir}, id DESC
                         """, (current_user_id,))
             rows = await cur.fetchall()
         except Exception as e:
@@ -202,11 +212,7 @@ async def search_reports(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    valid_sorts = {"created_at", "ticker"}
-    if sort not in valid_sorts:
-        raise HTTPException(status_code=400, detail=f"Invalid sort. Allowed: {valid_sorts}")
-    if order not in ("asc", "desc"):
-        raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
+    sort_col, order_dir = _sort_order_clause(sort, order)
 
     pattern = f"%{q}%"
     async with db.cursor(row_factory=None) as cur:
@@ -216,7 +222,7 @@ async def search_reports(
                         FROM reports
                         WHERE user_id = %s
                           AND (title ILIKE %s OR content ILIKE %s)
-                        ORDER BY {sort} {order}, id DESC
+                        ORDER BY {sort_col} {order_dir}, id DESC
                         LIMIT %s OFFSET %s
                         """, (current_user_id, pattern, pattern, limit, offset))
             rows = await cur.fetchall()

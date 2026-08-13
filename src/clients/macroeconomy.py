@@ -2,6 +2,7 @@ import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from functools import partial
 
 from dotenv import load_dotenv
 from fredapi import Fred
@@ -45,8 +46,10 @@ if not fred_api_key:
 fred = Fred(api_key=fred_api_key)
 
 
-def _get_latest_fred_val(series_id: str) -> float:
-    series = fred.get_series(series_id).dropna()
+def _get_latest_fred_val(series_id: str, observation_start: str) -> float:
+    # observation_start: serinin tamamini indirmek yerine sadece son 3 yili
+    # isteriz; 14 seri indirmesi saniyelere iner (günlük seri icin yeterli).
+    series = fred.get_series(series_id, observation_start=observation_start).dropna()
     return float(series.iloc[-1])
 
 
@@ -67,13 +70,19 @@ def _fetch_macroeconomy_data() -> MacroeconomyData:
         "nasdaq": "NASDAQCOM",
         "bitcoin": "CBBTCUSD",
     }
+    observation_start = (datetime.now(timezone.utc) - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
     with ThreadPoolExecutor(max_workers=4) as executor:
-        values = dict(zip(series_ids, executor.map(_get_latest_fred_val, series_ids.values())))
+        values = dict(zip(
+            series_ids,
+            executor.map(partial(_get_latest_fred_val, observation_start=observation_start), series_ids.values()),
+        ))
     return MacroeconomyData(**values)
 
 
 async def _load_recent_database_snapshot() -> MacroeconomyData | None:
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=get_config()["macroeconomy"]["cache_ttl"])
+    # Redis down iken DB snapshot'i guvenilir donsun: makro veri gunluk seri,
+    # 7 gunluk tolerans yeterli (cache_ttl = 1 gun olabilir).
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     async with db.cursor(row_factory=None) as cur:
         await cur.execute(
             """
@@ -114,6 +123,11 @@ async def _cache_and_persist_macroeconomy_data(mdata: MacroeconomyData) -> None:
         await db.commit()
 
 
+# Single-flight: Redis bos ve DB snapshot yoksa FRED'e ayni anda yalnizca
+# tek fetch gitsin; eszamanli istekler kilidin ardinda bekler.
+_fetch_lock = asyncio.Lock()
+
+
 async def get_macroeconomy_data() -> MacroeconomyData:
     mdata = await r.get("MacroeconomyData")
     if mdata:
@@ -124,6 +138,18 @@ async def get_macroeconomy_data() -> MacroeconomyData:
         await r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
         return snapshot
 
-    mdata = await asyncio.to_thread(_fetch_macroeconomy_data)
-    await _cache_and_persist_macroeconomy_data(mdata)
-    return mdata
+    async with _fetch_lock:
+        # Kilit ardinda bekleyen istekler icin double-check: onceden fetch
+        # tamamlanmissa tekrar FRED'e gitme.
+        mdata = await r.get("MacroeconomyData")
+        if mdata:
+            return MacroeconomyData.model_validate_json(mdata)
+
+        snapshot = await _load_recent_database_snapshot()
+        if snapshot:
+            await r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
+            return snapshot
+
+        mdata = await asyncio.to_thread(_fetch_macroeconomy_data)
+        await _cache_and_persist_macroeconomy_data(mdata)
+        return mdata

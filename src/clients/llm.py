@@ -95,9 +95,11 @@ async def get_response(
             result["reasoning_details"] = reasoning_details
 
         return result
-    except Exception as e:
+    except Exception:
+        # Hata dict'i dondurme: cagiran taraf basarisizligi exception olarak
+        # gorsun (hata gizlenmesin).
         logger.exception("LLM request failed")
-        return {"type": "error", "detail": str(e), "usage": None}
+        raise
 
 
 async def health_check():

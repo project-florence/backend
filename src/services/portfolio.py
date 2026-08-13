@@ -7,6 +7,8 @@ import os
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
 
+from fastapi import HTTPException
+from src.services.quote import get_market_status
 from src.services.ticker import is_valid_ticker, get_current_price, get_price_history
 from src.core.database import db
 
@@ -223,6 +225,11 @@ def _add_transaction(portfolio: Portfolio, ticker: str, _type: str, quantity: fl
 
 
 async def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: str, quantity: float) -> bool:
+    # Borsa kapaliyken piyasa fiyatiyla islem engellensin (elle fiyat girisi
+    # yapan update_transaction bilincli tasarim geregi bu kontrolden muaftir).
+    if get_market_status() != "open":
+        raise HTTPException(status_code=400, detail="Market is closed")
+
     if quantity <= 0:
         return False
 

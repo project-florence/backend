@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+import logging
+import os
+
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -12,7 +15,7 @@ from src.analysis.metrics import compute_all
 from src.analysis.stock_vector import company_vector
 from src.clients.search import news_search
 
-import os
+logger = logging.getLogger(__name__)
 
 
 def get_date() -> str:
@@ -170,7 +173,7 @@ def _build_agent(ticker: str, mode: str) -> Agent:
     )
 
 
-async def generate_report(ticker: str, mode: str) -> Report:
+async def generate_report(ticker: str, mode: str, user_id: int | None = None) -> Report:
     report_agent = _build_agent(ticker, mode)
     result = await report_agent.run(
         f"'{ticker}' hissesi icin {mode} analiz raporunu olustur."
@@ -179,6 +182,27 @@ async def generate_report(ticker: str, mode: str) -> Report:
     draft: ReportDraft = result.output
     usage_data = result.usage
 
+    prompt_tokens = usage_data.input_tokens or 0
+    completion_tokens = usage_data.output_tokens or 0
+    total_tokens = usage_data.total_tokens or 0
+
+    # Token kullanimini token_usage tablosuna kaydet (admin get_token_summary
+    # ucu bunu okur). Loglama hatasi raporu basarisiz kilmasin.
+    try:
+        from src.services.token import log_token_usage
+
+        model_id = os.getenv("CUSTOM_MODEL") or get_config()["llm_client"].get("custom_model", "gemma")
+        await log_token_usage(
+            model=model_id,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            endpoint="report",
+            user_id=user_id,
+        )
+    except Exception as e:
+        logger.warning("log_token_usage failed: %s", e)
+
     return Report(
         title=draft.title,
         about=draft.about,
@@ -186,9 +210,9 @@ async def generate_report(ticker: str, mode: str) -> Report:
         report=draft.report,
         sentiments=draft.sentiments,
         token_usage={
-            "prompt": usage_data.input_tokens or 0,
-            "completion": usage_data.output_tokens or 0,
-            "total": usage_data.total_tokens or 0,
+            "prompt": prompt_tokens,
+            "completion": completion_tokens,
+            "total": total_tokens,
         },
     )
 

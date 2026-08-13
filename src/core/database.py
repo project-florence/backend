@@ -391,6 +391,21 @@ async def init_db() -> None:
                 FOR EACH ROW
                 EXECUTE FUNCTION create_default_prefs();
             """)
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS price_candles (
+                    ticker    TEXT NOT NULL,
+                    interval  TEXT NOT NULL,
+                    ts        TIMESTAMPTZ NOT NULL,
+                    open      DOUBLE PRECISION,
+                    high      DOUBLE PRECISION,
+                    low       DOUBLE PRECISION,
+                    close     DOUBLE PRECISION,
+                    volume    BIGINT,
+                    PRIMARY KEY (ticker, interval, ts)
+                );
+                CREATE INDEX IF NOT EXISTS idx_price_candles_lookup
+                ON price_candles (ticker, interval, ts DESC)
+            """)
         await conn.commit()
     finally:
         await _release_conn()

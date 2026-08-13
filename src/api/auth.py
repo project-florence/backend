@@ -279,16 +279,19 @@ async def get_profile(current_user_id: int = Depends(get_current_user)):
             await cur.execute("""
                 SELECT username, email, user_type, created_at FROM users WHERE id = %s
             """, (current_user_id,))
-            rows = await cur.fetchone()
+            row = await cur.fetchone()
 
         except Exception as e:
             raise HTTPException(status_code=500, detail="Database error")
 
+    if row is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
     return {
-        "username": rows[0],
-        "email": rows[1],
-        "user_type": rows[2],
-        "created_at": rows[3].isoformat() if rows[3] else None,
+        "username": row[0],
+        "email": row[1],
+        "user_type": row[2],
+        "created_at": row[3].isoformat() if row[3] else None,
         "credits": await get_credits(current_user_id)
     }
 

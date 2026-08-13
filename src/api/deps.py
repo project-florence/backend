@@ -24,20 +24,31 @@ async def _decode_user(jwt_token: str) -> int | None:
             return None
         token_iat = payload.get("iat")
         if token_iat is not None:
+            # Token claim'lerine dokunmadan (format degismesin) sifre degisiklik
+            # zamanini Redis'te 60s TTL ile cache'le; miss'te DB'den oku.
+            # Redis down ise r.get None doner -> dogrudan DB'ye dusulur.
             from src.core.database import db
-            async with db.cursor(row_factory=None) as cur:
-                await cur.execute("SELECT password_changed_at FROM users WHERE id = %s", (user_id,))
-                row = await cur.fetchone()
-                if row is None:
-                    return None
-                changed_at = row[0]
-                if changed_at is not None:
-                    if isinstance(changed_at, datetime):
-                        changed_ts = changed_at.replace(tzinfo=timezone.utc).timestamp()
-                    else:
-                        changed_ts = changed_at.timestamp()
-                    if token_iat < changed_ts:
+            from src.core.redis import r
+
+            cache_key = f"user:pwd_changed:{user_id}"
+            changed_at = await r.get(cache_key)
+            if changed_at is None:
+                async with db.cursor(row_factory=None) as cur:
+                    await cur.execute("SELECT password_changed_at FROM users WHERE id = %s", (user_id,))
+                    row = await cur.fetchone()
+                    if row is None:
                         return None
+                    changed_at = row[0]
+                    if changed_at is not None:
+                        await r.set(cache_key, changed_at.isoformat(), ex=60)
+                    else:
+                        await r.set(cache_key, "", ex=60)
+            if changed_at not in (None, ""):
+                changed_dt = datetime.fromisoformat(changed_at)
+                if changed_dt.tzinfo is None:
+                    changed_dt = changed_dt.replace(tzinfo=timezone.utc)
+                if token_iat < changed_dt.timestamp():
+                    return None
         return user_id
     except jwt.PyJWTError:
         return None

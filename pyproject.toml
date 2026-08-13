@@ -1,6 +1,6 @@
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py312"
 
 exclude = [
     "migrations",
@@ -27,6 +27,6 @@ indent-style = "space"
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.12"
 strict = false
 warn_unused_configs = true

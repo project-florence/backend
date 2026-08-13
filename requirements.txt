@@ -9,7 +9,6 @@ argon2-cffi-bindings==25.1.0
 attrs==26.1.0
 Authlib==1.7.2
 babel==2.18.0
-beartype==0.22.9
 beautifulsoup4==4.15.0
 cachetools==7.1.6
 caio==0.9.25
@@ -22,7 +21,6 @@ cryptography==49.0.0
 curl_cffi==0.15.0
 dateparser==1.4.1
 db-dtypes==1.7.1
-dbnomics==1.2.7
 distro==1.9.0
 dnspython==2.8.0
 docstring_parser==0.18.0
@@ -92,7 +90,6 @@ opentelemetry-util-http==0.65b0
 packaging==26.2
 pandas==3.0.3
 pandas-stubs==3.0.3.260530
-peewee==4.1.1
 platformdirs==4.10.0
 prompt_toolkit==3.0.52
 proto-plus==1.28.0

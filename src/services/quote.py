@@ -131,6 +131,11 @@ async def get_quotes(tickers: list[str]) -> dict[str, dict]:
     if not ticker_values:
         return {}
 
+    # price_candles tablosunun varligini garanti et (init_db calismamis
+    # ortamlarda da SELECT patlamasin; DDL idempotent).
+    from src.services.price import _init_db
+    await _init_db()
+
     placeholders = ",".join(["%s"] * len(ticker_values))
     async with db.cursor(row_factory=None) as cur:
         await cur.execute(
