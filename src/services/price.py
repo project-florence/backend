@@ -81,10 +81,15 @@ def _parse_period(period: str) -> tuple[datetime, datetime]:
     return start, end
 
 
-async def _fetch_and_store(ticker: str, interval: str, start: datetime, end: datetime):
+async def _build_candle_rows(ticker: str, interval: str, start: datetime, end: datetime) -> list[tuple]:
+    """yfinance'tan mum verisini ceker ve satirlara cevirir. DB islemi YOK.
+
+    Ag beklemesi (yfinance fetch + rate limiter) sirasinda hic baglanti
+    tutulmaz — cagiran taraf cagri oncesi ``release_current()`` yapmalidir.
+    """
     data = await afetch_price_history(ticker, interval, start, end)
     if data.empty:
-        return
+        return []
 
     values = []
     for ts, row in data.iterrows():
@@ -100,10 +105,17 @@ async def _fetch_and_store(ticker: str, interval: str, start: datetime, end: dat
             _clean(row.get("Open")), _clean(row.get("High")),
             _clean(row.get("Low")), _clean(row.get("Close")), volume,
         ))
+    return values
 
+
+async def _write_candle_rows(values: list[tuple]) -> None:
+    """Mum satirlarini TEK executemany + TEK commit ile yazar.
+
+    ``price_write_lock`` korunur (cron + API eszamanli INSERT deadlock'u onlenir).
+    Baglanti cursor context'i ile alinir, commit/rollback ile iade edilir.
+    """
     if not values:
         return
-
     async with price_write_lock:
         try:
             async with db.cursor(row_factory=None) as cur:
@@ -119,6 +131,11 @@ async def _fetch_and_store(ticker: str, interval: str, start: datetime, end: dat
         except Exception:
             await db.rollback()
             raise
+
+
+async def _fetch_and_store(ticker: str, interval: str, start: datetime, end: datetime):
+    values = await _build_candle_rows(ticker, interval, start, end)
+    await _write_candle_rows(values)
 
 
 _PERIOD_DAYS: dict[str, int] = {
@@ -199,6 +216,11 @@ async def get_price_history(ticker: str, period: str, interval: str, hot: bool =
             (ticker, interval, start, end),
         )
         rows = await cur.fetchall()
+
+    # KRITIK: _fetch_and_store icindeki yfinance fetch + rate limiter beklemesi
+    # (ag) sirasinda hic baglanti tutulmasin — aksi halde 4-8 soğuk widget
+    # istegi 20'lik havuzu tuketip PoolTimeout -> 503 uretir.
+    await db.release_current()
 
     fetched = False
     if rows:
@@ -294,6 +316,9 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         if await _acquire_refresh_lock(ticker, interval):
             now = datetime.now(timezone.utc)
             start = now - timedelta(days=1)
+            # Ag beklemesi (yfinance fetch + rate limiter) sirasinda hic
+            # baglanti tutulmasin — SELECT'ten kalan baglanti havuza iade.
+            await db.release_current()
             await _fetch_and_store(ticker, interval, start, now)
 
             async with db.cursor() as cur:
@@ -323,6 +348,9 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         await db.release_current()
         return float(row["close"])
 
+    # Fallback oncesi de baglanti tutulmasin (get_price_history kendi fetch
+    # oncesi release'unu yapar; burada kalan baglanti yok olsun diye iade).
+    await db.release_current()
     prices = await get_price_history(ticker, "5d", "1d")
     await db.release_current()
     if prices:

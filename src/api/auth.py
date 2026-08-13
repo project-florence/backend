@@ -84,6 +84,11 @@ class RefreshRequest(BaseModel):
     refresh_token: str | None = None
 
 
+class ResendVerification(BaseModel):
+    # Kullanici adi VEYA e-posta (login ile ayni esnekligi sunar).
+    username_or_email: str
+
+
 def create_jwt_token(user_id: int):
     payload = {
         "user_id": user_id,
@@ -210,6 +215,64 @@ async def verify_email(token: str = Query(..., description="E-posta dogrulama to
         await db.commit()
 
     return {"message": "Email verified", "email_verified": True}
+
+
+@router.post("/auth/resend-verification")
+async def resend_verification(request: Request, payload: ResendVerification):
+    """Dogrulama mailini yeniden gonderir (public, rate limited).
+
+    Kullanici adi VEYA e-posta alir. Hesap dogrulanmissa 400; degilse yeni
+    token (24 saat) uretilir, DB'ye yazilir ve mail gonderilir. Mail hatalari
+    asla 5xx uretmez: ``verification_sent: false`` ile 200 doner.
+    """
+    account = payload.username_or_email.strip()
+    await rate_limiter.check(f"resend-verif:{account}", max_requests=3, window_seconds=3600)
+
+    async with db.cursor(row_factory=None) as cur:
+        # Login ile ayni eslesme: username tam, e-posta kucuk harfe normalize.
+        await cur.execute(
+            "SELECT id, email, email_verified FROM users "
+            "WHERE username = %s OR lower(email) = %s",
+            (account, account.lower()),
+        )
+        row = await cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        user_id, email, email_verified = row
+        if email_verified:
+            raise HTTPException(status_code=400, detail="Email already verified")
+
+        verify_token = secrets.token_urlsafe(32)
+        verify_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
+        try:
+            await cur.execute(
+                "UPDATE users SET email_verify_token = %s, email_verify_expires_at = %s "
+                "WHERE id = %s",
+                (verify_token, verify_expires, user_id),
+            )
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logger.warning("resend-verification: token yazilamadi (user %s): %s", user_id, e)
+            raise HTTPException(status_code=500, detail="Database error")
+
+    # Mail: hata asla kullaniciyi kitlemesin — sessiz devam (register deseni).
+    verification_sent = False
+    try:
+        from src.clients.mail import render_template, send_email
+
+        base_url = os.getenv("PUBLIC_BASE_URL") or str(request.base_url)
+        base_url = base_url.rstrip("/")
+        verify_url = f"{base_url}/api/v1/auth/verify-email?token={verify_token}"
+        html = render_template("verify_email.html", verify_url=verify_url)
+        verification_sent = await send_email(
+            email, "Florence — E-postanı Doğrula", html
+        )
+    except Exception as e:
+        logger.warning("Resend verification email could not be sent to %s: %s", email, e)
+
+    return {"verification_sent": verification_sent}
 
 
 @router.post("/auth/refresh")

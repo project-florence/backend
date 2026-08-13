@@ -28,7 +28,7 @@ from src.api.deps import get_current_user
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
 from src.core.redis import r
-from src.services.price import _fetch_and_store
+from src.services.price import _build_candle_rows, _write_candle_rows
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +80,12 @@ def _load_tickers() -> list[str]:
 
 
 async def _fill_year(year: int) -> None:
-    """Yilin 1d verisini yfinance'tan cekip price_candles'a upsert eder."""
+    """Yilin 1d verisini yfinance'tan cekip price_candles'a upsert eder.
+
+    50'lik batch'lerde once tum ticker'larin verisi cekilir (ag beklemesi
+    sirasinda hic baglanti tutulmaz), sonra TEK executemany + TEK commit ile
+    yazilir: 613 commit yerine ~13 commit. ``price_write_lock`` korunur.
+    """
     try:
         tickers = await asyncio.to_thread(_load_tickers)
         if not tickers:
@@ -92,12 +97,21 @@ async def _fill_year(year: int) -> None:
 
         for i in range(0, total, BATCH_SIZE):
             batch = [f"{t}.IS" for t in tickers[i:i + BATCH_SIZE]]
+            values: list[tuple] = []
             for ticker_is in batch:
                 try:
-                    await _fetch_and_store(ticker_is, "1d", start, end)
+                    values.extend(
+                        await _build_candle_rows(ticker_is, "1d", start, end)
+                    )
                 except Exception as e:
                     # Delisted/bos ticker'lar atlanir — sorun degil.
                     logger.warning("data-fill %s: %s atlandi: %s", year, ticker_is, e)
+            try:
+                await _write_candle_rows(values)
+            except Exception as e:
+                # Batch yazim hatasi fill'i oldurmesin; sonraki batch'ler devam
+                # etsin (eski davranista her ticker ayri ayri yakalaniyordu).
+                logger.warning("data-fill %s: batch yazilamadi: %s", year, e)
             if i + BATCH_SIZE < total:
                 await asyncio.sleep(BATCH_DELAY)
 
@@ -191,6 +205,11 @@ async def daily_data(
             (start, end),
         )
         row_count = (await cur.fetchone())[0]
+
+    # create_task context mirasi: fill task'i bu istegin baglantisini miras
+    # alip onunla calismasin — COUNT sonrasi baglanti havuza iade edilir.
+    # (Sonraki _stream_csv / JSON SELECT kendi cursor'unu acar.)
+    await db.release_current()
 
     # Yil icin hic/az veri varsa on-demand fill'i arka planda baslat; yanit
     # mevcut veriyle doner.
