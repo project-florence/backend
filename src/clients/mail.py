@@ -1,12 +1,15 @@
 """E-posta gonderme (smtplib tabanli, async uyumlu).
 
 ``MAIL_PROVIDER`` ortam degiskeni:
-  - ``mailpit`` (varsayilan): localhost:1025, kimlik dogrulamasiz (dev/UI)
+  - ``resend`` (varsayilan): Resend REST API (``RESEND_API_KEY``)
+  - ``mailpit``: localhost:1025, kimlik dogrulamasiz (dev/UI)
   - ``smtp``: ``MAIL_HOST`` / ``MAIL_PORT`` / ``MAIL_USER`` / ``MAIL_PASS``
     (465 disinda STARTTLS denenir)
-  - ``resend``: Resend REST API (``RESEND_API_KEY``)
   - ``ses``: AWS SES — iskelet, henuz implemente edilmedi (bilincli olarak
     provider secimi kullanici kararina birakildi; burada yalnizca False doner)
+
+``MAIL_PROVIDER`` ayarlanmamissa varsayilan ``resend``'dir.
+Gonderici adresi ``MAIL_FROM`` (varsayilan ``support@florencex.com.tr``).
 
 KRITIK KURAL: mail hatalari ASLA auth/kredi akisini kirmaz. Tüm hatalar
 ``logger.warning`` ile loglanir ve ``False`` donulur; cagiran taraf sessiz
@@ -18,9 +21,15 @@ import logging
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).parent / "mail_templates"
+
+DEFAULT_MAIL_FROM = "support@florencex.com.tr"
 
 
 def render_template(name: str, **kwargs) -> str:
@@ -63,7 +72,7 @@ def _send_smtp_sync(
 
 
 async def _send_resend(to: str, subject: str, html: str, text: str | None) -> bool:
-    """Resend REST API (iskelet; anahtar ``RESEND_API_KEY`` env'den)."""
+    """Resend REST API: POST https://api.resend.com/emails (Bearer ``RESEND_API_KEY``)."""
     api_key = os.getenv("RESEND_API_KEY")
     if not api_key:
         logger.warning("RESEND_API_KEY ayarli degil; mail gonderilemedi")
@@ -71,29 +80,40 @@ async def _send_resend(to: str, subject: str, html: str, text: str | None) -> bo
 
     from src.clients.http import get_client
 
-    client = await get_client()
-    resp = await client.post(
-        "https://api.resend.com/emails",
-        headers={"Authorization": f"Bearer {api_key}"},
-        json={
-            "from": os.getenv("MAIL_FROM", "noreply@florence.local"),
-            "to": [to],
-            "subject": subject,
-            "html": html,
-            "text": text,
-        },
-        timeout=15,
-    )
-    if resp.status_code >= 400:
-        logger.warning("Resend API error: %s %s", resp.status_code, resp.text)
+    payload: dict = {
+        "from": os.getenv("MAIL_FROM", DEFAULT_MAIL_FROM),
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    }
+    if text:
+        payload["text"] = text
+
+    try:
+        client = await get_client()
+        resp = await client.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json=payload,
+            timeout=15,
+        )
+    except Exception as e:
+        logger.warning("Resend API request failed for %s: %s", to, e)
         return False
+
+    if resp.status_code not in (200, 201):
+        logger.warning(
+            "Resend API error: status=%s body=%s", resp.status_code, resp.text[:500]
+        )
+        return False
+    logger.info("Resend mail sent to %s (status=%s)", to, resp.status_code)
     return True
 
 
 async def send_email(to: str, subject: str, html: str, text: str | None = None) -> bool:
     """E-posta gonderir. Hata durumunda ASLA exception firlatmaz; ``False`` doner."""
-    provider = (os.getenv("MAIL_PROVIDER") or "mailpit").lower()
-    from_addr = os.getenv("MAIL_FROM", "noreply@florence.local")
+    provider = (os.getenv("MAIL_PROVIDER") or "resend").lower()
+    from_addr = os.getenv("MAIL_FROM", DEFAULT_MAIL_FROM)
     try:
         if provider in ("smtp", "mailpit"):
             return await asyncio.to_thread(

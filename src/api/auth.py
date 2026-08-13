@@ -130,7 +130,8 @@ async def auth_register(request: Request, user: UserRegister):
     try:
         from src.clients.mail import render_template, send_email
 
-        base_url = os.getenv("PUBLIC_BASE_URL", "http://localhost:7055").rstrip("/")
+        base_url = os.getenv("PUBLIC_BASE_URL") or str(request.base_url)
+        base_url = base_url.rstrip("/")
         verify_url = f"{base_url}/api/v1/auth/verify-email?token={verify_token}"
         html = render_template("verify_email.html", verify_url=verify_url)
         verification_sent = await send_email(
@@ -159,13 +160,13 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
         user_row = await cur.fetchone()
 
         if not user_row:
-            raise HTTPException(status_code=400, detail="Incorrect username or password")
+            raise HTTPException(status_code=400, detail="error_login_failed")
 
         user_id, db_password_hash = user_row
         try:
             await asyncio.to_thread(ph.verify, db_password_hash, form_data.password)
         except VerificationError:
-            raise HTTPException(status_code=400, detail="Incorrect username or password")
+            raise HTTPException(status_code=400, detail="error_login_failed")
 
         access_token = create_jwt_token(user_id)
         refresh_token = await create_refresh_token(user_id, device=request.client.host if request.client else None)

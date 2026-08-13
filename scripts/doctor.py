@@ -43,14 +43,21 @@ SUGGESTIONS = {
 
 
 async def check_db() -> tuple[str, str]:
-    try:
+    async def _probe() -> tuple | None:
         async with db.cursor(row_factory=None) as cur:
             await cur.execute("SELECT 1")
             row = await cur.fetchone()
         await db.release_current()
+        return row
+
+    try:
+        # Havuz timeout'u (30s) ve baglanti kurma beklemesini 5 sn ile sinirla.
+        row = await asyncio.wait_for(_probe(), timeout=5)
         if row and row[0] == 1:
             return "OK", "SELECT 1 ok"
         return "FAIL", "SELECT 1 beklenen sonucu donmedi"
+    except asyncio.TimeoutError:
+        return "FAIL", "DB baglantisi 5 sn icinde kurulamadi (zaman asimi)"
     except Exception as e:
         return "FAIL", f"{e.__class__.__name__}: {e}"
 

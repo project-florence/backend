@@ -22,6 +22,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import psycopg  # noqa: E402
+
 from src.core.database import db  # noqa: E402
 from src.core.redis import r  # noqa: E402
 
@@ -210,4 +212,12 @@ async def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    try:
+        sys.exit(asyncio.run(main()))
+    except (psycopg.OperationalError, psycopg.InterfaceError, OSError, TimeoutError) as e:
+        # DB baglanti hatalarini traceback yerine tek satirlik mesajla goster.
+        print(f"Bağlantı hatası: {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        print("\nIptal edildi.")
+        sys.exit(130)

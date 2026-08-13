@@ -1,4 +1,4 @@
 CONTACT = {
-    "email": "support@florenceapp.com",
+    "email": "support@florencex.com.tr",
     "github": "https://github.com/project-florence",
 }
