@@ -32,7 +32,7 @@ async def create_bot(username: str, password: str | None = None) -> str:
     if password is None:
         password = _random_password()
 
-    email = f"{username}@bot.florence"
+    email = f"{username}@bot.florencex.com.tr"
     hashed = await asyncio.to_thread(ph.hash, password)
 
     async with db.cursor(row_factory=None) as cur:
@@ -46,7 +46,8 @@ async def create_bot(username: str, password: str | None = None) -> str:
 
         try:
             await cur.execute(
-                "INSERT INTO users (username, email, hashed_pw, user_type) VALUES (%s, %s, %s, 'bot') RETURNING id",
+                """INSERT INTO users (username, email, hashed_pw, user_type, email_verified)
+                   VALUES (%s, %s, %s, 'bot', TRUE) RETURNING id""",
                 (username, email, hashed),
             )
             user_id = (await cur.fetchone())[0]

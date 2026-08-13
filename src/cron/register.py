@@ -66,14 +66,6 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
             "Gunluk stock vector hesaplama",
         ),
         (
-            "cleanup_old_data",
-            24 * 60 * 60 * 1000,
-            "from src.cron.tasks import run_cleanup_old_data\n"
-            "async def __cron_main__():\n"
-            "    await run_cleanup_old_data()",
-            "Eski mum verisi temizligi",
-        ),
-        (
             "warm_price_cache",
             24 * 60 * 60 * 1000,
             "from src.cron.tasks import run_warm_price_cache\n"
@@ -114,7 +106,6 @@ def _initial_last_run(name: str, interval_ms: int) -> datetime:
     daily_offsets_hours = {
         "credit_refill": 1,
         "seed_vectors": 2,
-        "cleanup_old_data": 3,
         "warm_price_cache": 6,
     }
     offset_hours = daily_offsets_hours.get(name, 2)

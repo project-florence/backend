@@ -11,6 +11,7 @@ load_dotenv()
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.api.deps import SECRET_KEY, get_current_user_optional
 from src.api.router import router
@@ -56,6 +57,10 @@ app = FastAPI(docs_url="/docs" if docs_enabled else None,
               redoc_url="/redoc" if docs_enabled else None,
               openapi_url="/openapi.json" if docs_enabled else None,
               lifespan=lifespan)
+
+# Built-in avatar görselleri (backend/avatars/*.svg) — tüm istemciler (web/desktop/mobile)
+# buradan alır; ayrı kopyalama gerekmez.
+app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
 
 DESKTOP_ORIGINS = [
     "tauri://localhost",

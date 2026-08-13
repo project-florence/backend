@@ -348,42 +348,6 @@ async def run_seed_vectors(count: int = 200, delay: float | None = None) -> None
 
 
 # ----------------------------------------------------------------------
-# Eski mum verisi temizligi
-# ----------------------------------------------------------------------
-RETENTION = {
-    "1m": timedelta(days=7),
-    "5m": timedelta(days=7),
-    "15m": timedelta(days=30),
-    "30m": timedelta(days=30),
-    "1h": timedelta(days=90),
-    "1d": timedelta(days=365 * 5),
-}
-
-
-async def run_cleanup_old_data() -> None:
-    total_deleted = 0
-    now = datetime.now(timezone.utc)
-
-    for interval, max_age in RETENTION.items():
-        cutoff = now - max_age
-        async with db.cursor(row_factory=None) as cur:
-            await cur.execute(
-                "DELETE FROM price_candles WHERE interval = %s AND ts < %s",
-                (interval, cutoff),
-            )
-            deleted = cur.rowcount
-        await db.commit()
-        if deleted:
-            logger.info("  %s: %s satir silindi (before %s)", interval, deleted, cutoff.date())
-            total_deleted += deleted
-
-    if total_deleted:
-        logger.info("Toplam %s eski satir temizlendi.", total_deleted)
-    else:
-        logger.info("Temizlenecek veri yok.")
-
-
-# ----------------------------------------------------------------------
 # Redis fiyat cache on-isitma
 # ----------------------------------------------------------------------
 async def _warm_one(ticker: str) -> None:

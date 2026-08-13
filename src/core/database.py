@@ -156,7 +156,16 @@ async def init_db() -> None:
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token TEXT;
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires_at TIMESTAMPTZ;
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id VARCHAR(30) NOT NULL DEFAULT 'avatar-1';
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES users(id);
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;
             """)
+            # Backfill: email_verify_token'i olmayan dogrulanmamis kullanicilar
+            # (dogrulama sistemi oncesi kayitlar) onayli sayilir. Yeni kayitlar
+            # register'da token urettigi icin etkilenmez. Idempotent.
+            await cur.execute(
+                "UPDATE users SET email_verified = TRUE "
+                "WHERE email_verified = FALSE AND email_verify_token IS NULL"
+            )
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS tickers (
                     code TEXT PRIMARY KEY,

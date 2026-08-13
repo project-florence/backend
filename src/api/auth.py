@@ -154,7 +154,7 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
     async with db.cursor(row_factory=None) as cur:
         # Kullanici adi VEYA e-posta ile giris (e-posta kucuk harfe normalize).
         await cur.execute(
-            "SELECT id, hashed_pw FROM users WHERE username = %s OR lower(email) = %s",
+            "SELECT id, hashed_pw, user_type, email_verified FROM users WHERE username = %s OR lower(email) = %s",
             (form_data.username, form_data.username.lower()),
         )
         user_row = await cur.fetchone()
@@ -162,11 +162,19 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
         if not user_row:
             raise HTTPException(status_code=400, detail="error_login_failed")
 
-        user_id, db_password_hash = user_row
+        user_id, db_password_hash, user_type, email_verified = user_row
         try:
             await asyncio.to_thread(ph.verify, db_password_hash, form_data.password)
         except VerificationError:
             raise HTTPException(status_code=400, detail="error_login_failed")
+
+        # E-posta dogrulanmamis hesaplar giris yapamaz (botlar haric).
+        # SQL'e kosul KOYULMAZ: hesap varligi sizintisini onlemek icin kontrol
+        # sifre dogrulamasindan SONRA kodda yapilir.
+        if not email_verified and user_type != "bot":
+            raise HTTPException(status_code=403, detail="error_email_not_verified")
+
+        await cur.execute("UPDATE users SET last_login = NOW() WHERE id = %s", (user_id,))
 
         access_token = create_jwt_token(user_id)
         refresh_token = await create_refresh_token(user_id, device=request.client.host if request.client else None)
@@ -214,6 +222,16 @@ async def auth_refresh(request: Request, payload: RefreshRequest):
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
     new_refresh_token, user_id = result
+
+    # E-posta dogrulama kontrolu (login ile ayni): dogrulanmamis hesaplar
+    # refresh ile token alamaz, botlar istisnadir. Kontrol kodda — hesap
+    # varligi sizintisi olmasin diye SQL'e kosul eklenmez.
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT user_type, email_verified FROM users WHERE id = %s", (user_id,))
+        user_row = await cur.fetchone()
+    if user_row is None or (not user_row[1] and user_row[0] != "bot"):
+        raise HTTPException(status_code=403, detail="error_email_not_verified")
+
     access_token = create_jwt_token(user_id)
     response = JSONResponse(content={
         "access_token": access_token,

@@ -11,13 +11,33 @@ def _get_daily_refill() -> int:
     return int(os.getenv("DAILY_FREE_CREDIT_REFILL", "5"))
 
 
+async def _resolve_owner(user_id: int) -> int:
+    """Bot hesaplari owner'in kredisinden harcar.
+
+    ``user_type='bot'`` olan kullanici icin ``owner_id``'yi, degilse ayni
+    ``user_id``'yi dondurur. Tum kredi islemleri (spend/get_total/refund/...)
+    girisinde bu cozumlemeyi yapar; boylece rapor/simulasyon akislari
+    degismeden calisir.
+    """
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
+            "SELECT user_type, owner_id FROM users WHERE id = %s", (user_id,)
+        )
+        row = await cur.fetchone()
+        if row is not None and row[0] == "bot" and row[1] is not None:
+            return row[1]
+    return user_id
+
+
 async def get_total(user_id: int) -> float:
+    user_id = await _resolve_owner(user_id)
     async with db.cursor(row_factory=None) as cur:
         await cur.execute("SELECT COALESCE(SUM(amount), 0) FROM user_credits WHERE user_id = %s", (user_id,))
         return float((await cur.fetchone())[0])
 
 
 async def spend(user_id: int, amount: float) -> tuple[bool, float]:
+    user_id = await _resolve_owner(user_id)
     async with db.cursor(row_factory=None) as cur:
         for credit_type in ("free_credits", "gift_credits"):
             await cur.execute("""
@@ -36,6 +56,7 @@ async def spend(user_id: int, amount: float) -> tuple[bool, float]:
 
 
 async def refund(user_id: int, amount: float):
+    user_id = await _resolve_owner(user_id)
     async with db.cursor(row_factory=None) as cur:
         await cur.execute("""
             INSERT INTO user_credits (user_id, credit_type, amount)
@@ -62,6 +83,7 @@ async def daily_refill() -> int:
 
 
 async def add_free_credits(user_id: int, amount: float):
+    user_id = await _resolve_owner(user_id)
     async with db.cursor(row_factory=None) as cur:
         await cur.execute("""
             INSERT INTO user_credits (user_id, credit_type, amount)
@@ -73,6 +95,7 @@ async def add_free_credits(user_id: int, amount: float):
 
 
 async def add_gift_credits(user_id: int, amount: float):
+    user_id = await _resolve_owner(user_id)
     async with db.cursor(row_factory=None) as cur:
         await cur.execute("""
             INSERT INTO user_credits (user_id, credit_type, amount)

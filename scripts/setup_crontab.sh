@@ -20,7 +20,6 @@ CRON_ENTRIES=(
     "0 */12 * * * cd $PROJECT_DIR && $PYTHON scripts/update_prices.py --tier rest >> $LOG_DIR/update_rest.log 2>&1"
     "0 0 * * * cd $PROJECT_DIR && $PYTHON scripts/credit_refiller.py > $LOG_DIR/credit_refiller.log 2>&1"
     "0 2 * * * cd $PROJECT_DIR && $PYTHON scripts/seed_vectors.py --count 200 >> $LOG_DIR/seed_vectors.log 2>&1"
-    "0 3 * * * cd $PROJECT_DIR && $PYTHON scripts/cleanup_old_data.py >> $LOG_DIR/cleanup_old_data.log 2>&1"
     "0 6 * * * cd $PROJECT_DIR && $PYTHON scripts/warm_price_cache.py >> $LOG_DIR/warm_price_cache.log 2>&1"
 )
 

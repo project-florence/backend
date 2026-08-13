@@ -18,6 +18,8 @@ from src.api.contributors import router as contributors_router
 from src.api.virtual_portfolio import router as virtual_portfolio_router
 from src.api.market import router as market_router
 from src.api.meta import router as meta_router
+from src.api.bots import router as bots_router
+from src.api.data import router as data_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(bist_router)
@@ -39,3 +41,5 @@ router.include_router(contributors_router)
 router.include_router(virtual_portfolio_router)
 router.include_router(market_router)
 router.include_router(meta_router)
+router.include_router(bots_router)
+router.include_router(data_router)
