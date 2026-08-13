@@ -151,6 +151,11 @@ async def init_db() -> None:
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS user_type VARCHAR(50) NOT NULL DEFAULT 'user';
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_announcement_viewed_at TIMESTAMPTZ;
                 ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token TEXT;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_expires_at TIMESTAMPTZ;
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_id VARCHAR(30) NOT NULL DEFAULT 'avatar-1';
             """)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS tickers (
@@ -207,6 +212,7 @@ async def init_db() -> None:
                 ALTER TABLE reports ADD COLUMN IF NOT EXISTS title TEXT;
                 ALTER TABLE reports ADD COLUMN IF NOT EXISTS token_usage JSONB;
                 ALTER TABLE reports ADD COLUMN IF NOT EXISTS sentiments JSONB DEFAULT '[]'::jsonb;
+                ALTER TABLE reports ADD COLUMN IF NOT EXISTS purpose TEXT;
             """)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS simulations (

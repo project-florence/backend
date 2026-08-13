@@ -74,7 +74,18 @@ services:
       - postgres
       - redis
     restart: unless-stopped
-    
+
+  # Dev e-posta yakalayici (yalnizca --profile dev ile baslar):
+  #   docker compose --profile dev up -d mailpit  ->  UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: florence_mailpit
+    profiles: ["dev"]
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:

@@ -14,7 +14,7 @@ class Announcement(BaseModel):
     updated_at: datetime
 
 
-async def create_announcement(title: str, content: str, sent_by: int) -> Announcement | None:
+async def create_announcement(title: str, content: str, sent_by: int | None = None) -> Announcement | None:
     try:
         async with db.cursor(row_factory=None) as cur:
             await cur.execute(

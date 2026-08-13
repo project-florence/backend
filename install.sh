@@ -107,6 +107,8 @@ fi
 
 echo "creating log directory..."
 mkdir -p /var/log/florence
+# Konteyner (api) kullanicisi uid 10001 olarak calisir; log dizinine yazabilmeli.
+chown -R 10001:10001 /var/log/florence
 
 echo "running containers..."
 docker compose up -d

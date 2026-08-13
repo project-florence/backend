@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from src.clients.yfinance import afetch_price_history
 from src.core.database import db, price_write_lock
 from src.core.redis import r
-from src.services.quote import get_market_status
+from src.services.market import get_market_status
 
 INTRADAY_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
 

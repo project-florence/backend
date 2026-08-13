@@ -1,22 +1,11 @@
 import json
-from datetime import date, datetime, time, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timezone
 
 from src.core.database import db
 from src.core.redis import r
+from src.services.market import MARKET_TIMEZONE, get_market_status
 
-
-MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
-MARKET_OPEN = time(10, 0)
-MARKET_CLOSE = time(18, 10)
 INTRADAY_INTERVALS = ("5m", "30m", "1h")
-
-
-def get_market_status(now: datetime | None = None) -> str:
-    current = (now or datetime.now(timezone.utc)).astimezone(MARKET_TIMEZONE)
-    if current.weekday() >= 5:
-        return "closed"
-    return "open" if MARKET_OPEN <= current.time() < MARKET_CLOSE else "closed"
 
 
 def _as_float(value) -> float | None:

@@ -39,7 +39,14 @@ def _compute_cost(total_tokens: int) -> int:
 
 
 @router.post("/reports/generate")
-async def generate_report_endpoint(ticker: str, type: str = Query(...), current_user_id: int = Depends(get_current_user), _: bool = Depends(require_feature("report_generate")), __: None = Depends(require_job_slot("report", 900))):
+async def generate_report_endpoint(
+    ticker: str,
+    type: str = Query(...),
+    purpose: str | None = Query(None, max_length=500, description="Kullanıcının rapor amacı/sorusu"),
+    current_user_id: int = Depends(get_current_user),
+    _: bool = Depends(require_feature("report_generate")),
+    __: None = Depends(require_job_slot("report", 900)),
+):
     await validate_ticker(ticker)
 
     if type not in ("quick_report", "deep_report"):
@@ -56,7 +63,7 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     mode = type.replace("_report", "")
 
     try:
-        report_obj = await generate_report(ticker, mode, user_id=current_user_id)
+        report_obj = await generate_report(ticker, mode, user_id=current_user_id, purpose=purpose)
     except Exception as e:
         await credit_refund(current_user_id, estimated_cost)
         raise HTTPException(status_code=500, detail="Report generation failed")
@@ -82,14 +89,15 @@ async def generate_report_endpoint(ticker: str, type: str = Query(...), current_
     async with db.cursor(row_factory=None) as cur:
         try:
             await cur.execute("""
-                        INSERT INTO reports (user_id, ticker, type, title, token_usage, content, sentiments)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id, created_at
+                        INSERT INTO reports (user_id, ticker, type, title, token_usage, content, sentiments, purpose)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id, created_at
                         """, (
                 current_user_id, ticker, type,
                 report_obj.title,
                 json.dumps(report_obj.token_usage),
                 report_obj.report,
                 json.dumps(report_obj.sentiments) if report_obj.sentiments else "[]",
+                purpose,
             ))
 
             report_row = await cur.fetchone()
@@ -158,6 +166,7 @@ class ReportHistoryItem(BaseModel):
     type: str
     title: str | None = None
     token_usage: dict | None = None
+    purpose: str | None = None
     created_at: str
 
 
@@ -173,7 +182,8 @@ def _parse_history_rows(rows: list) -> list[ReportHistoryItem]:
             type=row[2],
             title=row[3],
             token_usage=tu,
-            created_at=row[5].isoformat(),
+            purpose=row[5],
+            created_at=row[6].isoformat(),
         )
         history.append(item)
     return history
@@ -190,7 +200,7 @@ async def get_report_history(
     async with db.cursor(row_factory=None) as cur:
         try:
             await cur.execute(f"""
-                        SELECT id, ticker, type, title, token_usage, created_at
+                        SELECT id, ticker, type, title, token_usage, purpose, created_at
                         FROM reports
                         WHERE user_id = %s
                         ORDER BY {sort_col} {order_dir}, id DESC
@@ -218,7 +228,7 @@ async def search_reports(
     async with db.cursor(row_factory=None) as cur:
         try:
             await cur.execute(f"""
-                        SELECT id, ticker, type, title, token_usage, created_at
+                        SELECT id, ticker, type, title, token_usage, purpose, created_at
                         FROM reports
                         WHERE user_id = %s
                           AND (title ILIKE %s OR content ILIKE %s)
@@ -237,7 +247,7 @@ async def get_single_report(report_id: int, current_user_id: int = Depends(get_c
     async with db.cursor(row_factory=None) as cur:
         try:
             await cur.execute("""
-                        SELECT ticker, type, title, token_usage, content, sentiments, created_at
+                        SELECT ticker, type, title, token_usage, purpose, content, sentiments, created_at
                         FROM reports
                         WHERE id = %s
                           AND user_id = %s
@@ -257,7 +267,7 @@ async def get_single_report(report_id: int, current_user_id: int = Depends(get_c
     if isinstance(token_usage, str):
         token_usage = json.loads(token_usage) if token_usage else None
 
-    sentiments = row[5]
+    sentiments = row[6]
     if isinstance(sentiments, str):
         sentiments = json.loads(sentiments) if sentiments else []
     elif sentiments is None:
@@ -270,9 +280,10 @@ async def get_single_report(report_id: int, current_user_id: int = Depends(get_c
         "type": row[1],
         "title": row[2],
         "token_usage": token_usage,
-        "report": row[4],
+        "purpose": row[4],
+        "report": row[5],
         "sentiments": sentiments,
-        "created_at": row[6].isoformat(),
+        "created_at": row[7].isoformat(),
     }
 
 

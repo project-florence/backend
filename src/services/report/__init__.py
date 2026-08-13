@@ -101,10 +101,10 @@ def _mode_config(mode: str) -> tuple[int, str, str]:
     )
 
 
-def _build_system_prompt(ticker: str, mode: str) -> str:
+def _build_system_prompt(ticker: str, mode: str, purpose: str | None = None) -> str:
     max_articles, mode_label, length_desc = _mode_config(mode)
 
-    return f"""Sen bir finans analistsin. Asagidaki araclari kullanarak "{ticker}" hakkinda kapsamli bir arastirma yap ve bir rapor hazirla.
+    prompt = f"""Sen bir finans analistsin. Asagidaki araclari kullanarak "{ticker}" hakkinda kapsamli bir arastirma yap ve bir rapor hazirla.
 
 ## Kullanabilecegin araclar
 
@@ -132,6 +132,14 @@ Rapor uzunlugu: {length_desc}
 - Raporun bir **title** (baslik) olsun. "{ticker}" icin bir analiz basligi belirle.
 - Finansal terimleri gerektigi yerde kullan ama karmasiklastirma. Basit yatirimcilar da anlasin."""
 
+    if purpose:
+        prompt += f"""
+
+## Kullanıcının sorusu/amacı: {purpose}
+
+Raporu bu amaca gore onceliklendir; kullanici bu sorunun/amacın yanitini raporun icinde bulabilmeli."""
+    return prompt
+
 
 class SentimentItem(BaseModel):
     sentiment: str = Field(description="positive, neutral veya negative")
@@ -156,7 +164,7 @@ class Report(BaseModel):
     token_usage: dict = {"prompt": 0, "completion": 0, "total": 0}
 
 
-def _build_agent(ticker: str, mode: str) -> Agent:
+def _build_agent(ticker: str, mode: str, purpose: str | None = None) -> Agent:
     cfg = get_config()["llm_client"]
     model_id = os.getenv("CUSTOM_MODEL") or cfg.get("custom_model", "gemma")
     base_url = os.getenv("CUSTOM_URL") or cfg.get("custom_url")
@@ -167,14 +175,14 @@ def _build_agent(ticker: str, mode: str) -> Agent:
 
     return Agent(
         model=model,
-        system_prompt=_build_system_prompt(ticker, mode),
+        system_prompt=_build_system_prompt(ticker, mode, purpose),
         output_type=ReportDraft,
         tools=[get_date, search_news, content_fetch, get_economic_data],
     )
 
 
-async def generate_report(ticker: str, mode: str, user_id: int | None = None) -> Report:
-    report_agent = _build_agent(ticker, mode)
+async def generate_report(ticker: str, mode: str, user_id: int | None = None, purpose: str | None = None) -> Report:
+    report_agent = _build_agent(ticker, mode, purpose=purpose)
     result = await report_agent.run(
         f"'{ticker}' hissesi icin {mode} analiz raporunu olustur."
     )

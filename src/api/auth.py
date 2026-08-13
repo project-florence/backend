@@ -1,12 +1,14 @@
 import asyncio
 import datetime
 import json
+import logging
 import os
+import secrets
 
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
@@ -23,6 +25,8 @@ from src.services.refresh_token import (
     revoke_token,
     refresh_token_ttl_days,
 )
+
+logger = logging.getLogger(__name__)
 
 ph = PasswordHasher()
 router = APIRouter()
@@ -94,17 +98,26 @@ async def auth_register(request: Request, user: UserRegister):
     client_ip = request.client.host if request.client else "unknown"
     await rate_limiter.check(f"register:{client_ip}", max_requests=3, window_seconds=60)
 
+    email = user.email.lower()
     async with db.cursor(row_factory=None) as cur:
-        await cur.execute("SELECT id FROM users WHERE username = %s OR email = %s", (user.username, user.email))
+        # Ayri ayri kontrol: frontend i18n icin spesifik hata kodlari.
+        await cur.execute("SELECT id FROM users WHERE username = %s", (user.username,))
         if await cur.fetchone() is not None:
-            raise HTTPException(status_code=400, detail="Registration failed")
+            raise HTTPException(status_code=400, detail="error_username_taken")
+        await cur.execute("SELECT id FROM users WHERE lower(email) = %s", (email,))
+        if await cur.fetchone() is not None:
+            raise HTTPException(status_code=400, detail="error_email_taken")
 
         hashed_pw = await asyncio.to_thread(ph.hash, user.password)
 
+        verify_token = secrets.token_urlsafe(32)
+        verify_expires = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
+
         try:
             await cur.execute(
-                "INSERT INTO users (username, email, hashed_pw) VALUES (%s, %s, %s) RETURNING id",
-                (user.username, user.email, hashed_pw)
+                """INSERT INTO users (username, email, hashed_pw, email_verify_token, email_verify_expires_at)
+                   VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                (user.username, email, hashed_pw, verify_token, verify_expires)
             )
             new_user_id = (await cur.fetchone())[0]
             await db.commit()
@@ -112,7 +125,25 @@ async def auth_register(request: Request, user: UserRegister):
             await db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
 
-    return {"message": "Register successful", "user_id": new_user_id}
+    # Dogrulama maili: hata asla kayit akisini kirmaz (sessiz devam).
+    verification_sent = False
+    try:
+        from src.clients.mail import render_template, send_email
+
+        base_url = os.getenv("PUBLIC_BASE_URL", "http://localhost:7055").rstrip("/")
+        verify_url = f"{base_url}/api/v1/auth/verify-email?token={verify_token}"
+        html = render_template("verify_email.html", verify_url=verify_url)
+        verification_sent = await send_email(
+            email, "Florence — E-postanı Doğrula", html
+        )
+    except Exception as e:
+        logger.warning("Verification email could not be sent to %s: %s", email, e)
+
+    return {
+        "message": "Register successful",
+        "user_id": new_user_id,
+        "verification_sent": verification_sent,
+    }
 
 
 @router.post("/auth/login")
@@ -120,7 +151,11 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
     await rate_limiter.check(f"login:{form_data.username}", max_requests=5, window_seconds=60)
 
     async with db.cursor(row_factory=None) as cur:
-        await cur.execute("SELECT id, hashed_pw FROM users WHERE username = %s", (form_data.username,))
+        # Kullanici adi VEYA e-posta ile giris (e-posta kucuk harfe normalize).
+        await cur.execute(
+            "SELECT id, hashed_pw FROM users WHERE username = %s OR lower(email) = %s",
+            (form_data.username, form_data.username.lower()),
+        )
         user_row = await cur.fetchone()
 
         if not user_row:
@@ -141,6 +176,31 @@ async def auth_login(request: Request, form_data: OAuth2PasswordRequestForm = De
         })
         _set_auth_cookies(response, access_token, refresh_token)
         return response
+
+
+@router.get("/auth/verify-email")
+async def verify_email(token: str = Query(..., description="E-posta dogrulama token'i")):
+    """E-posta dogrulama (public). Token eslesir + sure gecmemisse dogrulanmis isaretlenir."""
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
+            "SELECT id, email_verify_expires_at FROM users WHERE email_verify_token = %s",
+            (token,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+        user_id, expires_at = row
+        if expires_at is None or expires_at < datetime.datetime.now(datetime.timezone.utc):
+            raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+        await cur.execute(
+            "UPDATE users SET email_verified = TRUE, email_verify_token = NULL, email_verify_expires_at = NULL WHERE id = %s",
+            (user_id,),
+        )
+        await db.commit()
+
+    return {"message": "Email verified", "email_verified": True}
 
 
 @router.post("/auth/refresh")
@@ -277,7 +337,8 @@ async def get_profile(current_user_id: int = Depends(get_current_user)):
     async with db.cursor(row_factory=None) as cur:
         try:
             await cur.execute("""
-                SELECT username, email, user_type, created_at FROM users WHERE id = %s
+                SELECT username, email, user_type, created_at, email_verified, avatar_id
+                FROM users WHERE id = %s
             """, (current_user_id,))
             row = await cur.fetchone()
 
@@ -292,8 +353,35 @@ async def get_profile(current_user_id: int = Depends(get_current_user)):
         "email": row[1],
         "user_type": row[2],
         "created_at": row[3].isoformat() if row[3] else None,
+        "email_verified": row[4],
+        "avatar_id": row[5],
         "credits": await get_credits(current_user_id)
     }
+
+
+class AvatarUpdate(BaseModel):
+    avatar_id: str
+
+
+@router.put("/profile/avatar")
+async def update_avatar(payload: AvatarUpdate, current_user_id: int = Depends(get_current_user)):
+    from src.api.meta import AVATAR_IDS
+
+    if payload.avatar_id not in AVATAR_IDS:
+        raise HTTPException(status_code=400, detail="Unknown avatar_id")
+
+    async with db.cursor(row_factory=None) as cur:
+        try:
+            await cur.execute(
+                "UPDATE users SET avatar_id = %s WHERE id = %s",
+                (payload.avatar_id, current_user_id),
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return {"message": "Avatar updated", "avatar_id": payload.avatar_id}
 
 
 @router.get("/credits")

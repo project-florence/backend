@@ -16,6 +16,28 @@ ADMIN_TOKEN = os.getenv("ADMIN_TOKEN")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 
+async def _is_frozen(user_id: int) -> bool:
+    """Kullanici dondurulmus mu? (Redis 30s cache; down ise her sefer DB)."""
+    from src.core.database import db
+    from src.core.redis import r
+
+    cache_key = f"user:frozen:{user_id}"
+    cached = await r.get(cache_key)
+    if cached is not None:
+        return cached == "1"
+
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT is_frozen FROM users WHERE id = %s", (user_id,))
+        row = await cur.fetchone()
+    frozen = bool(row and row[0])
+
+    try:
+        await r.set(cache_key, "1" if frozen else "0", ex=30)
+    except Exception:
+        pass
+    return frozen
+
+
 async def _decode_user(jwt_token: str) -> int | None:
     try:
         payload = jwt.decode(jwt_token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -49,6 +71,9 @@ async def _decode_user(jwt_token: str) -> int | None:
                     changed_dt = changed_dt.replace(tzinfo=timezone.utc)
                 if token_iat < changed_dt.timestamp():
                     return None
+        # Dondurulmus (frozen) kullanici: token gecerli olsa bile erisim yok.
+        if await _is_frozen(user_id):
+            return None
         return user_id
     except jwt.PyJWTError:
         return None

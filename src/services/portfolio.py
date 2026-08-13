@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
-from src.services.quote import get_market_status
+from src.services.market import get_market_status
 from src.services.ticker import is_valid_ticker, get_current_price, get_price_history
 from src.core.database import db
 
