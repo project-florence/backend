@@ -41,8 +41,9 @@ jobs:
             git push origin "${TAG}"
             echo "Tag ${TAG} atildi"
             # Garantili deploy: PAT ile tag push'u bazi scope'larda workflow tetiklemez;
-            # workflow_dispatch her zaman tetiklenir (GITHUB_TOKEN ile de calisir).
-            gh workflow run deploy --repo project-florence/backend --ref "${TAG}" \
+            # workflow_dispatch her zaman tetiklenir. GITHUB_TOKEN yerine PAT (SYNC_TOKEN)
+            # kullanilir cunku repo disi/cross-repo dispatch'te actions:write yetersiz kalir.
+            GH_TOKEN="${SYNC_TOKEN}" gh workflow run deploy --repo project-florence/backend --ref "${TAG}" \
               && echo "deploy workflow dispatch edildi (ref=${TAG})" \
               || echo "UYARI: deploy dispatch basarisiz (manuel: gh workflow run deploy --ref ${TAG})"
           fi
