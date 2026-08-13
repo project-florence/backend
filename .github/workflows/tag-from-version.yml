@@ -34,9 +34,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if git ls-remote --tags origin "refs/tags/${TAG}" | grep -q "${TAG}"; then
-            echo "Tag ${TAG} zaten var, atlaniyor (deploy tetiklenmez)"
+            echo "Tag ${TAG} zaten var, atlaniyor (deploy gerekmez)"
           else
             git tag -a "${TAG}" -m "release ${TAG} (otomatik, version text'inden)"
             git push origin "${TAG}"
-            echo "Tag ${TAG} atildi -> deploy otomatik tetiklendi"
+            echo "Tag ${TAG} atildi"
+            # Garantili deploy: PAT ile tag push'u bazi scope'larda workflow tetiklemez;
+            # workflow_dispatch her zaman tetiklenir (GITHUB_TOKEN ile de calisir).
+            gh workflow run deploy --repo project-florence/backend --ref "${TAG}" \
+              && echo "deploy workflow dispatch edildi (ref=${TAG})" \
+              || echo "UYARI: deploy dispatch basarisiz (manuel: gh workflow run deploy --ref ${TAG})"
           fi
