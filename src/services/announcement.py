@@ -22,8 +22,10 @@ async def create_announcement(title: str, content: str, sent_by: int | None = No
                 (title, content, sent_by),
             )
             row = await cur.fetchone()
+            if row:
+                # Commit blok icinde (otomatik iade rollback etmesin).
+                await db.commit()
         if row:
-            await db.commit()
             return Announcement(id=row[0], title=row[1], content=row[2], sent_by=row[3], created_at=row[4], updated_at=row[5])
         return None
     except Exception:
@@ -64,8 +66,9 @@ async def update_announcement(announcement_id: int, title: str, content: str) ->
                 (title, content, announcement_id),
             )
             rowcount = cur.rowcount
-        if rowcount:
-            await db.commit()
+            if rowcount:
+                # Commit blok icinde (otomatik iade rollback etmesin).
+                await db.commit()
         return rowcount > 0
     except Exception:
         return False
@@ -76,8 +79,9 @@ async def delete_announcement(announcement_id: int) -> bool:
         async with db.cursor(row_factory=None) as cur:
             await cur.execute("DELETE FROM announcements WHERE id = %s", (announcement_id,))
             rowcount = cur.rowcount
-        if rowcount:
-            await db.commit()
+            if rowcount:
+                # Commit blok icinde (otomatik iade rollback etmesin).
+                await db.commit()
         return rowcount > 0
     except Exception:
         return False

@@ -31,7 +31,9 @@ def init_client(url=None, default_model=None, api_key=None):
         key = api_key or os.getenv("CUSTOM_API_KEY") or llm_cfg.get("api_key", "")
         _default_model = default_model or os.getenv("CUSTOM_MODEL") or llm_cfg.get("custom_model")
 
-    _client = AsyncOpenAI(api_key=key, base_url=base_url)
+    # 600s'e asili kalmasin: 60s timeout + 1 retry (havuz baglantilarini
+    # LLM beklemesiyle tutmamak icin sinirli bekleme).
+    _client = AsyncOpenAI(api_key=key, base_url=base_url, timeout=60, max_retries=1)
 
 
 async def get_response(

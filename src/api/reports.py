@@ -60,6 +60,10 @@ async def generate_report_endpoint(
     if not ok:
         raise HTTPException(status_code=402, detail="insufficient credit")
 
+    # Kredi islemlerinin tutabilecegi baglantiyi LLM cagrisindan ONCE iade et
+    # (rapor 30-60s+ surebilir; baglanti checked-out kalmasin).
+    await db.release_current()
+
     mode = type.replace("_report", "")
 
     try:
@@ -79,6 +83,7 @@ async def generate_report_endpoint(
     if refund > 0:
         await credit_refund(current_user_id, refund)
         remaining_credits = await get_credits(current_user_id)
+        await db.release_current()
     elif actual_cost > estimated_cost:
         extra_cost = actual_cost - estimated_cost
         extra_ok, remaining_credits = await credit_spend(current_user_id, extra_cost)

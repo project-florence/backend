@@ -276,8 +276,10 @@ async def resend_verification(request: Request, payload: ResendVerification):
 
 
 @router.post("/auth/refresh")
-async def auth_refresh(request: Request, payload: RefreshRequest):
-    token = payload.refresh_token or request.cookies.get("refresh_token")
+async def auth_refresh(request: Request, payload: RefreshRequest | None = None):
+    # Body yoksa (veya token body'de verilmediyse) cookie'den oku. Null body
+    # 422 uretmez; frontend cookie akisi boylece refresh edebilir.
+    token = (payload.refresh_token if payload else None) or request.cookies.get("refresh_token")
     await rate_limiter.check(f"refresh:{hash_token(token) if token else 'none'}", max_requests=5, window_seconds=60)
 
     result = await rotate_token(token)

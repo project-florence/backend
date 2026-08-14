@@ -115,7 +115,8 @@ async def mark_announcements_read(current_user_id: int = Depends(get_current_use
                 "UPDATE users SET last_announcement_viewed_at = NOW() WHERE id = %s",
                 (current_user_id,),
             )
-        await db.commit()
+            # Commit blok icinde (otomatik iade rollback etmesin).
+            await db.commit()
         return {"message": "Marked as read"}
     except Exception:
         raise HTTPException(status_code=500, detail="Database error")

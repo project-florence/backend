@@ -56,7 +56,9 @@ async def _init_db():
             CREATE INDEX IF NOT EXISTS idx_price_candles_lookup
             ON price_candles (ticker, interval, ts DESC)
         """)
-    await db.commit()
+        # Commit blok icinde: blok cikisinda otomatik iade DDL'yi rollback
+        # etmesin.
+        await db.commit()
     _db_initialized = True
 
 
@@ -127,7 +129,9 @@ async def _write_candle_rows(values: list[tuple]) -> None:
                     "close = EXCLUDED.close, volume = EXCLUDED.volume",
                     values,
                 )
-            await db.commit()
+                # Commit blok icinde: blok cikisinda otomatik iade bekleyen
+                # yazilari rollback etmesin.
+                await db.commit()
         except Exception:
             await db.rollback()
             raise

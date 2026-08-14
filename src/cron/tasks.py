@@ -39,6 +39,32 @@ BIST30_TICKERS = [
 BATCH_DELAY = 10
 INFO_TICKER_DELAY = 2
 
+# Delisted (borsadan cikmis) ticker'larin tutuldugu Redis set'i. Her turda
+# yf.download / get_company_info'yu 30-60s yavaslatan olu ticker'lar ilk
+# basarisizlikta isaretlenir; sonraki turlarda tamamen atlanir.
+DELISTED_KEY = "delisted_tickers"
+
+# _refresh_company_info turu 20-94 dk surebildigi icin lock TTL'i 7200s:
+# tur hala surerken lock expire olup ust uste binmesin.
+INFO_LOCK_TTL = 7200
+
+
+async def _load_delisted() -> set[str]:
+    """Redis'teki delisted ticker setini dondurur (Redis down ise bos)."""
+    try:
+        members = await r.smembers(DELISTED_KEY)
+        return set(members) if members else set()
+    except Exception:
+        return set()
+
+
+async def _mark_delisted(ticker: str) -> None:
+    """Basarisiz (buyuk olasilikla delisted) ticker'i Redis set'ine ekler."""
+    try:
+        await r.sadd(DELISTED_KEY, ticker)
+    except Exception:
+        pass
+
 # Tier config: (name, cron_frequency, default_interval, batch_size)
 TIERS = {
     "bist30": ("BIST30", timedelta(minutes=10), "5m", 15),
@@ -174,7 +200,9 @@ async def _update_batch(batch_tickers: list[str], interval: str, period: str, ti
                         await db.rollback()
                         logger.warning("Batch '{}' icin yazma hatasi, kalan tickerlar atlaniyor".format(ticker))
                         break
-            await db.commit()
+                # Commit cursor blok icinde: blok cikisinda otomatik iade
+                # rollback yapmasin (bekleyen yazilar korunur).
+                await db.commit()
         except Exception:
             await db.rollback()
             logger.warning("Batch commit basarisiz, {} ticker yazilamadi".format(len(batch_tickers)))
@@ -197,6 +225,11 @@ async def _refresh_company_info(tier_keys: list[str]) -> None:
     mapping = load_bist_mapping()
     popular_tickers = list(mapping.keys())
 
+    # Delisted ticker'lari atla (her biri get_company_info'yu 30-60s uzatir).
+    delisted = await _load_delisted()
+    if delisted:
+        popular_tickers = [t for t in popular_tickers if t not in delisted]
+
     total = len(popular_tickers)
     for i, ticker in enumerate(popular_tickers, 1):
         logger.info("  [%s/%s] %s...", i, total, ticker)
@@ -205,9 +238,13 @@ async def _refresh_company_info(tier_keys: list[str]) -> None:
             if profile:
                 logger.info("OK (%s alan)", len(profile))
             else:
-                logger.info("veri yok")
+                # Surekli "veri yok" donen ticker: buyuk olasilikla delisted.
+                # Sonraki turlarda yine 30-60s harcamamak icin isaretle.
+                logger.info("veri yok — delisted olarak isaretleniyor")
+                await _mark_delisted(ticker)
         except Exception as e:
-            logger.warning("hata: %s", e)
+            logger.warning("hata: %s — delisted olarak isaretleniyor", e)
+            await _mark_delisted(ticker)
 
         if i < total:
             await asyncio.sleep(INFO_TICKER_DELAY)
@@ -223,7 +260,16 @@ async def update_tier(tier_name: str, interval: str | None = None, info: bool = 
     effective_interval = interval or default_interval
     ticker_list = (await _ticker_sets())[tier_name]
 
-    if not no_lock and not await _acquire_cron_lock(tier_name):
+    # Delisted ticker'lari fiyat turlarindan da cikar (yf.download batch'ini
+    # 30-60s yavaslatirlar).
+    delisted = await _load_delisted()
+    if delisted:
+        ticker_list = [t for t in ticker_list if t not in delisted]
+
+    # Info turu (20-94 dk) dahil tum tur boyunca lock tutulur; TTL tur
+    # suresini karsilasin ki lock expire olup ust uste binmesin.
+    lock_ttl = INFO_LOCK_TTL if info else 600
+    if not no_lock and not await _acquire_cron_lock(tier_name, ttl=lock_ttl):
         logger.info("[%s] %s — lock alinamadi (baskasi calisiyor), atlaniyor", name, effective_interval)
         return 0
 
@@ -245,11 +291,13 @@ async def update_tier(tier_name: str, interval: str | None = None, info: bool = 
                 if i + batch_size < len(tickers_is):
                     logger.info("  %ss bekleniyor...", BATCH_DELAY)
                     await asyncio.sleep(BATCH_DELAY)
+
+        # Info tazeleme de lock kapsaminda: price_popular bu uzun turla
+        # ust uste binmesin.
+        if info and tier_name == "popular":
+            await _refresh_company_info([tier_name])
     finally:
         await _release_cron_lock(tier_name)
-
-    if info and tier_name == "popular":
-        await _refresh_company_info([tier_name])
 
     logger.info("Toplam %s ticker guncellendi.", total_updated)
     return total_updated
@@ -271,6 +319,12 @@ async def run_update_daily_closes() -> None:
     """Tum hisselerin gunluk (1d) kapanis mumlarini tazeler."""
     companies = await get_bist_companies_as_dict_from_redis()
     all_tickers = sorted({c["ticker"] for c in companies})
+
+    # Delisted ticker'lari atla (yf.download'u yavaslatirlar).
+    delisted = await _load_delisted()
+    if delisted:
+        all_tickers = [t for t in all_tickers if t not in delisted]
+
     total = len(all_tickers)
     logger.info("Gunluk kapanis mumlari guncelleniyor: %s ticker", total)
 

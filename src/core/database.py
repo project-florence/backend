@@ -46,6 +46,22 @@ def _conninfo() -> str:
     )
 
 
+async def _check_connection(conn: AsyncConnection) -> bool:
+    """Havuz `check` cagrisi: baglantinin canli olup olmadigini dogrular.
+
+    psycopg_pool 3.3.1 hazir bir ``check_connection`` saglamadigi icin
+    yerel async karsiligi yazildi. Basarisiz baglanti havuz tarafindan
+    atilir ve yerine yenisi kurulur.
+    """
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT 1")
+            await cur.fetchone()
+        return True
+    except Exception:
+        return False
+
+
 async def _get_pool() -> AsyncConnectionPool:
     global _pool
     if _pool is None:
@@ -54,8 +70,27 @@ async def _get_pool() -> AsyncConnectionPool:
                 pool = AsyncConnectionPool(
                     conninfo=_conninfo(),
                     min_size=1,
-                    max_size=int(os.getenv("POSTGRES_POOL_MAX", "20")),
+                    max_size=int(os.getenv("POSTGRES_POOL_MAX", "10")),
                     open=False,
+                    # Baglanti canlilik kontrolu: olmus baglantilar havuzdan
+                    # cikarilir (yoksa 30s+ PoolTimeout'a takiliriz).
+                    check=_check_connection,
+                    # Baglanti bekleme suresi: 30s yerine 5s -> havuz
+                    # tukenince PoolTimeout hizli firlar (middleware 503 verir).
+                    timeout=5,
+                    # Idle/lifetime bakimi: 60s bos kalan baglantilar
+                    # kapatilir (havuz min_size=1'e kuculur), 30dk ustu
+                    # baglantilar yenilenir. Boylece havuz monoton buyumez.
+                    max_idle=60,
+                    max_lifetime=1800,
+                    # Baglanti kurulum parametreleri: hizli fail + TCP
+                    # keepalive (cron/uzun islemlerde kopan baglantilar).
+                    kwargs={
+                        "connect_timeout": 5,
+                        "keepalives": 1,
+                        "keepalives_idle": 60,
+                        "tcp_user_timeout": 30000,
+                    },
                 )
                 await pool.open()
                 _pool = pool
@@ -97,11 +132,32 @@ class _AsyncDatabase:
     """
 
     @asynccontextmanager
-    async def cursor(self, row_factory=_NO_FACTORY):
+    async def cursor(self, row_factory=_NO_FACTORY, *, keep: bool = False):
+        """Context manager: baglanti havuzdan alinir, satirlar dict doner.
+
+        Blok sonunda (exception dahil — try/finally) baglanti hala bu task'a
+        aitse otomatik olarak iade edilir; bekleyen islem ``_release_conn``
+        icinde rollback edilir. Boylece commit/rollback cagirilmayan
+        (SELECT-only, erken HTTPException) yollarda baglanti havuzdan
+        disarida kalmaz.
+
+        ``keep=True`` verilirse iade edilmez: cagiran islemi bilincli olarak
+        acik tutuyordur (ornek: portfolio ``pg_advisory_xact_lock`` akisi —
+        kilit, islem commit edilene kadar canli kalmali). Not: ic ice
+        cursor bloklari desteklenmez (icteki blok cikista baglantiyi iade
+        eder).
+        """
         conn = await _get_conn()
         factory = dict_row if row_factory is _NO_FACTORY else row_factory
-        async with conn.cursor(row_factory=factory) as cur:
-            yield cur
+        try:
+            async with conn.cursor(row_factory=factory) as cur:
+                yield cur
+        finally:
+            # Blok icinde commit/rollback/release_current yapildiysa ContextVar
+            # temizlenmis olur (``_current_conn.get() is not conn``) -> dokunma.
+            # Yapilmadiysa otomatik rollback + iade (tekrar cagri idempotent).
+            if not keep and _current_conn.get() is conn:
+                await _release_conn()
 
     async def commit(self) -> None:
         conn = _current_conn.get()

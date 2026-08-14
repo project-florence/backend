@@ -36,7 +36,9 @@ async def _fetch_and_persist_all():
                 "company_id = EXCLUDED.company_id, updated_at = NOW()",
                 (c["ticker"], c["name"], c["summary_page"], c["city"], c["auditor"], c["company_id"]),
             )
-    await db.commit()
+        # Commit blok icinde: blok cikisinda otomatik iade yazilari
+        # rollback etmesin.
+        await db.commit()
 
     tickers_json = json.dumps(tickers)
     companies_json = json.dumps(companies)

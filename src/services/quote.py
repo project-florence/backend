@@ -140,6 +140,10 @@ async def get_quotes(tickers: list[str]) -> dict[str, dict]:
         )
         rows = await cur.fetchall()
 
+    # DB sorgusu bitti: mumlar bellekten islenirken baglanti iade edilsin
+    # (redis/yfinance beklemesi sirasinda checked-out kalmasin).
+    await db.release_current()
+
     grouped: dict[str, list[dict]] = {}
     for ticker, interval, ts, close in rows:
         key = ticker.removesuffix(".IS")

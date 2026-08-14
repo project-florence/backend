@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 import src.simulation.montecarlo as montecarlo
 from src.api.deps import get_current_user, validate_ticker
 from src.core.config import get_config
+from src.core.database import db
 from src.core.job_slots import require_job_slot
 from src.services.analytics import track_event
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
@@ -72,6 +73,10 @@ async def simulate(
     ok, remaining_credits = await credit_spend(current_user_id, cost)
     if not ok:
         raise HTTPException(status_code=402, detail="insufficient credit")
+
+    # Kredi islemlerinin tutabilecegi baglantiyi simulasyon (CPU-yogun,
+    # thread'de calisan) oncesinde iade et — baglanti checked-out kalmasin.
+    await db.release_current()
 
     try:
         result = await asyncio.to_thread(montecarlo.simulate, ticker, days, bounds, target)

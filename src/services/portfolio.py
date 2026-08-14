@@ -47,14 +47,21 @@ class Portfolio(BaseModel):
 
 
 async def _lock_portfolio(portfolio_id: str) -> None:
-    async with db.cursor(row_factory=None) as cur:
+    # keep=True: pg_advisory_xact_lock islem kapsamli — kilit, islem commit
+    # edilene kadar canli kalmali. Blok cikisinda otomatik iade (rollback)
+    # kilidi dusururdu; baglanti bilincli olarak acik tutulur, sonraki cursor
+    # bloklari ayni baglantiyi kullanir ve commit onlari iade eder.
+    async with db.cursor(row_factory=None, keep=True) as cur:
         await cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s));", (portfolio_id,))
 
 
 async def save_portfolio(portfolio: Portfolio) -> bool:
     portfolio.metadata.updated_at = datetime.now(timezone.utc)
     try:
-        async with db.cursor(row_factory=None) as cur:
+        # keep=True: _lock_portfolio'dan gelen advisory kilit islemi bu INSERT
+        # boyunca canli kalir; commit blok icinde yapilir (kilit+islem burada
+        # sonlanir, baglanti havuza doner).
+        async with db.cursor(row_factory=None, keep=True) as cur:
             await cur.execute(
                 """
                 INSERT INTO portfolios (portfolio_id, user_id, portfolio)
@@ -70,7 +77,7 @@ async def save_portfolio(portfolio: Portfolio) -> bool:
                     portfolio.model_dump_json(),
                 ),
             )
-        await db.commit()
+            await db.commit()
         return True
     except Exception:
         return False
@@ -78,7 +85,11 @@ async def save_portfolio(portfolio: Portfolio) -> bool:
 
 async def load_portfolio(portfolio_id: str, user_id: int) -> Portfolio | None:
     try:
-        async with db.cursor(row_factory=None) as cur:
+        # keep=True: _lock_portfolio'dan gelen advisory kilit islemi bu SELECT
+        # boyunca canli kalmalidir (rename/duplicate akislari). Bagimsiz
+        # cagrilar icin zararsizdir — baglanti middleware release'ine kadar
+        # tutulur (eski davranis).
+        async with db.cursor(row_factory=None, keep=True) as cur:
             await cur.execute(
                 "SELECT portfolio FROM portfolios WHERE portfolio_id = %s AND user_id = %s;",
                 (portfolio_id, user_id)

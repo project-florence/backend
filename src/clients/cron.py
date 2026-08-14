@@ -68,7 +68,8 @@ class CronClient:
                 """,
                 (job.name, job.description, job.source, job.interval_ms, job.last_run),
             )
-        await db.commit()
+            # Commit blok icinde (blok cikisinda otomatik iade rollback etmesin).
+            await db.commit()
 
     async def _load_from_db(self) -> list[Job]:
         async with db.cursor(row_factory=None) as cur:
@@ -82,13 +83,15 @@ class CronClient:
     async def _delete_from_db(self, name: str) -> None:
         async with db.cursor() as cur:
             await cur.execute("DELETE FROM cron_jobs WHERE name = %s", (name,))
-        await db.commit()
+            # Commit blok icinde (otomatik iade rollback etmesin).
+            await db.commit()
 
     async def _mark_done(self, name: str) -> None:
         now = datetime.now(UTC)
         async with db.cursor() as cur:
             await cur.execute("UPDATE cron_jobs SET last_run = %s WHERE name = %s", (now, name))
-        await db.commit()
+            # Commit blok icinde (otomatik iade rollback etmesin).
+            await db.commit()
         job = self._jobs.get(name)
         if job:
             job.last_run = now

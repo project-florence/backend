@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import json
 import logging
 
@@ -41,7 +42,13 @@ def fire_and_forget(event_type: str, user_id: int | None = None, ticker: str | N
     set'ten cikar, hata varsa loglanir.
     """
     try:
-        task = asyncio.create_task(track_event(event_type, user_id, ticker, details))
+        # BOS context: request'in ContextVar baglantisini (db._current_conn)
+        # miras alma. Boylece arka plan task'i kendi baglantisini havuzdan
+        # alir; request bitip baglanti iade edilse bile task bagimsiz calisir.
+        task = asyncio.create_task(
+            track_event(event_type, user_id, ticker, details),
+            context=contextvars.Context(),
+        )
     except RuntimeError as e:
         # Calisan event loop yok (ornegin shutdown sirasinda): sessiz yutma,
         # logla.

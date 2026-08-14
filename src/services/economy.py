@@ -186,7 +186,8 @@ async def _persist_market_data(data_type: str, data: dict) -> None:
                 "INSERT INTO market_rates (data_type, data) VALUES (%s, %s)",
                 (data_type, json.dumps(data, ensure_ascii=False))
             )
-        await db.commit()
+            # Commit blok icinde (otomatik iade rollback etmesin).
+            await db.commit()
     except Exception:
         await db.rollback()
         logger.warning("market_rates persist basarisiz: %s", data_type, exc_info=True)
@@ -206,7 +207,8 @@ async def _persist_economy_rates(data: dict) -> None:
                 "INSERT INTO economy_rates (ticker, ts, price) VALUES (%s, NOW(), %s) ON CONFLICT DO NOTHING",
                 args,
             )
-        await db.commit()
+            # Commit blok icinde (otomatik iade rollback etmesin).
+            await db.commit()
     except Exception:
         await db.rollback()
         logger.warning("economy_rates persist basarisiz: %s", list(data)[:3], exc_info=True)

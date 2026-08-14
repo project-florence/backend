@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from psycopg_pool import PoolTimeout
 
 from src.api.deps import SECRET_KEY, get_current_user_optional
 from src.api.router import router
@@ -115,6 +116,10 @@ async def auth_and_tracking_middleware(request: Request, call_next):
             if user_id is None:
                 return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
             request.state.user_id = user_id
+        except PoolTimeout:
+            # Havuz tukenmis: kullaniciyi 401 ile login'e atma, 503 ver ki
+            # frontend refresh/logout zincirine girmesin.
+            return JSONResponse(status_code=503, content={"detail": "Database busy, please retry"})
         except Exception:
             return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
 

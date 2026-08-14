@@ -112,7 +112,9 @@ async def _process_dataframe(df: pd.DataFrame, batch_tickers: list[str]) -> int:
                 count += 1
             except Exception:
                 continue
-    await db.commit()
+        # Commit blok icinde: blok cikisinda otomatik iade yazilari rollback
+        # etmesin.
+        await db.commit()
     return count
 
 
