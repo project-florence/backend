@@ -88,6 +88,7 @@ async def auth_and_tracking_middleware(request: Request, call_next):
         "/api/v1/auth/verify-email",
         "/api/v1/auth/resend-verification",
         "/api/v1/market/status",
+        "/api/v1/data/export/download",
         "/api/v1/meta/avatars",
         "/api/v1/legal",
         "/api/v1/about",

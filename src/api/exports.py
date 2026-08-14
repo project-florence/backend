@@ -75,6 +75,7 @@ def _serialize(row: tuple) -> dict:
         expires_at, row_count, size_bytes, downloaded_count, error, created_at, updated_at,
     ) = row
     now = datetime.now(timezone.utc)
+    downloadable = status in ("ready", "sent") and expires_at is not None and expires_at > now
     return {
         "id": _id,
         "year": year,
@@ -87,7 +88,8 @@ def _serialize(row: tuple) -> dict:
         "downloaded_count": downloaded_count,
         "expires_at": expires_at.isoformat() if expires_at else None,
         "error": error,
-        "downloadable": status in ("ready", "sent") and expires_at is not None and expires_at > now,
+        "downloadable": downloadable,
+        "download_url": f"/api/v1/data/export/download/{token}" if downloadable and token else None,
     }
 
 
