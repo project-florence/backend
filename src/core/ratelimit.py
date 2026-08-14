@@ -12,9 +12,12 @@ class RateLimiter:
         self._buckets: dict[str, list[float]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
-    async def check(self, key: str, max_requests: int, window_seconds: int):
+    async def check(self, key: str, max_requests: int, window_seconds: int, is_admin: bool = False, admin_multiplier: int = 10):
         now = time.time()
         cutoff = now - window_seconds
+
+        # Admin kullanicilar cok daha yuksek limit alir (varsayilan 10x).
+        limit = max_requests * (admin_multiplier if is_admin else 1)
 
         redis_key = f"ratelimit:{key}"
         try:
@@ -22,7 +25,7 @@ class RateLimiter:
             if count is not None:
                 if count == 1:
                     await r.expire(redis_key, window_seconds)
-                if count > max_requests:
+                if count > limit:
                     raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
                 return
         except HTTPException:
@@ -33,7 +36,7 @@ class RateLimiter:
         async with self._lock:
             bucket = self._buckets[key]
             bucket[:] = [t for t in bucket if t > cutoff]
-            if len(bucket) >= max_requests:
+            if len(bucket) >= limit:
                 raise HTTPException(status_code=429, detail="Too many requests. Please slow down.")
             bucket.append(now)
             if len(self._buckets) > 10_000:

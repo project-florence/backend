@@ -9,7 +9,7 @@ from src.services.news import get_latest_news
 from src.services.price import get_price_history
 from src.services.quote import get_quote
 from src.services.stats import increment_stat, get_popular_companies, get_popular_tickers
-from src.api.deps import validate_ticker, get_current_user
+from src.api.deps import validate_ticker, get_current_user, get_current_user_full
 from src.core.ratelimit import rate_limiter
 from src.services.maintenance import require_feature
 
@@ -74,8 +74,13 @@ async def companies_summary(
 
 
 @router.get("/news/{ticker}")
-async def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="Number of news items"), current_user_id: int = Depends(get_current_user), _: bool = Depends(require_feature("news"))):
-    await rate_limiter.check(f"news:{current_user_id}:{ticker.upper()}", max_requests=10, window_seconds=60)
+async def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="Number of news items"), user: tuple[int, str] = Depends(get_current_user_full), _: bool = Depends(require_feature("news"))):
+    current_user_id, user_type = user
+    # Admin kullanicilar 10x limit alir (10 -> 100 istek/dk).
+    await rate_limiter.check(
+        f"news:{current_user_id}:{ticker.upper()}", max_requests=10, window_seconds=60,
+        is_admin=(user_type == "admin"),
+    )
     await validate_ticker(ticker)
     result = await get_latest_news(ticker, amount)
     await increment_stat(ticker, "news_count")

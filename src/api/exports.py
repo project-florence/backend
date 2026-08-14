@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from src.api.deps import get_current_user
+from src.api.deps import get_current_user, get_current_user_full
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
 from src.services.export_jobs import _run_export
@@ -96,9 +96,14 @@ def _serialize(row: tuple) -> dict:
 @router.post("/data/export", status_code=202)
 async def create_export(
     body: ExportRequest,
-    current_user_id: int = Depends(get_current_user),
+    user: tuple[int, str] = Depends(get_current_user_full),
 ):
-    await rate_limiter.check(f"export:{current_user_id}", max_requests=3, window_seconds=3600)
+    current_user_id, user_type = user
+    # Admin kullanicilar 10x limit alir (3 -> 30 export/saat).
+    await rate_limiter.check(
+        f"export:{current_user_id}", max_requests=3, window_seconds=3600,
+        is_admin=(user_type == "admin"),
+    )
 
     now = datetime.now(timezone.utc)
     if body.year < 1990 or body.year > now.year + 1:

@@ -105,6 +105,28 @@ async def get_current_user(token: str | None = Depends(oauth2_scheme), access_to
     return user_id
 
 
+async def get_current_user_full(token: str | None = Depends(oauth2_scheme), access_token: str | None = Cookie(default=None)):
+    """(user_id, user_type) doner — rate limit'te admin boost'u icin.
+
+    get_current_user ile ayni auth akisi; ek olarak users.user_type
+    DB'den okunur (JWT'ye dokunulmaz -> eski token'larla da calisir).
+    """
+    user_id = await get_current_user(token, access_token)
+
+    from src.core.database import db
+
+    user_type = "user"
+    try:
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute("SELECT user_type FROM users WHERE id = %s", (user_id,))
+            row = await cur.fetchone()
+        if row:
+            user_type = row[0] or "user"
+    except Exception:
+        pass  # DB hatasinda admin boost yok; normal limit uygulanir
+    return user_id, user_type
+
+
 def verify_admin_token(x_admin_token: str = Header(...)):
     if not ADMIN_TOKEN:
         raise HTTPException(status_code=500, detail="ADMIN_TOKEN not configured")
