@@ -24,6 +24,9 @@ import secrets
 import zlib
 from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+IST = ZoneInfo("Europe/Istanbul")  # BIST islem gunu: Istanbul gece yarisi = 21:00 UTC
 
 from src.clients.mail import send_email
 from src.core.database import db
@@ -92,7 +95,7 @@ async def _write_csv_stream(cur, file_path: Path) -> int:
             if not rows:
                 break
             chunk = "".join(
-                f"{ticker},{ts:%Y-%m-%d},{_csv_val(o)},{_csv_val(h)},"
+                f"{ticker},{ts.astimezone(IST):%Y-%m-%d},{_csv_val(o)},{_csv_val(h)},"
                 f"{_csv_val(l)},{_csv_val(c)},{_csv_val(v)}\n"
                 for ticker, ts, o, h, l, c, v in rows
             )
@@ -136,7 +139,7 @@ async def _write_json_stream(cur, file_path: Path) -> int:
                 block_first = False
                 buf.append(json.dumps(
                     {
-                        "date": ts.strftime("%Y-%m-%d"),
+                        "date": ts.astimezone(IST).strftime("%Y-%m-%d"),
                         "open": o,
                         "high": h,
                         "low": l,
