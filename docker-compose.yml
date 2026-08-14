@@ -48,6 +48,7 @@ services:
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp-key.json
     volumes:
       - /var/log/florence:/var/log/florence
+      - ./data/exports:/app/data/exports
       - "${GOOGLE_APPLICATION_CREDENTIALS}:/gcp-key.json:ro"
     depends_on:
       - postgres

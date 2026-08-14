@@ -160,6 +160,66 @@ async def stats() -> int:
     return 0
 
 
+async def export_stats() -> int:
+    """Veri disa aktarim istatistikleri (exports tablosu)."""
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT COUNT(*) FROM exports")
+        row = await cur.fetchone()
+        total = row[0] if row else 0
+
+        await cur.execute(
+            "SELECT status, COUNT(*) FROM exports GROUP BY status ORDER BY COUNT(*) DESC"
+        )
+        status_rows = await cur.fetchall()
+
+        await cur.execute(
+            "SELECT year, COUNT(*) FROM exports GROUP BY year ORDER BY year"
+        )
+        year_rows = await cur.fetchall()
+
+        await cur.execute(
+            "SELECT COALESCE(SUM(row_count), 0), COALESCE(SUM(size_bytes), 0), "
+            "COALESCE(SUM(downloaded_count), 0) FROM exports"
+        )
+        sums = await cur.fetchone()
+        total_rows, total_bytes, total_downloads = (sums[0], sums[1], sums[2]) if sums else (0, 0, 0)
+
+        await cur.execute("SELECT COUNT(*) FROM exports WHERE status IN ('ready', 'sent')")
+        succ_row = await cur.fetchone()
+        succeeded = succ_row[0] if succ_row else 0
+
+        await cur.execute(
+            "SELECT u.username, COUNT(e.id) AS n FROM exports e "
+            "JOIN users u ON u.id = e.user_id "
+            "GROUP BY u.username ORDER BY n DESC LIMIT 5"
+        )
+        top_users = await cur.fetchall()
+    await db.release_current()
+
+    print("=== Export istatistikleri ===")
+    print(f"Toplam export: {total}")
+    if status_rows:
+        print("Durum dagilimi:")
+        for status, n in status_rows:
+            print(f"  {status}: {n}")
+    if year_rows:
+        print("Yil dagilimi:")
+        for year, n in year_rows:
+            print(f"  {year}: {n}")
+    print(f"Toplam satir: {total_rows}")
+    print(f"Toplam boyut: {total_bytes} bayt ({total_bytes / 1024 / 1024:.1f} MiB)")
+    print(f"Toplam indirme: {total_downloads}")
+    if total:
+        print(f"Basarı oranı (ready+sent): {100.0 * succeeded / total:.1f}%")
+    else:
+        print("Basarı oranı: - (export yok)")
+    if top_users:
+        print("En aktif 5 kullanici:")
+        for username, n in top_users:
+            print(f"  {username}: {n} export")
+    return 0
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Florence admin CLI (dogrudan DB)")
     parser.add_argument("--admin-token", default=None, help="ADMIN_TOKEN ile eslesme (opsiyonel)")
@@ -191,6 +251,10 @@ async def main() -> int:
 
     sub.add_parser("stats", help="istatistikler")
 
+    export_p = sub.add_parser("export", help="veri disa aktarim islemleri")
+    export_sub = export_p.add_subparsers(dest="export_command", required=True)
+    export_sub.add_parser("stats", help="export istatistikleri")
+
     args = parser.parse_args()
     _verify_admin_token(args)
 
@@ -207,6 +271,9 @@ async def main() -> int:
         return await maintenance_toggle(args.feature, args.action)
     if args.command == "stats":
         return await stats()
+    if args.command == "export":
+        if args.export_command == "stats":
+            return await export_stats()
     parser.print_help()
     return 1
 
