@@ -1,5 +1,6 @@
 import os
 
+from src.core.config import get_config
 from src.core.database import db
 
 
@@ -9,6 +10,18 @@ def _get_max_free() -> int:
 
 def _get_daily_refill() -> int:
     return int(os.getenv("DAILY_FREE_CREDIT_REFILL", "5"))
+
+
+def _get_default_credits() -> int:
+    """Yeni kullanicilara kayitta verilen baslangic kredisi.
+
+    Oncelik sirasi: ``DEFAULT_CREDITS`` env -> ``credits.default_credits``
+    config (``CREDITS_DEFAULT_CREDITS`` env ile override edilebilir) -> 100.
+    """
+    raw = os.getenv("DEFAULT_CREDITS")
+    if raw is not None:
+        return int(raw)
+    return int((get_config() or {}).get("credits", {}).get("default_credits", 100))
 
 
 async def _resolve_owner(user_id: int) -> int:
@@ -92,6 +105,15 @@ async def add_free_credits(user_id: int, amount: float):
             SET amount = user_credits.amount + %s
         """, (user_id, amount, amount))
         await db.commit()
+
+
+async def init_user_credits(user_id: int):
+    """Yeni kayit olan kullaniciya baslangic kredisi verir (register akisi).
+
+    Yalnizca yeni kullanicilar icin cagrilir; mevcut hesaplarin bakiyesine
+    dokunmaz. Miktar ``DEFAULT_CREDITS`` (env/config) ile belirlenir.
+    """
+    await add_free_credits(user_id, float(_get_default_credits()))
 
 
 async def add_gift_credits(user_id: int, amount: float):

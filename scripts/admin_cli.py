@@ -92,6 +92,56 @@ async def users_set_frozen(username: str, frozen: bool) -> int:
     return 0
 
 
+async def users_create(username: str, email: str, password: str) -> int:
+    """Kullanici olusturur ve DEFAULT_CREDITS baslangic kredisini verir.
+
+    Register API'siyle ayni davranis: yeni kullanici kredili baslar.
+    """
+    import asyncio as _asyncio
+
+    from argon2 import PasswordHasher
+
+    from src.services.credits import init_user_credits
+
+    ph = PasswordHasher()
+    hashed_pw = await _asyncio.to_thread(ph.hash, password)
+    email = email.lower()
+
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
+            "SELECT id FROM users WHERE username = %s OR lower(email) = %s",
+            (username, email),
+        )
+        if await cur.fetchone() is not None:
+            await db.release_current()
+            print(f"HATA: '{username}' veya '{email}' zaten mevcut.")
+            return 1
+        try:
+            await cur.execute(
+                """INSERT INTO users (username, email, hashed_pw, email_verified)
+                   VALUES (%s, %s, %s, TRUE) RETURNING id""",
+                (username, email, hashed_pw),
+            )
+            row = await cur.fetchone()
+            if row is None:
+                await db.rollback()
+                await db.release_current()
+                print("HATA: Kullanici satiri dondurulemedi.")
+                return 1
+            user_id = row[0]
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            await db.release_current()
+            print(f"HATA: {e}")
+            return 1
+    await db.release_current()
+
+    await init_user_credits(user_id)
+    print(f"Kullanici olusturuldu: {username} (id={user_id}) — baslangic kredisi verildi.")
+    return 0
+
+
 async def credits_give(username: str, amount: float, credit_type: str) -> int:
     from src.services.credits import add_free_credits, add_gift_credits
 
@@ -228,6 +278,10 @@ async def main() -> int:
     users_p = sub.add_parser("users", help="kullanici islemleri")
     users_sub = users_p.add_subparsers(dest="users_command", required=True)
     users_sub.add_parser("list", help="kullanicilari listele")
+    create_p = users_sub.add_parser("create", help="kullanici olustur (baslangic kredisiyle)")
+    create_p.add_argument("username")
+    create_p.add_argument("email")
+    create_p.add_argument("password")
     for cmd in ("freeze", "unfreeze"):
         p = users_sub.add_parser(cmd, help=f"kullaniciyi {cmd} et")
         p.add_argument("username")
@@ -261,6 +315,8 @@ async def main() -> int:
     if args.command == "users":
         if args.users_command == "list":
             return await users_list()
+        if args.users_command == "create":
+            return await users_create(args.username, args.email, args.password)
         frozen = args.users_command == "freeze"
         return await users_set_frozen(args.username, frozen)
     if args.command == "credits":

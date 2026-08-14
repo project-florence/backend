@@ -17,6 +17,7 @@ from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
 from src.services.credits import get_total as get_credits
+from src.services.credits import init_user_credits
 from src.services.refresh_token import (
     create_refresh_token,
     hash_token,
@@ -129,6 +130,13 @@ async def auth_register(request: Request, user: UserRegister):
         except Exception as e:
             await db.rollback()
             raise HTTPException(status_code=500, detail="Database error")
+
+    # Yeni kullaniciya baslangic kredisi (DEFAULT_CREDITS). Hata kayit
+    # akisini kirmaz; gunluk refill cron'u telafi eder.
+    try:
+        await init_user_credits(new_user_id)
+    except Exception as e:
+        logger.warning("Initial credits could not be granted to user %s: %s", new_user_id, e)
 
     # Dogrulama maili: hata asla kayit akisini kirmaz (sessiz devam).
     verification_sent = False

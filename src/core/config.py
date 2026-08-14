@@ -113,6 +113,9 @@ _DEFAULTS: dict = {
     "macroeconomy": {
         "cache_ttl": 86400,
     },
+    "credits": {
+        "default_credits": 100,
+    },
 }
 
 config = None
