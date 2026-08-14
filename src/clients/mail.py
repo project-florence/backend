@@ -71,7 +71,7 @@ def _send_smtp_sync(
     return True
 
 
-async def _send_resend(to: str, subject: str, html: str, text: str | None) -> bool:
+async def _send_resend(to: str, subject: str, html: str, text: str | None, from_addr: str | None = None) -> bool:
     """Resend REST API: POST https://api.resend.com/emails (Bearer ``RESEND_API_KEY``)."""
     api_key = os.getenv("RESEND_API_KEY")
     if not api_key:
@@ -81,7 +81,7 @@ async def _send_resend(to: str, subject: str, html: str, text: str | None) -> bo
     from src.clients.http import get_client
 
     payload: dict = {
-        "from": os.getenv("MAIL_FROM", DEFAULT_MAIL_FROM),
+        "from": from_addr or os.getenv("MAIL_FROM", DEFAULT_MAIL_FROM),
         "to": [to],
         "subject": subject,
         "html": html,
@@ -110,17 +110,20 @@ async def _send_resend(to: str, subject: str, html: str, text: str | None) -> bo
     return True
 
 
-async def send_email(to: str, subject: str, html: str, text: str | None = None) -> bool:
-    """E-posta gonderir. Hata durumunda ASLA exception firlatmaz; ``False`` doner."""
+async def send_email(to: str, subject: str, html: str, text: str | None = None, from_addr: str | None = None) -> bool:
+    """E-posta gonderir. Hata durumunda ASLA exception firlatmaz; ``False`` doner.
+
+    ``from_addr`` verilmezse ``MAIL_FROM`` (default ``DEFAULT_MAIL_FROM``) kullanilir.
+    """
     provider = (os.getenv("MAIL_PROVIDER") or "resend").lower()
-    from_addr = os.getenv("MAIL_FROM", DEFAULT_MAIL_FROM)
+    from_addr = from_addr or os.getenv("MAIL_FROM", DEFAULT_MAIL_FROM)
     try:
         if provider in ("smtp", "mailpit"):
             return await asyncio.to_thread(
                 _send_smtp_sync, provider, from_addr, to, subject, html, text
             )
         if provider == "resend":
-            return await _send_resend(to, subject, html, text)
+            return await _send_resend(to, subject, html, text, from_addr)
         if provider == "ses":
             # AWS SES entegrasyonu henuz implemente edilmedi; provider secimi
             # (Resend vs SES vs self-hosted Postal) kullanici kararidir.

@@ -251,7 +251,7 @@ async def _run_export(export_id: int) -> None:
             f"İndirme linki: {link}\n"
             f"Bağlantı 7 gün geçerlidir."
         )
-        sent = await send_email(email, subject, html, text=text)
+        sent = await send_email(email, subject, html, text=text, from_addr=os.getenv("MAIL_EXPORT_FROM") or None)
         if sent:
             async with db.cursor(row_factory=None) as cur:
                 await cur.execute(
