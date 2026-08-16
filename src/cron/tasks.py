@@ -7,6 +7,7 @@ ile event loop'u bloklamadan calistirilir.
 """
 
 import asyncio
+import importlib
 import json
 import logging
 import time
@@ -24,6 +25,13 @@ from src.services.company import get_company_info
 from src.services.price import INTRADAY_INTERVALS, get_price_history, invalidate_price_cache
 from src.services.stats import get_all_stats
 from src.utils.mapping import load_bist_mapping
+
+from psycopg.sql import Identifier, SQL
+
+from src.core.config import get_config
+from src.finance import finance_service, storage
+from src.finance.models import Candle, ProviderName
+from src.finance.providers.registry import provider
 
 logger = logging.getLogger(__name__)
 
@@ -440,3 +448,180 @@ async def run_warm_price_cache() -> None:
 
     elapsed = time.time() - start_time
     logger.info("Done. %s tickers warmed in %ss (%s min), %s errors", len(tickers), int(elapsed), round(elapsed / 60, 1), errors)
+
+
+# ----------------------------------------------------------------------
+# Finance pipeline cron tasks (Faz 2)
+# Design: ANALYSIS/ekonomi-refactor-plani.md sections 6.1-6.3, 5.2.
+# Redis NX locks reuse the existing _acquire_cron_lock/_release_cron_lock
+# helpers (key pattern lock:cron:*); TTLs follow the design 6.1 table.
+# ----------------------------------------------------------------------
+
+# Lock TTLs (seconds) — design spec 6.1 table.
+ECONOMY_REFRESH_LOCK_TTL = 600        # matches finance.refresh_interval_s default
+FX_CANDLES_LOCK_TTL = 7200            # long round: 7 symbols, ~1.5 s limiter each
+RATE_ANALYSIS_LOCK_TTL = 1800
+RETENTION_CLEANUP_LOCK_TTL = 3600
+
+# Retention policy (design spec 5.3): (table, date column, retention period).
+# Column names verified against src/core/database.py init_db() DDL:
+#   market_rates.timestamp, economy_rates.ts, rate_candles.ts, rate_metrics.computed_at
+RETENTION_RULES: tuple[tuple[str, str, str], ...] = (
+    ("market_rates", "timestamp", "90 days"),
+    ("economy_rates", "ts", "2 years"),
+    ("rate_candles", "ts", "5 years"),
+    ("rate_metrics", "computed_at", "1 year"),
+)
+
+_FX_CANDLES_INTERVAL = "1d"
+_FX_CANDLES_WINDOW_DAYS = 5
+
+
+async def run_refresh_economy() -> None:
+    """Refresh the FX/metals quote pipeline (design spec 6.1-6.3, 5.2).
+
+    Every 10 minutes, 7/24. Redis NX lock ``lock:cron:economy_refresh`` with a
+    TTL of ``finance.refresh_interval_s`` (default 600 s) prevents overlapping
+    rounds; ``FinanceService.refresh_all()`` runs the provider fan-out, fallback
+    chains, gram derivation, persist and ``fx:quotes`` cache write. Fully
+    failure-tolerant: provider/DB/Redis errors are logged and the round ends
+    instead of crashing (design spec 6.3).
+    """
+    try:
+        ttl = int((get_config() or {})["finance"].get("refresh_interval_s", ECONOMY_REFRESH_LOCK_TTL))
+    except Exception:
+        ttl = ECONOMY_REFRESH_LOCK_TTL
+    if not await _acquire_cron_lock("economy_refresh", ttl=ttl):
+        logger.info("[ECONOMY-REFRESH] lock not acquired (another round running), skipping")
+        return
+    try:
+        bundle = await finance_service.refresh_all()
+        logger.info(
+            "[ECONOMY-REFRESH] %d quotes (source=%s, remaining=%s)",
+            len(bundle.quotes), bundle.source, bundle.remaining,
+        )
+    except Exception:
+        logger.exception("[ECONOMY-REFRESH] refresh round failed, skipping")
+    finally:
+        await _release_cron_lock("economy_refresh")
+        # Cron rule: hand any held connection back to the pool.
+        await db.release_current()
+
+
+async def run_fx_candles_daily() -> None:
+    """Upsert the latest 1d FX/metal candles into rate_candles (18:35 TRT).
+
+    Fetches daily candles for every canonical symbol the yfinance providers
+    serve (USD/EUR/GBP via yfinance_fx, XAU-ONS/XAG-ONS/XPT-ONS/XPD-ONS via
+    yfinance_metals) through ``BaseProvider.fetch_candles`` — yfinance stays
+    inside ``asyncio.to_thread`` behind the shared 1.5 s rate limiter. Results
+    are persisted via ``storage.persist_candles`` (idempotent upsert) and the
+    Redis ``fx:candles:*`` warm cache is rewritten (design spec 6.1 / 5.2).
+    Lock ``lock:cron:fx_candles`` TTL 7200 s.
+    """
+    if not await _acquire_cron_lock("fx_candles", ttl=FX_CANDLES_LOCK_TTL):
+        logger.info("[FX-CANDLES] lock not acquired (another round running), skipping")
+        return
+    try:
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=_FX_CANDLES_WINDOW_DAYS)
+        candles: list[Candle] = []
+        for name in (ProviderName.YFINANCE_FX, ProviderName.YFINANCE_METALS):
+            p = provider(name)
+            if p is None:
+                continue
+            for symbol in sorted(p.provides):
+                try:
+                    fetched = await p.fetch_candles(
+                        symbol, interval=_FX_CANDLES_INTERVAL, start=start, end=end
+                    )
+                except Exception as exc:  # provider contract: never raises; defensive
+                    logger.warning("[FX-CANDLES] %s/%s fetch failed: %s", name.value, symbol, exc)
+                    continue
+                if fetched:
+                    candles.extend(fetched)
+                    logger.info("[FX-CANDLES] %s: %d candles (%s)", symbol, len(fetched), name.value)
+
+        if not candles:
+            logger.warning("[FX-CANDLES] no candles fetched this round")
+            return
+
+        if not await storage.persist_candles(candles):
+            # Cache-first layer (design 6.3): DB failure must not kill the round.
+            logger.warning("[FX-CANDLES] DB persist failed, serving cache only")
+
+        # Warm Redis per-symbol cache (design spec 5.2: fx:candles:{symbol}:1d, 7 days).
+        by_symbol: dict[str, list[Candle]] = {}
+        for c in candles:
+            by_symbol.setdefault(c.symbol, []).append(c)
+        for symbol, sym_candles in by_symbol.items():
+            await storage.set_candles_cache(symbol, _FX_CANDLES_INTERVAL, sym_candles)
+        logger.info("[FX-CANDLES] %d candles persisted for %d symbols", len(candles), len(by_symbol))
+    except Exception:
+        logger.exception("[FX-CANDLES] unexpected round failure, skipping")
+    finally:
+        await _release_cron_lock("fx_candles")
+        await db.release_current()
+
+
+async def run_rate_analysis_daily() -> None:
+    """Pre-compute analysis metrics for all canonical symbols (Faz 3 stub).
+
+    Full-signature placeholder (design spec 6.1-6.2): acquires
+    ``lock:cron:rate_analysis`` (TTL 1800 s), then gracefully returns while the
+    ``src.finance.analysis`` module does not exist yet. Faz 3 fills the body:
+    rate_candles + economy_rates -> AnalysisResult per symbol -> Redis
+    ``fx:analysis:*`` + ``rate_metrics`` persist.
+    """
+    if not await _acquire_cron_lock("rate_analysis", ttl=RATE_ANALYSIS_LOCK_TTL):
+        logger.info("[RATE-ANALYSIS] lock not acquired (another round running), skipping")
+        return
+    try:
+        try:
+            importlib.import_module("src.finance.analysis")
+        except ImportError:
+            logger.info("[RATE-ANALYSIS] analysis module not ready yet (Faz 3), skipping")
+            return
+        # Faz 3: iterate SYMBOL_REGISTRY, compute AnalysisResult per symbol,
+        # storage.persist_metrics + storage.set_analysis_cache.
+        logger.info("[RATE-ANALYSIS] analysis module present, Faz 3 implementation pending")
+    finally:
+        await _release_cron_lock("rate_analysis")
+        await db.release_current()
+
+
+async def run_retention_cleanup() -> None:
+    """Apply the retention DELETE policy (design spec 5.3).
+
+    Weekly, Sunday 03:00 TRT. Each table is purged independently using column
+    names from init_db() DDL (RETENTION_RULES): market_rates.timestamp,
+    economy_rates.ts, rate_candles.ts, rate_metrics.computed_at. A missing
+    table or any DB error logs and skips that table — never raises (6.3).
+    Lock ``lock:cron:retention_cleanup`` TTL 3600 s.
+    """
+    if not await _acquire_cron_lock("retention_cleanup", ttl=RETENTION_CLEANUP_LOCK_TTL):
+        logger.info("[RETENTION] lock not acquired (another round running), skipping")
+        return
+    try:
+        for table, column, period in RETENTION_RULES:
+            try:
+                # Table/column names come from our own constant tuple; composed
+                # via psycopg.sql so the period stays a bound parameter.
+                statement = SQL("DELETE FROM {} WHERE {} < NOW() - INTERVAL %s").format(
+                    Identifier(table), Identifier(column)
+                )
+                async with db.cursor(row_factory=None) as cur:
+                    await cur.execute(statement, (period,))
+                    deleted = cur.rowcount
+                    await db.commit()
+                logger.info("[RETENTION] %s: %s rows purged (older than %s)", table, deleted, period)
+            except Exception as exc:
+                await db.rollback()
+                message = str(exc)
+                if "does not exist" in message.lower():
+                    logger.warning("[RETENTION] table %s not present, skipping", table)
+                else:
+                    logger.warning("[RETENTION] purge of %s failed: %s", table, message)
+    finally:
+        await _release_cron_lock("retention_cleanup")
+        await db.release_current()

@@ -22,6 +22,12 @@ MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
 DAILY_CLOSE_HOUR = 18
 DAILY_CLOSE_MINUTE = 35
 
+# Faz 2 finance jobs (design: ANALYSIS/ekonomi-refactor-plani.md section 6.1).
+RATE_ANALYSIS_HOUR = 19
+RATE_ANALYSIS_MINUTE = 0
+RETENTION_HOUR = 3
+RETENTION_MINUTE = 0
+
 
 def _job_specs() -> list[tuple[str, int, str, str]]:
     return [
@@ -81,6 +87,38 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
             "    await run_update_daily_closes()",
             "Gunluk kapanis mumlari (18:35 TRT)",
         ),
+        (
+            "economy_refresh",
+            10 * 60 * 1000,
+            "from src.cron.tasks import run_refresh_economy\n"
+            "async def __cron_main__():\n"
+            "    await run_refresh_economy()",
+            "Doviz/metal anlik veri toplama (10 dk)",
+        ),
+        (
+            "fx_candles_daily",
+            24 * 60 * 60 * 1000,
+            "from src.cron.tasks import run_fx_candles_daily\n"
+            "async def __cron_main__():\n"
+            "    await run_fx_candles_daily()",
+            "Gunluk FX/metal kapanis mumlari (18:35 TRT)",
+        ),
+        (
+            "rate_analysis_daily",
+            24 * 60 * 60 * 1000,
+            "from src.cron.tasks import run_rate_analysis_daily\n"
+            "async def __cron_main__():\n"
+            "    await run_rate_analysis_daily()",
+            "Gunluk FX/metal analiz on-hesaplama (19:00 TRT)",
+        ),
+        (
+            "retention_cleanup",
+            7 * 24 * 60 * 60 * 1000,
+            "from src.cron.tasks import run_retention_cleanup\n"
+            "async def __cron_main__():\n"
+            "    await run_retention_cleanup()",
+            "Haftalik tutma suresi temizligi (Pazar 03:00 TRT)",
+        ),
     ]
 
 
@@ -95,6 +133,33 @@ def _initial_last_run(name: str, interval_ms: int) -> datetime:
         if local >= target:
             target = target + timedelta(days=1)
         return (target - timedelta(hours=24)).astimezone(UTC)
+
+    if name == "fx_candles_daily":
+        # Same 18:35 TRT slot as daily_close (design spec 6.1).
+        local = now.astimezone(MARKET_TIMEZONE)
+        target = local.replace(hour=DAILY_CLOSE_HOUR, minute=DAILY_CLOSE_MINUTE, second=0, microsecond=0)
+        if local >= target:
+            target = target + timedelta(days=1)
+        return (target - timedelta(hours=24)).astimezone(UTC)
+
+    if name == "rate_analysis_daily":
+        # 19:00 TRT, after fx_candles_daily (design spec 6.1).
+        local = now.astimezone(MARKET_TIMEZONE)
+        target = local.replace(hour=RATE_ANALYSIS_HOUR, minute=RATE_ANALYSIS_MINUTE, second=0, microsecond=0)
+        if local >= target:
+            target = target + timedelta(days=1)
+        return (target - timedelta(hours=24)).astimezone(UTC)
+
+    if name == "retention_cleanup":
+        # Weekly: next Sunday 03:00 TRT (today if we are before 03:00 on Sunday).
+        local = now.astimezone(MARKET_TIMEZONE)
+        days_ahead = (6 - local.weekday()) % 7  # Monday=0 .. Sunday=6
+        target = (local + timedelta(days=days_ahead)).replace(
+            hour=RETENTION_HOUR, minute=RETENTION_MINUTE, second=0, microsecond=0
+        )
+        if target <= local:
+            target = target + timedelta(days=7)
+        return (target - timedelta(days=7)).astimezone(UTC)
 
     if interval_ms <= 10 * 60 * 1000:
         return now - timedelta(seconds=interval_s - 60)
