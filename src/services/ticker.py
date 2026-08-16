@@ -1,16 +1,19 @@
 from datetime import datetime, timedelta, timezone
 
+from src.finance.models import AssetClass
+from src.finance.symbols import SYMBOL_REGISTRY
 from src.services.bist import get_bist_tickers_as_dict_from_redis
 from src.services.economy import get_gold_prices, get_silver_price, get_gram_platinum_price, get_gram_palladium_price, get_currency, get_economy_rate_history
 
 
-PRECIOUS_METAL_KEYS = [
-    "ons", "gram-altin", "gram-has-altin", "ceyrek-altin", "yarim-altin",
-    "tam-altin", "cumhuriyet-altini", "ata-altin", "14-ayar-altin",
-    "18-ayar-altin", "ikibucuk-altin", "altin", "gremse-altin",
-    "22-ayar-bilezik", "besli-altin", "resat-altin", "hamit-altin",
-    "gumus", "gram-platin", "gram-paladyum"
-]
+# Metal legacy keys come from the canonical registry (design spec 4.3) —
+# no duplicated symbol list. "altin" is a historical alias with no canonical
+# mapping; it is kept only for backward compatibility with ticker validation.
+PRECIOUS_METAL_KEYS: list[str] = sorted({
+    d.legacy_name
+    for d in SYMBOL_REGISTRY.values()
+    if d.asset_class is AssetClass.METAL and d.legacy_name
+} | {"altin"})
 
 
 async def is_valid_ticker(ticker: str) -> bool:
@@ -88,17 +91,23 @@ async def get_price_history(ticker: str, start: datetime | None = None, end: dat
 
 
 def _extract_price(raw) -> float | None:
+    """Legacy quote entry or numeric value -> float.
+
+    Values are already floats since Faz 4 (the economy bridge never emits
+    display strings); this only tolerates the rare plain-string/decimal-comma
+    leftovers from the legacy Redis fallback during the transition.
+    """
     if isinstance(raw, dict):
-        val = raw.get("Buying") or raw.get("Selling")
+        val = raw.get("Buying")
         if val is None:
-            return None
-        cleaned = str(val).replace("$", "").replace("€", "").replace("£", "").replace(".", "").replace(",", ".").strip()
-        try:
-            return float(cleaned)
-        except (ValueError, TypeError):
-            return None
-    try:
+            val = raw.get("Selling")
+        raw = val
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
         return float(raw)
+    try:
+        return float(str(raw).strip().replace(",", "."))
     except (ValueError, TypeError):
         return None
 

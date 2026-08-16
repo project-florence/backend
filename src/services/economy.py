@@ -1,323 +1,224 @@
+"""Legacy FX/precious-metals service — compatibility bridge to FinanceService.
+
+Design spec (ANALYSIS/ekonomi-refactor-plani.md) section 8.1 / Faz 4: every
+legacy function keeps its exact signature (the api layer, ``ticker.py``, the
+report agent and ``portfolio.py`` all call them) but delegates to the
+canonical ``FinanceService``. All payloads are numeric — ``Buying``/``Selling``
+are floats and ``Change`` is ``change_pct`` as a float (never a comma display
+string): the display-format layer (``_to_tr_string`` and friends) is gone, so
+the frontend "0.00" bug class (plan 8.3) is closed at the source.
+
+During the transition the legacy Redis keys (``gold_prices``,
+``silver_price``, ``gram_platinum_price``, ``gram_palladium_price``,
+``currency``) are only *read* as a fallback when the new pipeline produced
+nothing, and only then for as long as their TTL lasts; nothing writes to them
+anymore. Physical key cleanup is a deploy-time concern.
+"""
+
 import json
 import logging
-import os
-from datetime import datetime, time, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime
 
-from dotenv import load_dotenv
-
-from src.clients.http import get_client
-from src.core.config import get_config
 from src.core.database import db
 from src.core.redis import r
+from src.finance import finance_service
+from src.finance.models import AssetClass, Quote
+from src.finance.symbols import SYMBOL_REGISTRY
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
-MARKET_TIMEZONE = ZoneInfo("Europe/Istanbul")
-
-# GenelPara list adlari
-_GENELPARA_DOVIZ = "doviz"
-_GENELPARA_ALTIN = "altin"
-_GENELPARA_EMTIA = "emtia"
-
-# GenelPara sembolu -> truncgil-stili anahtar.
-GENELPARA_GOLD_MAP = {
-    "GA": "gram-altin",
-    "C": "ceyrek-altin",
-    "XAUUSD": "ons",
-    "XHGLD": "gram-has-altin",
-    "Y": "yarim-altin",
-    "T": "tam-altin",
-    "CMR": "cumhuriyet-altini",
-    "ATA": "ata-altin",
-    "14": "14-ayar-altin",
-    "18": "18-ayar-altin",
-    "22": "22-ayar-bilezik",
-    "IKB": "ikibucuk-altin",
-    "BSL": "besli-altin",
-    "GR": "gremse-altin",
-    "RA": "resat-altin",
-    "HA": "hamit-altin",
+# Canonical symbol -> legacy output key (reverse of the registry's
+# ``legacy_name``). FX symbols are canonical and legacy at the same time;
+# metals carry a transition-only legacy name. Built here from the registry —
+# the single source of truth stays ``SYMBOL_REGISTRY``.
+_CANONICAL_TO_LEGACY: dict[str, str] = {
+    symbol: (d.legacy_name or symbol) for symbol, d in SYMBOL_REGISTRY.items()
 }
 
-# Doviz listesinden cikarilacaklar (TRY baz kur; kart olarak gosterilmek istenmez)
-_CURRENCY_EXCLUDED = {"TRY"}
+# Reverse direction: legacy metal key -> canonical symbol (used by the
+# history bridge to read both old and new economy_rates rows).
+_LEGACY_TO_CANONICAL: dict[str, str] = {
+    d.legacy_name: symbol
+    for symbol, d in SYMBOL_REGISTRY.items()
+    if d.legacy_name
+}
+
+# Legacy gold-prices set (the 16 symbols of the old GENELPARA_GOLD_MAP).
+_GOLD_CANONICAL: tuple[str, ...] = (
+    "XAU-ONS", "XAU-GRAM", "XAU-HAS", "XAU-CEYREK", "XAU-YARIM", "XAU-TAM",
+    "XAU-CUMHURIYET", "XAU-ATA", "XAU-14-AYAR", "XAU-18-AYAR", "XAU-22-BILEZIK",
+    "XAU-IKIBUCUK", "XAU-BESLI", "XAU-GREMSE", "XAU-RESAT", "XAU-HAMIT",
+)
+
+# Legacy Type labels are preserved exactly (portfolio/report consumers rely on
+# them): gold varieties + silver were "Gold", platinum/palladium "Commodity",
+# currencies "Currency".
+_GOLD_TYPE = "Gold"
+_COMMODITY_TYPE = "Commodity"
+_CURRENCY_TYPE = "Currency"
 
 
-def _genelpara_url(list_name: str, symbols: str | None = None) -> str:
-    base = get_config()["economy"]["api_url"].rstrip("/")
-    url = f"{base}?list={list_name}"
-    if symbols:
-        url += f"&sembol={symbols}"
-    return url
-
-
-def _to_tr_string(value: str | None) -> str | None:
-    """GenelPara nokta ondaligini virgul ondaliga cevirir (frontend beklentisi)."""
-    if value is None:
+def _legacy_value_to_float(value) -> float | None:
+    """Tolerant numeric parse for legacy cache strings (transition only)."""
+    if value is None or isinstance(value, bool):
         return None
-    return str(value).replace(".", ",")
-
-
-def _as_float(value) -> float | None:
-    if value is None:
-        return None
-    try:
+    if isinstance(value, (int, float)):
         return float(value)
+    try:
+        return float(str(value).replace("%", "").replace(",", ".").strip())
     except (TypeError, ValueError):
         return None
 
 
-def _parse_number(value) -> float | None:
-    """Virgul/nokta ondalikli sayi metnini float'a cevirir."""
-    if value is None:
-        return None
-    try:
-        return float(str(value).replace(",", ".").strip())
-    except (TypeError, ValueError):
-        return None
+def _legacy_entry(quote: Quote, type_label: str) -> dict:
+    """Canonical Quote -> legacy ``{Buying, Selling, Change, Type}`` dict.
 
-
-async def _previous_close(ticker: str) -> float | None:
-    """Ticker'in bugun baslamadan onceki son kayitli fiyatini dondurur."""
-    try:
-        now = datetime.now(timezone.utc)
-        today_local = now.astimezone(MARKET_TIMEZONE).date()
-        today_start_utc = datetime.combine(today_local, time.min, tzinfo=MARKET_TIMEZONE).astimezone(timezone.utc)
-        min_ts = today_start_utc - timedelta(days=3)
-        async with db.cursor(row_factory=None) as cur:
-            await cur.execute(
-                "SELECT price FROM economy_rates WHERE ticker = %s AND ts >= %s AND ts < %s ORDER BY ts DESC LIMIT 1",
-                (ticker, min_ts, today_start_utc),
-            )
-            row = await cur.fetchone()
-        if row and row[0]:
-            price = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-            if isinstance(price, dict):
-                return _parse_number(price.get("Buying"))
-    except Exception:
-        pass
-    return None
-
-
-def _map_entry(item, type_label: str, prev_close: float | None = None) -> dict | None:
-    """GenelPara item'ini truncgil-stili {Buying, Selling, Change, Type} yapar."""
-    if not isinstance(item, dict):
-        return None
-    alis = _as_float(item.get("alis"))
-    if alis is None:
-        return None
-
-    satis = _as_float(item.get("satis"))
-    change_pct = None
-    if prev_close is not None and prev_close > 0:
-        change_pct = (alis - prev_close) / prev_close * 100
-
-    return {
-        "Buying": _to_tr_string(item.get("alis")),
-        "Selling": _to_tr_string(item.get("satis")),
-        "Change": f"%{change_pct:.2f}" if change_pct is not None else None,
+    All numbers are floats; ``Change`` is ``change_pct`` (``None`` when there
+    is no previous close — callers must render "—", never 0.00). ``stale`` is
+    set when the quote came from a DB snapshot fallback.
+    """
+    entry: dict = {
+        "Buying": quote.buying,
+        "Selling": quote.selling,
+        "Change": quote.change_pct,
         "Type": type_label,
+        "change_pct": quote.change_pct,  # explicit numeric alias (plan 8.3)
+        "currency": quote.currency,
+        "unit": quote.unit,
+        "source": quote.source.value if quote.source else None,
+        "ts": quote.ts.isoformat() if quote.ts else None,
     }
+    if quote.change_pct is not None:
+        # Optional display hint — the authoritative field is always numeric.
+        entry["change_text"] = f"%{quote.change_pct:+.2f}"
+    if quote.stale:
+        entry["stale"] = True
+    return entry
 
 
-async def _fetch_genelpara(list_name: str, symbols: str | None = None) -> dict:
-    """GenelPara listesini getirir; Redis cache'li. Basarisizsa {} doner."""
-    cache_key = f"genelpara:{list_name}" + (f":{symbols}" if symbols else "")
-    cached = await r.get(cache_key)
-    if cached:
-        try:
-            return json.loads(cached)
-        except Exception:
-            pass
+async def _legacy_redis_fallback(key: str) -> dict | None:
+    """Transition fallback: old Redis bucket, normalized to floats.
 
+    Only used while rolling deployments still write the legacy keys (their
+    TTL expires them shortly). Values are converted from the old comma-string
+    format so downstream never sees display strings.
+    """
     try:
-        client = await get_client()
-        response = await client.get(
-            _genelpara_url(list_name, symbols),
-            timeout=10,
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        response.raise_for_status()
-        payload = response.json()
-    except Exception as exc:
-        logger.warning("GenelPara %s istegi basarisiz: %s", list_name, exc)
-        return {}
-
-    data = payload.get("data") if isinstance(payload, dict) else None
-    if not isinstance(data, dict):
-        return {}
-
-    await r.set(cache_key, json.dumps(data, ensure_ascii=False), ex=get_config()["economy"]["cache_ttl"])
-    return data
-
-
-async def _latest_market_rates(data_type: str) -> dict:
-    """market_rates tablosundaki en son kayitli (saglikli) veriyi dondurur."""
-    try:
-        async with db.cursor(row_factory=None) as cur:
-            await cur.execute(
-                "SELECT data FROM market_rates WHERE data_type = %s ORDER BY id DESC LIMIT 1",
-                (data_type,),
-            )
-            row = await cur.fetchone()
-        if row and row[0]:
-            parsed = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-            return parsed if isinstance(parsed, dict) else {}
+        raw = await r.get(key)
     except Exception:
-        pass
+        return None
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return None
+    if not isinstance(data, dict) or not data:
+        return None
+    out: dict[str, dict] = {}
+    for legacy_key, item in data.items():
+        if not isinstance(item, dict):
+            continue
+        change = _legacy_value_to_float(item.get("Change"))
+        entry: dict = {
+            "Buying": _legacy_value_to_float(item.get("Buying")),
+            "Selling": _legacy_value_to_float(item.get("Selling")),
+            "Change": change,
+            "Type": item.get("Type"),
+            "stale": True,  # served from the legacy bucket during transition
+        }
+        if change is not None:
+            entry["change_pct"] = change
+        out[legacy_key] = entry
+    return out
+
+
+async def _legacy_quotes(
+    canonical: list[str],
+    type_label: str,
+    legacy_redis_key: str | None = None,
+) -> dict[str, dict]:
+    """New pipeline first; legacy Redis key only as a transition fallback."""
+    bundle = await finance_service.get_quotes(canonical)
+    out: dict[str, dict] = {}
+    for symbol in canonical:
+        quote = bundle.quotes.get(symbol)
+        if quote is None:
+            continue
+        out[_CANONICAL_TO_LEGACY[symbol]] = _legacy_entry(quote, type_label)
+    if out:
+        return out
+    if legacy_redis_key is not None:
+        fallback = await _legacy_redis_fallback(legacy_redis_key)
+        if fallback:
+            return fallback
     return {}
 
 
-async def _cache_result(key: str, data: dict) -> None:
-    """Sonucu cache'ler. Bos/hata durumunda kisa TTL kullanir."""
-    ttl = get_config()["economy"]["cache_ttl"] if data and "error" not in data else 60
-    await r.set(key, json.dumps(data or {}, ensure_ascii=False), ex=ttl)
+async def get_gold_prices() -> dict:
+    """Legacy gold prices (16 varieties), keyed by legacy names — all floats."""
+    return await _legacy_quotes(list(_GOLD_CANONICAL), _GOLD_TYPE, "gold_prices")
 
 
-async def _persist_market_data(data_type: str, data: dict) -> None:
-    if not data or "error" in data:
-        return
-    try:
-        async with db.cursor(row_factory=None) as cur:
-            await cur.execute(
-                "INSERT INTO market_rates (data_type, data) VALUES (%s, %s)",
-                (data_type, json.dumps(data, ensure_ascii=False))
-            )
-            # Commit blok icinde (otomatik iade rollback etmesin).
-            await db.commit()
-    except Exception:
-        await db.rollback()
-        logger.warning("market_rates persist basarisiz: %s", data_type, exc_info=True)
+async def get_silver_price() -> dict:
+    """Legacy silver price (``{"gumus": {...}}``) — floats."""
+    return await _legacy_quotes(["XAG-GRAM"], _GOLD_TYPE, "silver_price")
 
 
-async def _persist_economy_rates(data: dict) -> None:
-    if not data or "error" in data:
-        return
-    try:
-        async with db.cursor(row_factory=None) as cur:
-            args = []
-            for ticker, price in data.items():
-                if isinstance(price, dict):
-                    price = json.dumps(price, ensure_ascii=False)
-                args.append((ticker, price))
-            await cur.executemany(
-                "INSERT INTO economy_rates (ticker, ts, price) VALUES (%s, NOW(), %s) ON CONFLICT DO NOTHING",
-                args,
-            )
-            # Commit blok icinde (otomatik iade rollback etmesin).
-            await db.commit()
-    except Exception:
-        await db.rollback()
-        logger.warning("economy_rates persist basarisiz: %s", list(data)[:3], exc_info=True)
+async def get_gram_platinum_price() -> dict:
+    """Legacy gram platinum price (``{"gram-platin": {...}}``) — floats."""
+    return await _legacy_quotes(["XPT-GRAM"], _COMMODITY_TYPE, "gram_platinum_price")
 
 
-async def get_gold_prices():
-    cached = await r.get("gold_prices")
-    if cached:
-        return json.loads(cached)
-
-    raw = await _fetch_genelpara(_GENELPARA_ALTIN)
-    gold_prices = {}
-    for gp_symbol, key in GENELPARA_GOLD_MAP.items():
-        entry = _map_entry(raw.get(gp_symbol), "Gold", await _previous_close(key))
-        if entry:
-            gold_prices[key] = entry
-
-    if not gold_prices:
-        gold_prices = await _latest_market_rates("gold")
-
-    await _cache_result("gold_prices", gold_prices)
-    await _persist_market_data("gold", gold_prices)
-    await _persist_economy_rates(gold_prices)
-    return gold_prices
+async def get_gram_palladium_price() -> dict:
+    """Legacy gram palladium price (``{"gram-paladyum": {...}}``) — floats."""
+    return await _legacy_quotes(["XPD-GRAM"], _COMMODITY_TYPE, "gram_palladium_price")
 
 
-async def get_silver_price():
-    cached = await r.get("silver_price")
-    if cached:
-        return json.loads(cached)
+async def get_currency() -> dict:
+    """Legacy currency map (ISO codes quoted in TRY) — floats.
 
-    raw = await _fetch_genelpara(_GENELPARA_ALTIN)
-    entry = _map_entry(raw.get("GAG"), "Gold", await _previous_close("gumus"))
-    silver_price = {"gumus": entry} if entry else {}
-
-    if not silver_price:
-        silver_price = await _latest_market_rates("silver")
-
-    await _cache_result("silver_price", silver_price)
-    await _persist_market_data("silver", silver_price)
-    await _persist_economy_rates(silver_price)
-    return silver_price
-
-
-async def get_gram_platinum_price():
-    cached = await r.get("gram_platinum_price")
-    if cached:
-        return json.loads(cached)
-
-    raw = await _fetch_genelpara(_GENELPARA_EMTIA, "XPTUSD")
-    entry = _map_entry(raw.get("XPTUSD"), "Commodity", await _previous_close("gram-platin"))
-    gram_platinum_price = {"gram-platin": entry} if entry else {}
-
-    if not gram_platinum_price:
-        gram_platinum_price = await _latest_market_rates("platinum")
-
-    await _cache_result("gram_platinum_price", gram_platinum_price)
-    await _persist_market_data("platinum", gram_platinum_price)
-    await _persist_economy_rates(gram_platinum_price)
-    return gram_platinum_price
-
-
-async def get_gram_palladium_price():
-    cached = await r.get("gram_palladium_price")
-    if cached:
-        return json.loads(cached)
-
-    raw = await _fetch_genelpara(_GENELPARA_EMTIA, "XPDUSD")
-    entry = _map_entry(raw.get("XPDUSD"), "Commodity", await _previous_close("gram-paladyum"))
-    gram_palladium_price = {"gram-paladyum": entry} if entry else {}
-
-    if not gram_palladium_price:
-        gram_palladium_price = await _latest_market_rates("palladium")
-
-    await _cache_result("gram_palladium_price", gram_palladium_price)
-    await _persist_market_data("palladium", gram_palladium_price)
-    await _persist_economy_rates(gram_palladium_price)
-    return gram_palladium_price
-
-
-async def get_currency():
-    cached = await r.get("currency")
-    if cached:
-        return json.loads(cached)
-
-    raw = await _fetch_genelpara(_GENELPARA_DOVIZ)
-    currency = {}
-    for code, item in raw.items():
-        if code in _CURRENCY_EXCLUDED:
-            continue
-        entry = _map_entry(item, "Currency", await _previous_close(code))
-        if entry:
-            currency[code] = entry
-
-    if not currency:
-        currency = await _latest_market_rates("currency")
-
-    await _cache_result("currency", currency)
-    await _persist_market_data("currency", currency)
-    await _persist_economy_rates(currency)
-    return currency
+    The canonical FX set (``SYMBOL_REGISTRY``) covers 48 codes; exotic codes
+    outside that set are no longer served (design spec 4.2 canonical set).
+    """
+    codes = sorted(
+        symbol for symbol, d in SYMBOL_REGISTRY.items()
+        if d.asset_class is AssetClass.FX
+    )
+    return await _legacy_quotes(codes, _CURRENCY_TYPE, "currency")
 
 
 async def get_economy_rate_history(ticker: str, start: datetime, end: datetime) -> list[dict]:
-    async with db.cursor() as cur:
-        await cur.execute(
-            "SELECT ts, price FROM economy_rates "
-            "WHERE ticker = %s AND ts >= %s AND ts <= %s ORDER BY ts",
-            (ticker, start, end),
-        )
-        rows = await cur.fetchall()
-    return [{"ts": row["ts"].isoformat(), "price": row["price"]} for row in rows]
+    """Legacy ``economy_rates`` time series for a ticker.
+
+    Reads rows under the canonical symbol (new snapshots are persisted with
+    canonical tickers) and, when ``ticker`` is a legacy metal name, the legacy
+    ticker rows too (old snapshots during the transition) — deduplicated by
+    timestamp with canonical rows winning. The legacy response shape
+    ``[{"ts", "price"}]`` is preserved for portfolio charts.
+    """
+    canonical = _LEGACY_TO_CANONICAL.get(ticker)
+    query_tickers = [canonical] if canonical else [ticker]
+    if canonical and canonical != ticker:
+        query_tickers.append(ticker)
+    try:
+        async with db.cursor() as cur:
+            await cur.execute(
+                "SELECT ticker, ts, price FROM economy_rates "
+                "WHERE ticker = ANY(%s) AND ts >= %s AND ts <= %s "
+                "ORDER BY ts, CASE ticker WHEN %s THEN 0 ELSE 1 END",
+                (query_tickers, start, end, canonical or ticker),
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        logger.warning("get_economy_rate_history failed (%s)", ticker, exc_info=True)
+        return []
+    seen: set[str] = set()
+    out: list[dict] = []
+    for row in rows:
+        ts = row["ts"].isoformat()
+        if ts in seen:
+            continue
+        seen.add(ts)
+        out.append({"ts": ts, "price": row["price"]})
+    return out

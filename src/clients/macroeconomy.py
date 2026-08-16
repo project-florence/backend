@@ -1,4 +1,14 @@
+"""Optional FRED-based macroeconomy data, with lazy initialization.
+
+Design spec 8.4: FRED is initialized only when ``FRED_API_KEY`` is present —
+the import-time ``ValueError`` is gone, so the application boots without the
+key. Read order: Redis cache -> 7-day DB snapshot -> lazy FRED fetch -> ``None``
+(API answers "no data" — never a 500). ``_fetch_lock`` single-flights the
+fetch; ``_fred_lock`` guards the lazy-init probe.
+"""
+
 import asyncio
+import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -11,6 +21,8 @@ from pydantic import BaseModel
 from src.core.config import get_config
 from src.core.database import db
 from src.core.redis import r
+
+logger = logging.getLogger(__name__)
 
 
 class MacroeconomyData(BaseModel):
@@ -39,21 +51,39 @@ _MACRO_FIELDS = (
 
 load_dotenv()
 
-fred_api_key = os.getenv("FRED_API_KEY")
-if not fred_api_key:
-    raise ValueError("FRED_API_KEY not set")
-
-fred = Fred(api_key=fred_api_key)
+# Lazy FRED init (design spec 8.4): module import never touches the API key.
+_fred: Fred | None = None
+_fred_lock = asyncio.Lock()
 
 
-def _get_latest_fred_val(series_id: str, observation_start: str) -> float:
+def _get_fred() -> Fred | None:
+    """Initialize FRED lazily — only when a key is configured.
+
+    Idempotent first-call-wins assignment (GIL-protected); ``_fred_lock``
+    serializes the probe from concurrent coroutines.
+    """
+    global _fred
+    if _fred is not None:
+        return _fred
+    key = os.getenv("FRED_API_KEY")
+    if not key:
+        return None
+    _fred = Fred(api_key=key)
+    return _fred
+
+
+def _get_latest_fred_val(fred_client: Fred, series_id: str, observation_start: str) -> float:
     # observation_start: serinin tamamini indirmek yerine sadece son 3 yili
-    # isteriz; 14 seri indirmesi saniyelere iner (günlük seri icin yeterli).
-    series = fred.get_series(series_id, observation_start=observation_start).dropna()
+    # isteriz; 14 seri indirmesi saniyelere iner (gunluk seri icin yeterli).
+    series = fred_client.get_series(series_id, observation_start=observation_start).dropna()
     return float(series.iloc[-1])
 
 
-def _fetch_macroeconomy_data() -> MacroeconomyData:
+def _fetch_macroeconomy_data() -> MacroeconomyData | None:
+    """FRED-backed fetch. Returns None when FRED is unavailable (lazy init)."""
+    fred_client = _get_fred()
+    if fred_client is None:
+        return None
     series_ids = {
         "usa_gdp": "GDP",
         "usa_real_gdp": "GDPC1",
@@ -74,7 +104,10 @@ def _fetch_macroeconomy_data() -> MacroeconomyData:
     with ThreadPoolExecutor(max_workers=4) as executor:
         values = dict(zip(
             series_ids,
-            executor.map(partial(_get_latest_fred_val, observation_start=observation_start), series_ids.values()),
+            executor.map(
+                partial(_get_latest_fred_val, fred_client, observation_start=observation_start),
+                series_ids.values(),
+            ),
         ))
     return MacroeconomyData(**values)
 
@@ -128,28 +161,51 @@ async def _cache_and_persist_macroeconomy_data(mdata: MacroeconomyData) -> None:
 _fetch_lock = asyncio.Lock()
 
 
-async def get_macroeconomy_data() -> MacroeconomyData:
+async def get_macroeconomy_data() -> MacroeconomyData | None:
+    """Cache -> 7-day DB snapshot -> lazy FRED -> None ("veri yok", never 500)."""
     mdata = await r.get("MacroeconomyData")
     if mdata:
-        return MacroeconomyData.model_validate_json(mdata)
+        try:
+            return MacroeconomyData.model_validate_json(mdata)
+        except Exception:
+            pass
 
     snapshot = await _load_recent_database_snapshot()
     if snapshot:
         await r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
         return snapshot
 
+    async with _fred_lock:
+        fred_available = _get_fred() is not None
+    if not fred_available:
+        return None
+
     async with _fetch_lock:
         # Kilit ardinda bekleyen istekler icin double-check: onceden fetch
         # tamamlanmissa tekrar FRED'e gitme.
         mdata = await r.get("MacroeconomyData")
         if mdata:
-            return MacroeconomyData.model_validate_json(mdata)
+            try:
+                return MacroeconomyData.model_validate_json(mdata)
+            except Exception:
+                pass
 
         snapshot = await _load_recent_database_snapshot()
         if snapshot:
             await r.set("MacroeconomyData", snapshot.model_dump_json(), ex=get_config()["macroeconomy"]["cache_ttl"])
             return snapshot
 
-        mdata = await asyncio.to_thread(_fetch_macroeconomy_data)
-        await _cache_and_persist_macroeconomy_data(mdata)
+        try:
+            mdata = await asyncio.to_thread(_fetch_macroeconomy_data)
+        except Exception as exc:
+            # FRED gecici hata: tek istekte 500 degil — bir sonraki tura birak.
+            logger.warning("FRED macroeconomy fetch failed: %s", exc)
+            return None
+        if mdata is None:
+            return None
+        try:
+            await _cache_and_persist_macroeconomy_data(mdata)
+        except Exception as exc:
+            # Cache/snapshot hala gecerli — persist hatasi istegi oldurmesin.
+            logger.warning("macroeconomy persist failed: %s", exc)
         return mdata
