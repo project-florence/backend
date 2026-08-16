@@ -415,6 +415,45 @@ async def init_db() -> None:
                 await cur.execute(
                     "ALTER TABLE economy_rates ALTER COLUMN price TYPE JSONB USING to_jsonb(price::text)"
                 )
+            # --- Finance pipeline (doviz & degerli metaller): Faz 1 ----------
+            # Tasarim: ANALYSIS/ekonomi-refactor-plani.md Bolum 5.1 (migrations/009 ile senkron).
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS rate_candles (
+                    symbol   TEXT NOT NULL,          -- KANONIK sembol: 'USD', 'XAU-ONS', 'XAU-GRAM'
+                    interval TEXT NOT NULL,          -- '1d' (v1); ileride '1h'
+                    ts       TIMESTAMPTZ NOT NULL,
+                    open     DOUBLE PRECISION,
+                    high     DOUBLE PRECISION,
+                    low      DOUBLE PRECISION,
+                    close    DOUBLE PRECISION,
+                    volume   DOUBLE PRECISION,
+                    source   TEXT,                   -- 'genelpara' | 'yfinance_metals' | ...
+                    PRIMARY KEY (symbol, interval, ts)
+                );
+                CREATE INDEX IF NOT EXISTS idx_rate_candles_lookup
+                    ON rate_candles (symbol, interval, ts DESC);
+
+                CREATE TABLE IF NOT EXISTS rate_metrics (
+                    symbol      TEXT NOT NULL,
+                    computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    analysis    JSONB NOT NULL,      -- AnalysisResult.model_dump_json()
+                    PRIMARY KEY (symbol, computed_at)
+                );
+                CREATE INDEX IF NOT EXISTS idx_rate_metrics_symbol ON rate_metrics (symbol, computed_at DESC);
+
+                CREATE TABLE IF NOT EXISTS rate_provider_status (
+                    provider   TEXT PRIMARY KEY,     -- 'genelpara' | 'tcmb' | ...
+                    last_success TIMESTAMPTZ,
+                    last_error   TIMESTAMPTZ,
+                    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                    circuit_open  BOOLEAN NOT NULL DEFAULT FALSE,
+                    last_error_msg TEXT
+                );
+
+                ALTER TABLE economy_rates ADD COLUMN IF NOT EXISTS source TEXT;
+                ALTER TABLE market_rates ADD COLUMN IF NOT EXISTS source TEXT;
+                ALTER TABLE market_rates ADD COLUMN IF NOT EXISTS meta JSONB;
+            """)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS announcements (
                     id SERIAL PRIMARY KEY,

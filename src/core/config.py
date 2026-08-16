@@ -79,6 +79,16 @@ _DEFAULTS: dict = {
         "api_url": "https://api.genelpara.com/json/",
         "cache_ttl": 1200,
     },
+    "finance": {
+        "genelpara_base_url": "https://api.genelpara.com/json/",
+        "tcmb_url": "https://www.tcmb.gov.tr/kurlar/today.xml",
+        "frankfurter_url": "https://api.frankfurter.dev/v1/latest",
+        "refresh_interval_s": 600,
+        "fallback_stale_max_days": 3,
+        "circuit_threshold": 3,
+        "circuit_open_s": 600,
+        "gram_per_oz": 31.1035,
+    },
     "halkarz": {
         "base_url": "https://halkarz.com",
         "wp_api": "https://halkarz.com/wp-json/wp/v2/posts",
