@@ -24,6 +24,7 @@ from src.core.config import init_config, is_production
 from src.core.database import db, init_db
 from src.core.logging import init_logging
 from src.cron.register import register_cron_jobs
+from src.finance import finance_service
 from src.services.analytics import fire_and_forget
 from src.services.bist import cache_tickers_and_companies
 
@@ -47,6 +48,13 @@ async def lifespan(app: FastAPI):
     await cron_client.init()
     await register_cron_jobs()
     await cron_client.start()
+    # Finance warm-up (design spec 3.5 / Faz 2-3): one quotes refresh so the
+    # first request does not pay source latency. Must be failure-tolerant —
+    # a missing DB/Redis or dead sources must NOT prevent app startup.
+    try:
+        await finance_service.warm_startup()
+    except Exception:
+        logger.exception("finance warm_startup failed; continuing startup")
     yield
     await cron_client.stop()
     await db.close()

@@ -7,7 +7,6 @@ ile event loop'u bloklamadan calistirilir.
 """
 
 import asyncio
-import importlib
 import json
 import logging
 import time
@@ -564,27 +563,120 @@ async def run_fx_candles_daily() -> None:
         await db.release_current()
 
 
-async def run_rate_analysis_daily() -> None:
-    """Pre-compute analysis metrics for all canonical symbols (Faz 3 stub).
+async def _load_economy_series(symbol: str, limit_days: int = 400) -> list[Candle]:
+    """Fallback daily close series for symbols without rate_candles history.
 
-    Full-signature placeholder (design spec 6.1-6.2): acquires
-    ``lock:cron:rate_analysis`` (TTL 1800 s), then gracefully returns while the
-    ``src.finance.analysis`` module does not exist yet. Faz 3 fills the body:
-    rate_candles + economy_rates -> AnalysisResult per symbol -> Redis
-    ``fx:analysis:*`` + ``rate_metrics`` persist.
+    Symbols served only by GenelPara (TRY jeweller varieties) have no yfinance
+    candles; their economy_rates snapshots (one row per collection round) are
+    deduplicated to one row per day (latest round wins) and mapped onto a
+    1d ``Candle`` series so ``run_rate_analysis_daily`` still has input.
+    DB errors log and return an empty list — the round continues.
+    """
+    try:
+        async with db.cursor() as cur:
+            await cur.execute(
+                "SELECT DISTINCT ON (ts::date) ts, price FROM economy_rates "
+                "WHERE ticker = %s ORDER BY ts::date DESC, ts DESC LIMIT %s",
+                (symbol, limit_days),
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        logger.warning("[RATE-ANALYSIS] economy_rates read failed for %s", symbol, exc_info=True)
+        return []
+    candles: list[Candle] = []
+    for row in reversed(rows):  # oldest -> newest
+        try:
+            price = json.loads(row["price"]) if isinstance(row["price"], str) else row["price"]
+            buying = price.get("Buying")
+        except Exception:
+            continue
+        if not isinstance(buying, (int, float)):
+            continue
+        value = float(buying)
+        candles.append(
+            Candle(
+                symbol=symbol,
+                interval="1d",
+                ts=row["ts"],
+                open=value,
+                high=value,
+                low=value,
+                close=value,
+            )
+        )
+    return candles
+
+
+async def run_rate_analysis_daily() -> None:
+    """Pre-compute analysis metrics for all canonical symbols (19:00 TRT).
+
+    Design spec 6.1-6.2 / 7.1-7.2: for every symbol in ``SYMBOL_REGISTRY``
+    load the full 1d series (``rate_candles``; ``economy_rates`` daily
+    fallback when candles are missing), compute the full metric set with
+    numpy inside ``asyncio.to_thread``, then persist to ``rate_metrics`` (DB)
+    and the Redis ``fx:analysis:{symbol}`` cache (24 h TTL, design 5.2).
+    Cross-symbol Pearson correlations (fixed pair table, 30-day window) are
+    merged into each result. Per-symbol failures are logged and skipped —
+    one bad symbol never aborts the round. Lock ``lock:cron:rate_analysis``
+    TTL 1800 s.
     """
     if not await _acquire_cron_lock("rate_analysis", ttl=RATE_ANALYSIS_LOCK_TTL):
         logger.info("[RATE-ANALYSIS] lock not acquired (another round running), skipping")
         return
     try:
+        from src.finance.analysis import compute_analysis_async, compute_correlations_async
+        from src.finance.models import AnalysisResult
+        from src.finance.symbols import SYMBOL_REGISTRY
+
+        results: dict[str, AnalysisResult] = {}
+        close_series: dict[str, list[float]] = {}
+        skipped = 0
+        for symbol in sorted(SYMBOL_REGISTRY):
+            try:
+                candles = await storage.load_candles(symbol, "1d")
+                if len(candles) < 2:
+                    candles = await _load_economy_series(symbol)
+                if not candles:
+                    skipped += 1
+                    logger.info("[RATE-ANALYSIS] %s: no series yet, skipping", symbol)
+                    continue
+                result = await compute_analysis_async(symbol, candles)
+                results[symbol] = result
+                close_series[symbol] = [c.close for c in candles if c.close is not None]
+            except Exception as exc:
+                skipped += 1
+                logger.warning("[RATE-ANALYSIS] %s failed: %s", symbol, exc)
+
+        # Cross-symbol correlations (design 7.1): fixed pairs, 30-day window.
         try:
-            importlib.import_module("src.finance.analysis")
-        except ImportError:
-            logger.info("[RATE-ANALYSIS] analysis module not ready yet (Faz 3), skipping")
-            return
-        # Faz 3: iterate SYMBOL_REGISTRY, compute AnalysisResult per symbol,
-        # storage.persist_metrics + storage.set_analysis_cache.
-        logger.info("[RATE-ANALYSIS] analysis module present, Faz 3 implementation pending")
+            correlations = await compute_correlations_async(close_series)
+            for (left, right), value in correlations.items():
+                if value is None:
+                    continue
+                if left in results:
+                    results[left].correlations[right] = value
+                if right in results:
+                    results[right].correlations[left] = value
+        except Exception:
+            logger.warning("[RATE-ANALYSIS] correlation pass failed, continuing", exc_info=True)
+
+        for symbol, result in results.items():
+            await storage.persist_metrics(result)
+            await storage.set_analysis_cache(symbol, result)
+            logger.info(
+                "[RATE-ANALYSIS] %s: sma20=%.4f rsi=%s vol=%.2f%% daily=%s%%",
+                symbol,
+                result.sma_20 if result.sma_20 is not None else float("nan"),
+                f"{result.rsi_14:.2f}" if result.rsi_14 is not None else "-",
+                result.volatility_20d if result.volatility_20d is not None else float("nan"),
+                f"{result.change_daily_pct:.2f}" if result.change_daily_pct is not None else "-",
+            )
+        logger.info(
+            "[RATE-ANALYSIS] done: %d computed, %d skipped (%d registry symbols)",
+            len(results), skipped, len(SYMBOL_REGISTRY),
+        )
+    except Exception:
+        logger.exception("[RATE-ANALYSIS] unexpected round failure, skipping")
     finally:
         await _release_cron_lock("rate_analysis")
         await db.release_current()
