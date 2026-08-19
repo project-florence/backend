@@ -28,7 +28,11 @@ async def news_search(query: str, limit: int = 10) -> List[NewsItem]:
     }
 
     headers = {
-        "User-Agent": os.getenv("NEWS_SEARCH_USER_AGENT") or get_config()["news_search"]["user_agent"]
+        "User-Agent": os.getenv("NEWS_SEARCH_USER_AGENT") or get_config()["news_search"]["user_agent"],
+        # SearXNG botdetection (behind-proxy mode) requires a client-IP header;
+        # without X-Forwarded-For/X-Real-IP it returns 403 for every request.
+        "X-Forwarded-For": "127.0.0.1",
+        "X-Real-IP": "127.0.0.1",
     }
 
     client = await get_client()
