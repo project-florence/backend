@@ -17,11 +17,17 @@ Covers:
 8. cron: dedup — existing (date, slot) row short-circuits generation.
 """
 
+import json
 from datetime import date, datetime, timezone
 
+import httpx
 import pytest
+from fastapi import FastAPI
 
+from src.api import deps as deps_module
+from src.api.digest import router as digest_router
 from src.services.digest import agent as agent_module
+from src.services.digest import reads as reads_module
 from src.services.digest import service as service_module
 from src.services.digest import tools as tools_module
 from src.services.digest.agent import _build_agent
@@ -349,3 +355,361 @@ async def test_run_market_digest_skips_when_row_exists(monkeypatch):
     select = [q for q in fake_db.queries if "SELECT 1 FROM digests" in q[0]]
     assert len(select) == 1
     assert select[0][1] == (date(2026, 8, 19), "morning")
+
+
+# ---------------------------------------------------------------------------
+# 9. read helpers (src/services/digest/reads.py)
+# ---------------------------------------------------------------------------
+
+
+class _FakeRedis:
+    def __init__(self, value=None, error=False):
+        self.value = value
+        self.error = error
+        self.called_with = None
+
+    async def get(self, key):
+        self.called_with = key
+        if self.error:
+            raise RuntimeError("redis down")
+        return self.value
+
+
+def _row(**overrides) -> dict:
+    row = dict(
+        id="abc123",
+        date=date(2026, 8, 19),
+        slot="morning",
+        title="Test Bülteni",
+        content="İçerik",
+        sections=[{"heading": "Piyasa", "body": "Özet"}],
+        metadata={"source": "test"},
+        language="tr",
+        created_at=datetime(2026, 8, 19, 9, 45, tzinfo=timezone.utc),
+    )
+    row.update(overrides)
+    return row
+
+
+async def test_get_current_digest_happy_path(monkeypatch):
+    digest = _make_digest()
+    payload = json.dumps(digest.model_dump(mode="json"))
+    fake_redis = _FakeRedis(value=payload)
+    monkeypatch.setattr(reads_module, "r", fake_redis)
+
+    out = await reads_module.get_current_digest()
+
+    assert fake_redis.called_with == "current_digest"
+    assert isinstance(out, Digest)
+    assert out.id == digest.id
+    assert out.date == digest.date
+    assert out.slot == digest.slot
+    assert out.title == digest.title
+    assert out.sections[0].heading == "Piyasa"
+    assert out.metadata == {"source": "test"}
+
+
+async def test_get_current_digest_missing_invalid_or_down(monkeypatch):
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value=None))
+    assert await reads_module.get_current_digest() is None
+
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value="not-json{"))
+    assert await reads_module.get_current_digest() is None
+
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value="{}"))
+    assert await reads_module.get_current_digest() is None
+
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value='{"id":"x"}', error=True))
+    assert await reads_module.get_current_digest() is None
+
+
+async def test_get_digest_by_date_slot_happy_path(monkeypatch):
+    fake_db = _FakeDB()
+    fake_db.fetchone_result = _row()
+    monkeypatch.setattr(reads_module, "db", fake_db)
+
+    out = await reads_module.get_digest_by_date_slot(date(2026, 8, 19), "morning")
+
+    assert isinstance(out, Digest)
+    assert out.id == "abc123"
+    assert out.date == date(2026, 8, 19)
+    assert out.slot == "morning"
+    assert out.sections[0].body == "Özet"
+    assert fake_db.queries[0][1] == (date(2026, 8, 19), "morning")
+
+
+async def test_get_digest_by_date_slot_missing_or_db_down(monkeypatch):
+    fake_db = _FakeDB()
+    fake_db.fetchone_result = None
+    monkeypatch.setattr(reads_module, "db", fake_db)
+    assert await reads_module.get_digest_by_date_slot(date(2026, 8, 19), "noon") is None
+
+    class _BoomDB:
+        def cursor(self, row_factory=None):
+            raise RuntimeError("db down")
+    monkeypatch.setattr(reads_module, "db", _BoomDB())
+    assert await reads_module.get_digest_by_date_slot(date(2026, 8, 19), "noon") is None
+
+
+async def test_get_digests_by_date_ordered_by_slot(monkeypatch):
+    fake_db = _FakeDB()
+    fake_db.fetchall_result = [
+        _row(id="e1", slot="evening"),
+        _row(id="m1", slot="morning"),
+        _row(id="n1", slot="noon"),
+    ]
+    monkeypatch.setattr(reads_module, "db", fake_db)
+
+    out = await reads_module.get_digests_by_date(date(2026, 8, 19))
+
+    assert [d.slot for d in out] == ["morning", "noon", "evening"]
+    assert [d.id for d in out] == ["m1", "n1", "e1"]
+
+
+async def test_get_digests_by_date_empty_and_db_down(monkeypatch):
+    fake_db = _FakeDB()
+    fake_db.fetchall_result = []
+    monkeypatch.setattr(reads_module, "db", fake_db)
+    assert await reads_module.get_digests_by_date(date(2026, 8, 19)) == []
+
+    class _BoomDB:
+        def cursor(self, row_factory=None):
+            raise RuntimeError("db down")
+    monkeypatch.setattr(reads_module, "db", _BoomDB())
+    assert await reads_module.get_digests_by_date(date(2026, 8, 19)) == []
+
+
+@pytest.mark.parametrize(
+    ("hhmm", "expected"),
+    [
+        ("05:00", "morning"),   # before first slot -> morning
+        ("09:45", "morning"),   # exactly at morning slot time
+        ("12:00", "morning"),   # between morning and noon
+        ("13:15", "noon"),      # exactly at noon slot time
+        ("16:00", "noon"),      # between noon and evening
+        ("18:45", "evening"),   # exactly at evening slot time
+        ("23:00", "evening"),   # after the last slot
+    ],
+)
+def test_slot_for_datetime_windows(hhmm, expected):
+    hour, minute = map(int, hhmm.split(":"))
+    at = datetime(2026, 8, 19, hour, minute, tzinfo=DIGEST_TZ)
+    assert reads_module._slot_for_datetime(at) == expected
+
+
+async def test_get_digest_at_resolves_date_and_slot(monkeypatch):
+    calls = {}
+
+    async def _fake_by_date_slot(digest_date, slot):
+        calls["date"] = digest_date
+        calls["slot"] = slot
+        return _make_digest(date=digest_date, slot=slot)
+
+    monkeypatch.setattr(reads_module, "get_digest_by_date_slot", _fake_by_date_slot)
+
+    at = datetime(2026, 8, 19, 20, 0, tzinfo=DIGEST_TZ)
+    out = await reads_module.get_digest_at(at)
+
+    assert calls == {"date": date(2026, 8, 19), "slot": "evening"}
+    assert out.slot == "evening"
+
+    # UTC-aware input still resolves to Istanbul date/slot (17:00 UTC = 20:00 IST).
+    at_utc = datetime(2026, 8, 19, 17, 0, tzinfo=timezone.utc)
+    await reads_module.get_digest_at(at_utc)
+    assert calls == {"date": date(2026, 8, 19), "slot": "evening"}
+
+    # Naive input is treated as Istanbul time.
+    at_naive = datetime(2026, 8, 19, 12, 0)
+    await reads_module.get_digest_at(at_naive)
+    assert calls == {"date": date(2026, 8, 19), "slot": "morning"}
+
+
+# ---------------------------------------------------------------------------
+# 10. read API (src/api/digest.py)
+# ---------------------------------------------------------------------------
+
+
+def _build_digest_app():
+    app = FastAPI()
+    app.include_router(digest_router)
+    app.dependency_overrides[deps_module.get_current_user] = lambda: 1
+    return app
+
+
+async def _get(app, url):
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        return await client.get(url)
+
+
+async def test_digest_endpoint_current(monkeypatch):
+    app = _build_digest_app()
+    digest = _make_digest()
+
+    async def _current():
+        return digest
+    monkeypatch.setattr(reads_module, "get_current_digest", _current)
+
+    resp = await _get(app, "/digest")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["id"] == digest.id
+    assert body["date"] == "2026-08-19"
+    assert body["slot"] == "morning"
+    assert body["title"] == digest.title
+    assert body["content"] == digest.content
+    assert body["sections"] == [{"heading": "Piyasa", "body": "Özet"}]
+    assert body["metadata"] == {"source": "test"}
+    assert body["language"] == "tr"
+    assert "created_at" in body
+
+
+async def test_digest_endpoint_current_404(monkeypatch):
+    app = _build_digest_app()
+
+    async def _current():
+        return None
+    monkeypatch.setattr(reads_module, "get_current_digest", _current)
+
+    resp = await _get(app, "/digest")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "No digest available"
+
+
+async def test_digest_endpoint_date_slot(monkeypatch):
+    app = _build_digest_app()
+    digest = _make_digest(slot="noon")
+
+    async def _by_date_slot(digest_date, slot):
+        assert digest_date == date(2026, 8, 19)
+        assert slot == "noon"
+        return digest
+    monkeypatch.setattr(reads_module, "get_digest_by_date_slot", _by_date_slot)
+
+    resp = await _get(app, "/digest?date=2026-08-19&slot=noon")
+
+    assert resp.status_code == 200
+    assert resp.json()["slot"] == "noon"
+
+
+async def test_digest_endpoint_date_slot_404(monkeypatch):
+    app = _build_digest_app()
+
+    async def _missing(digest_date, slot):
+        return None
+    monkeypatch.setattr(reads_module, "get_digest_by_date_slot", _missing)
+
+    resp = await _get(app, "/digest?date=2026-08-19&slot=morning")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Digest not found"
+
+
+async def test_digest_endpoint_date_only_returns_array(monkeypatch):
+    app = _build_digest_app()
+    digests = [_make_digest(slot=s) for s in ("morning", "evening")]
+
+    async def _by_date(digest_date):
+        assert digest_date == date(2026, 8, 19)
+        return digests
+    monkeypatch.setattr(reads_module, "get_digests_by_date", _by_date)
+
+    resp = await _get(app, "/digest?date=2026-08-19")
+
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+    assert [d["slot"] for d in resp.json()] == ["morning", "evening"]
+
+
+async def test_digest_endpoint_date_only_empty(monkeypatch):
+    app = _build_digest_app()
+
+    async def _empty(digest_date):
+        return []
+    monkeypatch.setattr(reads_module, "get_digests_by_date", _empty)
+
+    resp = await _get(app, "/digest?date=2026-08-19")
+
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+async def test_digest_endpoint_at(monkeypatch):
+    app = _build_digest_app()
+    digest = _make_digest(slot="evening")
+
+    async def _at(at):
+        assert at.tzinfo is not None
+        return digest
+    monkeypatch.setattr(reads_module, "get_digest_at", _at)
+
+    resp = await _get(app, "/digest?at=2026-08-19T20%3A00%3A00%2B03%3A00")
+
+    assert resp.status_code == 200
+    assert resp.json()["slot"] == "evening"
+
+
+async def test_digest_endpoint_at_404(monkeypatch):
+    app = _build_digest_app()
+
+    async def _missing(at):
+        return None
+    monkeypatch.setattr(reads_module, "get_digest_at", _missing)
+
+    resp = await _get(app, "/digest?at=2026-08-19T20%3A00%3A00%2B03%3A00")
+
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Digest not found"
+
+
+async def test_digest_endpoint_most_specific_wins(monkeypatch):
+    app = _build_digest_app()
+    digest = _make_digest(slot="noon")
+    called = set()
+
+    async def _by_date_slot(digest_date, slot):
+        called.add("date_slot")
+        return digest
+
+    async def _by_date(digest_date):
+        called.add("date")
+        return []
+
+    async def _at(at):
+        called.add("at")
+        return digest
+
+    async def _current():
+        called.add("current")
+        return digest
+
+    monkeypatch.setattr(reads_module, "get_digest_by_date_slot", _by_date_slot)
+    monkeypatch.setattr(reads_module, "get_digests_by_date", _by_date)
+    monkeypatch.setattr(reads_module, "get_digest_at", _at)
+    monkeypatch.setattr(reads_module, "get_current_digest", _current)
+
+    resp = await _get(
+        app, "/digest?date=2026-08-19&slot=noon&at=2026-08-19T20%3A00%3A00%2B03%3A00"
+    )
+
+    assert resp.status_code == 200
+    assert called == {"date_slot"}
+
+    resp = await _get(app, "/digest?date=2026-08-19&at=2026-08-19T20%3A00%3A00%2B03%3A00")
+    assert resp.status_code == 200
+    assert called == {"date_slot", "date"}
+
+
+async def test_digest_endpoint_slot_without_date_422():
+    app = _build_digest_app()
+    resp = await _get(app, "/digest?slot=morning")
+    assert resp.status_code == 422
+
+
+async def test_digest_endpoint_invalid_params_422():
+    app = _build_digest_app()
+    assert (await _get(app, "/digest?date=not-a-date")).status_code == 422
+    assert (await _get(app, "/digest?date=2026-08-19&slot=midnight")).status_code == 422
+    assert (await _get(app, "/digest?at=not-a-date")).status_code == 422

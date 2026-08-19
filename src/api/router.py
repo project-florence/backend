@@ -21,6 +21,7 @@ from src.api.meta import router as meta_router
 from src.api.bots import router as bots_router
 from src.api.data import router as data_router
 from src.api.exports import router as exports_router
+from src.api.digest import router as digest_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(bist_router)
@@ -45,3 +46,4 @@ router.include_router(meta_router)
 router.include_router(bots_router)
 router.include_router(data_router)
 router.include_router(exports_router)
+router.include_router(digest_router)
