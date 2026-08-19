@@ -8,8 +8,20 @@ the function body to avoid circular imports at module load time.
 
 from datetime import datetime, timezone
 
+from src.core.config import get_config
+
 _ARTICLE_TEXT_MAX = 4000
 _ECONOMY_SYMBOLS = ("USD", "EUR", "GBP", "XAU-GRAM", "XAU-ONS")
+
+_search_count = 0
+_fetch_count = 0
+
+
+def reset_budget():
+    """Reset the per-tool call counters to zero."""
+    global _search_count, _fetch_count
+    _search_count = 0
+    _fetch_count = 0
 
 
 async def get_datetime() -> dict:
@@ -249,8 +261,19 @@ async def get_ipos() -> list:
 
 
 async def search_news(query: str, limit: int = 10) -> list:
-    """SearXNG news search results as {title, link} dicts."""
+    """SearXNG news search results as {title, link} dicts.
+
+    A per-generation budget limits how many network searches are allowed. When
+    the budget is exhausted the tool returns an empty list with a ``status``
+    note so the model can see that it must stop searching.
+    """
+    global _search_count
     try:
+        max_search = int(get_config()["digest"].get("max_search", 10))
+        if _search_count >= max_search:
+            return [{"status": "search budget exceeded"}]
+        _search_count += 1
+
         from src.clients.search import news_search
 
         items = await news_search(query, limit=limit)
@@ -260,9 +283,20 @@ async def search_news(query: str, limit: int = 10) -> list:
 
 
 async def fetch_article_text(url: str) -> str:
-    """Full-text extraction of a news article (trafilatura), truncated."""
+    """Full-text extraction of a news article (trafilatura), truncated.
+
+    A per-generation budget limits how many articles are fetched. When the
+    budget is exhausted the tool returns an empty string with a ``status``
+    note so the model can see that it must stop fetching.
+    """
+    global _fetch_count
     try:
         import asyncio
+
+        max_fetch = int(get_config()["digest"].get("max_fetch", 20))
+        if _fetch_count >= max_fetch:
+            return "status: fetch budget exceeded"
+        _fetch_count += 1
 
         from src.clients.scraping import get_text_from_url
 

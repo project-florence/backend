@@ -37,6 +37,7 @@ from src.services.digest.models import Digest, DigestSection
 from src.services.digest.service import generate_digest
 from src.cron import tasks as cron_tasks
 from src.cron.tasks import DIGEST_TZ, _due_digest_slot
+from src.core.config import get_config
 
 
 # ---------------------------------------------------------------------------
@@ -288,7 +289,7 @@ async def test_generate_digest_times_out_instead_of_hanging(monkeypatch):
 async def test_generate_digest_config_has_timeout_default():
     from src.core.config import get_config
 
-    assert get_config()["digest"]["timeout_s"] == 300
+    assert get_config()["digest"]["timeout_s"] == 3600
 
 
 # ---------------------------------------------------------------------------
@@ -483,6 +484,109 @@ async def test_tool_search_news_down_tolerant(monkeypatch):
     monkeypatch.setattr("src.clients.search.news_search", _raiser, raising=False)
     out = await tools_module.search_news("test")
     assert out == []
+
+
+# ---------------------------------------------------------------------------
+# 6b. per-tool budgets
+# ---------------------------------------------------------------------------
+
+
+def _digest_config(**overrides) -> dict:
+    cfg = get_config()
+    import copy
+
+    fresh = copy.deepcopy(cfg)
+    fresh["digest"].update(overrides)
+    return fresh
+
+
+async def test_search_news_budget_exhausted_after_max_search(monkeypatch):
+    tools_module.reset_budget()
+
+    called = {"n": 0}
+    async def _counting_search(query, limit=None):
+        called["n"] += 1
+        return []
+
+    monkeypatch.setattr("src.clients.search.news_search", _counting_search, raising=False)
+
+    config = _digest_config(max_search=3)
+    monkeypatch.setattr(tools_module, "get_config", lambda: config)
+
+    for _ in range(3):
+        assert await tools_module.search_news("q") == []
+    out = await tools_module.search_news("q")
+    assert out == [{"status": "search budget exceeded"}]
+    assert called["n"] == 3
+    tools_module.reset_budget()
+
+
+async def test_fetch_article_text_budget_exhausted_after_max_fetch(monkeypatch):
+    tools_module.reset_budget()
+
+    called = {"n": 0}
+    def _counting_text(url):
+        called["n"] += 1
+        return "some article body"
+
+    monkeypatch.setattr(
+        "src.clients.scraping.get_text_from_url", _counting_text, raising=False
+    )
+
+    config = _digest_config(max_fetch=2)
+    monkeypatch.setattr(tools_module, "get_config", lambda: config)
+
+    for _ in range(2):
+        assert await tools_module.fetch_article_text("http://x") == "some article body"
+    out = await tools_module.fetch_article_text("http://x")
+    assert out == "status: fetch budget exceeded"
+    assert called["n"] == 2
+    tools_module.reset_budget()
+
+
+async def test_reset_budget_resets_counters(monkeypatch):
+    tools_module.reset_budget()
+
+    async def _empty_search(query, limit=None):
+        return []
+
+    monkeypatch.setattr("src.clients.search.news_search", _empty_search, raising=False)
+
+    config = _digest_config(max_search=2)
+    monkeypatch.setattr(tools_module, "get_config", lambda: config)
+
+    await tools_module.search_news("q")
+    await tools_module.search_news("q")
+    assert await tools_module.search_news("q") == [{"status": "search budget exceeded"}]
+
+    tools_module.reset_budget()
+    assert await tools_module.search_news("q") == []
+    tools_module.reset_budget()
+
+
+async def test_budget_defaults_in_config():
+    digest_cfg = _digest_config()["digest"]
+    assert digest_cfg.get("max_search") == 10
+    assert digest_cfg.get("max_fetch") == 20
+    assert digest_cfg.get("timeout_s") == 3600
+
+
+def test_agent_keeps_exactly_two_tools():
+    agent = _build_agent()
+    tool_names = set(agent._function_toolset.tools)
+    assert tool_names == {"search_news", "fetch_article_text"}
+
+
+def test_reasoning_toggles_with_model_name(monkeypatch):
+    monkeypatch.setenv("CUSTOM_MODEL", "")
+
+    def _with_model(name):
+        config = _digest_config(model=name)
+        monkeypatch.setattr(agent_module, "get_config", lambda: config)
+        return agent_module._build_agent()
+
+    assert _with_model("deepseek-v4-flash").model_settings["openai_reasoning_effort"] == "none"
+    assert _with_model("qwen2.5").model_settings["openai_reasoning_effort"] == "medium"
 
 
 # ---------------------------------------------------------------------------

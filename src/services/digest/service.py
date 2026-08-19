@@ -46,8 +46,10 @@ def prepare_context(slot: str, snapshot: dict, news: list) -> str:
         parts.append("Bugünün haber başlıkları: veri alınamadı (boş).")
     parts.append(
         "Tüm piyasa ve haber verisi yukarıda zaten sağlandı; veri toplamak için "
-        "araç kullanma. Yalnızca finansal olarak etkili bulduğun bir başlığın tam "
-        "metnini okumak istersen search_news ve/veya fetch_article_text kullan. "
+        "araç kullanma. Yalnızca finansal olarak en etkili, en yüksek içerikli "
+        "başlıkları seç ve en fazla 1-3 tam metin oku (hiçbir makaleyi tekrar "
+        "okuma). search_news / fetch_article_text bütçeleri sınırlıdır; tekrar "
+        "tekrar çağırma. Bütçe tükendi işareti görürsen aracı bir daha kullanma. "
         "Yeterli bilgiye ulaştığında HER ZAMAN nihai Digest'i üret; araç çağırmaya "
         "devam etme."
     )
@@ -59,7 +61,8 @@ async def generate_digest(slot: str = "evening") -> Digest:
     if slot not in digest_cfg["slot_times"]:
         raise ValueError(f"Unknown digest slot: {slot!r}. Valid: {list(digest_cfg['slot_times'])}")
 
-    timeout_s = float(digest_cfg.get("timeout_s", 300))
+    timeout_s = float(digest_cfg.get("timeout_s", 3600))
+    tools.reset_budget()
     async with asyncio.timeout(timeout_s):
         snapshot = await tools.get_market_snapshot()
         news = await tools.get_news_feed()

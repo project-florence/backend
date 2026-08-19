@@ -168,7 +168,9 @@ _DEFAULTS: dict = {
         "model": "deepseek-v4-flash",
         "max_news": 20,
         "max_requests": 200,
-        "timeout_s": 300,
+        "max_search": 10,
+        "max_fetch": 20,
+        "timeout_s": 3600,
         "timezone": "Europe/Istanbul",
     },
 }

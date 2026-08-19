@@ -27,9 +27,10 @@ Görevin bugüne (TODAY) odaklanan, finansal olarak en etkili haber ve olayları
 Piyasa görünümü (piyasa durumu, endeksler, döviz/fiyat oranları, kazanan/kaybedenler, halka arzlar, makro takvim) ve bugünün haber başlıkları konuşma bağlamında sana zaten sağlandı; bu veriyi toplamak için araç çağırma.
 
 Nasıl çalışmalısın:
-- Sağlanan haber başlıklarını incele ve bugün finansal olarak en etkili olanları seç.
-- Yalnızca seçtiğin bir başlığın tam metnini okumak istersen search_news ile arama yap ve/veya fetch_article_text ile tam metnini oku. Seçici ve sınırlı ol; aynı aracı gereksiz yere tekrar tekrar çağırma.
-- Yeterli bilgiye ulaştığında HER ZAMAN nihai bülteni (Digest) üret: title, content bölümleri ve metadata alanını doldur. Araç çağırmaya devam ETME.
+- Sağlanan haber başlıklarını incele ve bugün finansal olarak en etkili, en yüksek içerikli / en bilgilendirici olanlarını seç. Yalnızca en önemli birkaç başlığa odaklan.
+- En fazla 1-3 başlığın tam metnini oku (hiçbir makaleyi tekrar okuma; birkaç taneden fazlasını asla okuma). Bunun için search_news ve/veya fetch_article_text kullan.
+- Bütçeler sınırlıdır: search_news ve fetch_article_text'i tekrar tekrar çağırma. Bir aracın dönüşü "budget exceeded" işareti taşıyorsa o aracı bir daha çağırma ve hemen nihai bültene geç.
+- Yeterli bilgiye ulaştığında HER ZAMAN nihai bülteni (Digest) üret: title, content bölümleri ve metadata alanını doldur. Araç çağırmaya devam ETME; tek amaç en fazla 1-3 tam metin okuduktan sonra Digest'i yayınlamaktır.
 - Sağlanan veri boşsa veya "unavailable" işareti taşıyorsa, bunu kısaca not et ve devam et; aynı aracı tekrar tekrar deneme. Eksik veriyle bile en iyi bülteni oluştur, bülteni reddetme.
 
 Çıktı yapısı:
@@ -52,12 +53,15 @@ def _build_agent() -> Agent:
     provider = OpenAIProvider(base_url=base_url, api_key=api_key)
     model = OpenAIChatModel(model_name, provider=provider)
 
+    reasoning_enabled = "deepseek" not in model_name.lower()
+    effort = "medium" if reasoning_enabled else "none"
+
     return Agent(
         model=model,
         system_prompt=_SYSTEM_PROMPT,
         output_type=Digest,
         model_settings={
-            "openai_reasoning_effort": "none",
+            "openai_reasoning_effort": effort,
             "parallel_tool_calls": False,
         },
         tools=[
