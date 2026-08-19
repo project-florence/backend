@@ -538,6 +538,20 @@ async def init_db() -> None:
                 CREATE INDEX IF NOT EXISTS idx_exports_status ON exports(status);
                 CREATE INDEX IF NOT EXISTS idx_exports_token ON exports(token);
             """)
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS digests (
+                    id TEXT PRIMARY KEY,
+                    date DATE NOT NULL,
+                    slot TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    content TEXT,
+                    sections JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    language TEXT NOT NULL DEFAULT 'tr',
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+                CREATE INDEX IF NOT EXISTS idx_digests_date_slot ON digests (date, slot);
+            """)
         await conn.commit()
     finally:
         await _release_conn()

@@ -119,6 +119,14 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
             "    await run_retention_cleanup()",
             "Haftalik tutma suresi temizligi (Pazar 03:00 TRT)",
         ),
+        (
+            "market_digest",
+            10 * 60 * 1000,
+            "from src.cron.tasks import run_market_digest\n"
+            "async def __cron_main__():\n"
+            "    await run_market_digest()",
+            "Gunluk piyasa bulteni (09:30 / 13:00 / 18:30 TRT)",
+        ),
     ]
 
 
@@ -160,6 +168,23 @@ def _initial_last_run(name: str, interval_ms: int) -> datetime:
         if target <= local:
             target = target + timedelta(days=7)
         return (target - timedelta(days=7)).astimezone(UTC)
+
+    if name == "market_digest":
+        # 10-dk interval; wall-clock destegi yok. Ilk vadesi dolan tick'i
+        # sonraki uretim penceresinin acilisina hizalar (slot saati - 15 dk).
+        # Task pencereler disinda no-op oldugu icin geri kalan tick'ler ucuzdur.
+        from src.core.config import get_config
+
+        local = now.astimezone(MARKET_TIMEZONE)
+        starts = []
+        for hhmm in get_config()["digest"]["slot_times"].values():
+            hour, minute = map(int, hhmm.split(":"))
+            start = local.replace(hour=hour, minute=minute, second=0, microsecond=0) - timedelta(minutes=15)
+            if start < local:
+                start = start + timedelta(days=1)
+            starts.append(start)
+        target = min(starts)
+        return (target - timedelta(seconds=interval_s)).astimezone(UTC)
 
     if interval_ms <= 10 * 60 * 1000:
         return now - timedelta(seconds=interval_s - 60)

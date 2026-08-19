@@ -161,6 +161,15 @@ _DEFAULTS: dict = {
     "credits": {
         "default_credits": 100,
     },
+    "digest": {
+        "slot_times": {"morning": "09:45", "noon": "13:15", "evening": "18:45"},
+        "redis_key": "current_digest",
+        "redis_ttl": 14400,
+        "model": "deepseek-v4-flash",
+        "max_news": 20,
+        "max_requests": 200,
+        "timezone": "Europe/Istanbul",
+    },
 }
 
 config = None

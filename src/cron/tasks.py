@@ -12,6 +12,7 @@ import logging
 import time
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import yfinance as yf
@@ -716,4 +717,73 @@ async def run_retention_cleanup() -> None:
                     logger.warning("[RETENTION] purge of %s failed: %s", table, message)
     finally:
         await _release_cron_lock("retention_cleanup")
+        await db.release_current()
+
+
+# ----------------------------------------------------------------------
+# Market digest (gunluk piyasa bulteni)
+# ----------------------------------------------------------------------
+DIGEST_TZ = ZoneInfo("Europe/Istanbul")
+DIGEST_LEAD = timedelta(minutes=15)  # slot saatinden ~15 dk once uretime basla
+
+
+def _due_digest_slot() -> str | None:
+    """Su an aktif olan uretim penceresinin slotunu dondurur (yoksa None).
+
+    Slot saatlerinden 15 dk oncesinden slot saatine kadar olan pencere
+    uretim zamanidir (09:30/13:00/18:30 TRT). Zamanlayici salt interval
+    tabanli oldugu icin task her 10 dk'da cagrilir; pencereler disinda
+    ucuz bir no-op olur.
+    """
+    from src.core.config import get_config
+
+    now_local = datetime.now(DIGEST_TZ)
+    for slot, hhmm in get_config()["digest"]["slot_times"].items():
+        hour, minute = map(int, hhmm.split(":"))
+        end = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        start = end - DIGEST_LEAD
+        if start <= now_local < end:
+            return slot
+    return None
+
+
+async def run_market_digest() -> None:
+    """Gunluk piyasa bultenini dogru slot penceresinde uretir.
+
+    On 10-minute interval schedules this via the in-process cron; wall-clock
+    windows (slot time minus a 15-minute lead) gate generation and a
+    (date, slot) existence check in ``digests`` prevents duplicates, so most
+    ticks are cheap no-ops.
+    """
+    from src.services.digest.service import generate_digest
+
+    slot = _due_digest_slot()
+    if slot is None:
+        logger.info("[DIGEST] no generation window active, no-op")
+        return
+
+    digest_date = datetime.now(DIGEST_TZ).date()
+    try:
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(
+                "SELECT 1 FROM digests WHERE date = %s AND slot = %s LIMIT 1",
+                (digest_date, slot),
+            )
+            exists = await cur.fetchone() is not None
+    except Exception:
+        await db.rollback()
+        logger.warning("[DIGEST] dedup check failed, skipping", exc_info=True)
+        return
+
+    if exists:
+        logger.info("[DIGEST] %s digest for %s already exists, skipping", slot, digest_date)
+        return
+
+    logger.info("[DIGEST] generating %s digest for %s", slot, digest_date)
+    try:
+        digest = await generate_digest(slot)
+        logger.info("[DIGEST] done: %s (%s)", digest.title, digest.id)
+    except Exception:
+        logger.exception("[DIGEST] generation failed")
+    finally:
         await db.release_current()
