@@ -69,6 +69,7 @@ async def generate_digest(slot: str = "evening") -> Digest:
             prepare_context(slot, snapshot, news),
             usage_limits=UsageLimits(
                 request_limit=int(digest_cfg.get("max_requests", 200)),
+                tool_calls_limit=int(digest_cfg.get("max_tool_calls", 6)),
             ),
         )
 

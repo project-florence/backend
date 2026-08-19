@@ -289,6 +289,7 @@ async def test_generate_digest_config_has_timeout_default():
     from src.core.config import get_config
 
     assert get_config()["digest"]["timeout_s"] == 3600
+    assert get_config()["digest"]["max_tool_calls"] == 6
     assert "max_tokens_total" not in get_config()["digest"]
 
 
@@ -306,6 +307,7 @@ async def test_generate_digest_usage_limits_from_config(monkeypatch):
                 "redis_key": "current_digest",
                 "redis_ttl": 14400,
                 "max_requests": 7,
+                "max_tool_calls": 6,
                 "timeout_s": 0.05,
             }
         }
@@ -323,6 +325,7 @@ async def test_generate_digest_usage_limits_from_config(monkeypatch):
 
     assert isinstance(captured["limits"], UsageLimits)
     assert captured["limits"].request_limit == 7
+    assert captured["limits"].tool_calls_limit == 6
     assert captured["limits"].total_tokens_limit is None
 
 
