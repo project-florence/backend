@@ -288,7 +288,42 @@ async def test_generate_digest_times_out_instead_of_hanging(monkeypatch):
 async def test_generate_digest_config_has_timeout_default():
     from src.core.config import get_config
 
-    assert get_config()["digest"]["timeout_s"] == 300
+    assert get_config()["digest"]["timeout_s"] == 3600
+    assert "max_tokens_total" not in get_config()["digest"]
+
+
+async def test_generate_digest_usage_limits_from_config(monkeypatch):
+    from pydantic_ai.usage import UsageLimits
+
+    _patch_precollect(monkeypatch)
+
+    captured = {}
+
+    def _config():
+        return {
+            "digest": {
+                "slot_times": {"morning": "09:45", "noon": "13:15", "evening": "18:45"},
+                "redis_key": "current_digest",
+                "redis_ttl": 14400,
+                "max_requests": 7,
+                "timeout_s": 0.05,
+            }
+        }
+
+    monkeypatch.setattr(service_module, "get_config", _config)
+
+    class _CaptureAgent:
+        async def run(self, *args, **kwargs):
+            captured["limits"] = kwargs["usage_limits"]
+            return _FakeResult(_make_digest())
+
+    monkeypatch.setattr(service_module, "_build_agent", lambda: _CaptureAgent())
+
+    await generate_digest(slot="morning")
+
+    assert isinstance(captured["limits"], UsageLimits)
+    assert captured["limits"].request_limit == 7
+    assert captured["limits"].total_tokens_limit is None
 
 
 # ---------------------------------------------------------------------------

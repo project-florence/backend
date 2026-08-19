@@ -67,7 +67,9 @@ async def generate_digest(slot: str = "evening") -> Digest:
         agent = _build_agent()
         result = await agent.run(
             prepare_context(slot, snapshot, news),
-            usage_limits=UsageLimits(request_limit=int(digest_cfg.get("max_requests", 200))),
+            usage_limits=UsageLimits(
+                request_limit=int(digest_cfg.get("max_requests", 200)),
+            ),
         )
 
     digest: Digest = result.output
