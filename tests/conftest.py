@@ -22,10 +22,45 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from api_helpers import FakeDB, FakeRedis  # noqa: E402
 from src.clients import http as http_client_module  # noqa: E402
 from src.finance.models import ProviderName  # noqa: E402
 from src.finance.providers.base import CircuitState  # noqa: E402
 from src.finance.providers.registry import PROVIDERS, provider  # noqa: E402
+
+
+@pytest.fixture
+def fake_db(monkeypatch):
+    """Patch the shared async db singleton with an in-memory fake."""
+    from src.core import database as db_module
+
+    fdb = FakeDB()
+    monkeypatch.setattr(db_module.db, "cursor", fdb.cursor)
+    monkeypatch.setattr(db_module.db, "commit", fdb.commit)
+    monkeypatch.setattr(db_module.db, "rollback", fdb.rollback)
+    monkeypatch.setattr(db_module.db, "release_current", fdb.release_current)
+    return fdb
+
+
+@pytest.fixture
+def fake_redis(monkeypatch):
+    """Patch the shared Redis proxy singleton with an in-memory fake."""
+    from src.core import redis as redis_module
+
+    fr = FakeRedis()
+    for name in (
+        "get",
+        "set",
+        "delete",
+        "incr",
+        "expire",
+        "sadd",
+        "srem",
+        "smembers",
+        "sismember",
+    ):
+        monkeypatch.setattr(redis_module.r, name, getattr(fr, name))
+    return fr
 
 
 @pytest.fixture(autouse=True)
