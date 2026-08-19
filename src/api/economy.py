@@ -149,16 +149,15 @@ async def analysis(symbol: str):
 
 @router.get("/economy/records")
 async def records():
-    """Record/extreme summary for every FX and metal symbol."""
-    out: dict[str, dict] = {}
-    for symbol in sorted(SYMBOL_REGISTRY):
-        d = SYMBOL_REGISTRY[symbol]
-        if d.asset_class not in (AssetClass.FX, AssetClass.METAL):
-            continue
-        rec = await finance_service.get_records(symbol)
-        if rec:
-            out[symbol] = rec
-    return out
+    """Record/extreme summary for every FX and metal symbol (batched, no N+1)."""
+    wanted = [
+        symbol
+        for symbol in sorted(SYMBOL_REGISTRY)
+        if SYMBOL_REGISTRY[symbol].asset_class in (AssetClass.FX, AssetClass.METAL)
+    ]
+    out = await finance_service.get_records_many(wanted)
+    # Drop symbols with no data at all (all fields null) to match the old shape.
+    return {sym: rec for sym, rec in out.items() if any(v is not None for v in rec.values())}
 
 
 @router.get("/economy/providers")

@@ -9,6 +9,7 @@ method is failure-tolerant: it logs and returns a neutral value, never raises
 import json
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Iterable
 from zoneinfo import ZoneInfo
 
 from src.core.database import db
@@ -370,9 +371,72 @@ async def load_candles(
         return []
 
 
+async def load_records_many(symbols: Iterable[str], *, year_days: int = 365) -> dict[str, dict]:
+    """Record/extreme summary for many symbols in a constant number of queries.
+
+    Replaces the old per-symbol ``load_records`` (3 queries × N symbols) with
+    two batched queries across ``symbol = ANY(...)``: one conditional-aggregation
+    pass for all-time + 52w extremes, one DISTINCT ON for each symbol's last close.
+    """
+    wanted = [s for s in symbols if s in SYMBOL_REGISTRY]
+    if not wanted:
+        return {}
+    year_ago = datetime.now(timezone.utc) - timedelta(days=year_days)
+    out: dict[str, dict] = {}
+    for sym in wanted:
+        out[sym] = {
+            "symbol": sym,
+            "all_time_high": None,
+            "all_time_low": None,
+            "high_52w": None,
+            "low_52w": None,
+            "rank_in_52w": None,
+            "last_close": None,
+        }
+    try:
+        async with db.cursor() as cur:
+            # 1) all-time + 52w extremes in a single grouped pass.
+            await cur.execute(
+                "SELECT symbol, "
+                "  MAX(high) AS at_high, MIN(low) AS at_low, "
+                "  MAX(high) FILTER (WHERE ts >= %s) AS w_high, "
+                "  MIN(low)  FILTER (WHERE ts >= %s) AS w_low "
+                "FROM rate_candles "
+                "WHERE interval = '1d' AND symbol = ANY(%s) "
+                "GROUP BY symbol",
+                (year_ago, year_ago, wanted),
+            )
+            agg_rows = await cur.fetchall()
+            # 2) last 1d close per symbol.
+            await cur.execute(
+                "SELECT DISTINCT ON (symbol) symbol, close FROM rate_candles "
+                "WHERE interval = '1d' AND symbol = ANY(%s) "
+                "ORDER BY symbol, ts DESC",
+                (wanted,),
+            )
+            last_rows = await cur.fetchall()
+        for row in agg_rows:
+            rec = out.get(row["symbol"])
+            if rec is None:
+                continue
+            rec["all_time_high"], rec["all_time_low"] = row["at_high"], row["at_low"]
+            rec["high_52w"], rec["low_52w"] = row["w_high"], row["w_low"]
+        for row in last_rows:
+            rec = out.get(row["symbol"])
+            if rec is not None:
+                rec["last_close"] = row["close"]
+        for rec in out.values():
+            high52, low52, close = rec["high_52w"], rec["low_52w"], rec["last_close"]
+            if high52 is not None and low52 is not None and close is not None and high52 > low52:
+                rec["rank_in_52w"] = (close - low52) / (high52 - low52)
+    except Exception:
+        logger.warning("load_records_many failed (%d symbols)", len(wanted), exc_info=True)
+    return out
+
+
 async def load_records(symbol: str) -> dict:
     """Record/extreme summary for one symbol (all-time + 52w aggregates)."""
-    out = {
+    return (await load_records_many([symbol])).get(symbol, {
         "symbol": symbol,
         "all_time_high": None,
         "all_time_low": None,
@@ -380,40 +444,7 @@ async def load_records(symbol: str) -> dict:
         "low_52w": None,
         "rank_in_52w": None,
         "last_close": None,
-    }
-    try:
-        year_ago = datetime.now(timezone.utc) - timedelta(days=365)
-        async with db.cursor() as cur:
-            await cur.execute(
-                "SELECT MAX(high), MIN(low) FROM rate_candles "
-                "WHERE symbol = %s AND interval = '1d'",
-                (symbol,),
-            )
-            row = await cur.fetchone()
-            await cur.execute(
-                "SELECT MAX(high), MIN(low) FROM rate_candles "
-                "WHERE symbol = %s AND interval = '1d' AND ts >= %s",
-                (symbol, year_ago),
-            )
-            row52 = await cur.fetchone()
-            await cur.execute(
-                "SELECT close FROM rate_candles "
-                "WHERE symbol = %s AND interval = '1d' ORDER BY ts DESC LIMIT 1",
-                (symbol,),
-            )
-            last = await cur.fetchone()
-        if row:
-            out["all_time_high"], out["all_time_low"] = row["max"], row["min"]
-        if row52:
-            out["high_52w"], out["low_52w"] = row52["max"], row52["min"]
-        if last:
-            out["last_close"] = last["close"]
-        high52, low52, close = out["high_52w"], out["low_52w"], out["last_close"]
-        if high52 is not None and low52 is not None and close is not None and high52 > low52:
-            out["rank_in_52w"] = (close - low52) / (high52 - low52)
-    except Exception:
-        logger.warning("load_records failed (%s)", symbol, exc_info=True)
-    return out
+    })
 
 
 async def load_latest_db_snapshot(symbols: set[str] | None = None) -> dict[str, Quote]:

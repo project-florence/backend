@@ -11,6 +11,7 @@ fails the last resort is the DB snapshot served with ``stale=True``.
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Iterable
 
 from src.core.config import get_config
 from src.core.database import db
@@ -66,14 +67,19 @@ class FinanceService:
             return self._filter_bundle(bundle, wanted)
         return await self._stale_fallback(wanted)
 
-    async def refresh_symbols(self, symbols: set[str]) -> QuoteBundle:
-        """Partial refresh (startup warm-up / single-symbol requests)."""
+    async def refresh_symbols(self, symbols: set[str], *, write_cache: bool = False) -> QuoteBundle:
+        """Partial refresh (single-symbol / gap backfill / startup warm-up).
+
+        Persists the requested subset to the DB and updates provider health, but
+        by default does NOT overwrite the full Redis ``fx:quotes`` bundle — a
+        partial collection must never clobber the cross-symbol cache.
+        """
         wanted = {s for s in symbols if s in SYMBOL_REGISTRY}
-        return await self._collect(wanted)
+        return await self._collect(wanted, write_cache=write_cache)
 
     async def refresh_all(self) -> QuoteBundle:
         """Full collection over every canonical symbol (cron + cache miss)."""
-        return await self._collect(set(SYMBOL_REGISTRY))
+        return await self._collect(set(SYMBOL_REGISTRY), write_cache=True)
 
     async def get_candles(
         self,
@@ -84,8 +90,34 @@ class FinanceService:
     ) -> list[Candle]:
         if symbol not in SYMBOL_REGISTRY:
             return []
-        return await storage.load_candles(symbol, interval, start, end)
+        # Cache-first (fixes write-only Redis cache): the cache holds the full
+        # series per (symbol, interval) — written daily by cron and populated
+        # here on miss — so a hit is filtered by the requested window in memory
+        # and the DB is only touched when the cache is cold.
+        cached = await storage.get_candles_cache(symbol, interval)
+        if cached is not None:
+            return self._filter_candles(cached, start, end)
+        # On miss, load the full series (window-agnostic) and populate the cache
+        # so later window requests are served without hitting the DB.
+        full = await storage.load_candles(symbol, interval)
+        if full:
+            await storage.set_candles_cache(symbol, interval, full)
+        return self._filter_candles(full, start, end)
         # yfinance backfill for gaps lands with Faz 3 (run_fx_candles_daily).
+
+    @staticmethod
+    def _filter_candles(
+        candles: list[Candle],
+        start: datetime | None,
+        end: datetime | None,
+    ) -> list[Candle]:
+        if start is None and end is None:
+            return candles
+        return [
+            c
+            for c in candles
+            if (start is None or c.ts >= start) and (end is None or c.ts <= end)
+        ]
 
     async def get_analysis(self, symbol: str) -> AnalysisResult | None:
         """Pre-computed daily metrics (Faz 3 cron computes+stores; read-only here)."""
@@ -97,6 +129,11 @@ class FinanceService:
         if symbol not in SYMBOL_REGISTRY:
             return {}
         return await storage.load_records(symbol)
+
+    async def get_records_many(self, symbols: Iterable[str]) -> dict[str, dict]:
+        """Batched record summary over many symbols (single constant set of queries)."""
+        wanted = {s for s in symbols if s in SYMBOL_REGISTRY}
+        return await storage.load_records_many(wanted)
 
     async def get_provider_status(self) -> list[ProviderStatus]:
         """Live circuit state merged with persisted rows (restart recovery)."""
@@ -130,8 +167,25 @@ class FinanceService:
             out.append(live)
         return sorted(out, key=lambda s: s.provider.value)
 
+    async def restore_circuit_breakers(self) -> None:
+        """Rehydrate provider in-memory circuits from persisted health (startup).
+
+        Fixes "circuit not restored on restart": a process that restarts now
+        honors a persisted open circuit whose cooldown has not elapsed, so it
+        no longer blindly issues full provider tries. Falls back to the Redis
+        mirror (``fx:provider:*``) when a provider has no DB row yet.
+        """
+        db_statuses = await storage.load_provider_statuses()
+        for name, p in PROVIDERS.items():
+            status = db_statuses.get(name.value)
+            if status is None:
+                status = await storage.get_provider_status_cache(name)
+            if status is not None:
+                p.restore_from_status(status)
+
     async def warm_startup(self) -> None:
         """One full refresh at startup (wired into main.py lifespan in Faz 2)."""
+        await self.restore_circuit_breakers()
         logger.info("finance warm_startup: refreshing all quotes")
         try:
             bundle = await self.refresh_all()
@@ -148,7 +202,7 @@ class FinanceService:
     # Collection core
     # ------------------------------------------------------------------
 
-    async def _collect(self, symbols: set[str]) -> QuoteBundle:
+    async def _collect(self, symbols: set[str], *, write_cache: bool = True) -> QuoteBundle:
         started = datetime.now(timezone.utc)
         if not symbols:
             return QuoteBundle(ts=started, quotes={})
@@ -214,9 +268,10 @@ class FinanceService:
         for p in PROVIDERS.values():
             await storage.persist_provider_status(p.status())
         if quotes:
-            await storage.set_quotes_cache(
-                bundle, int(get_config()["finance"]["refresh_interval_s"])
-            )
+            if write_cache:
+                await storage.set_quotes_cache(
+                    bundle, int(get_config()["finance"]["refresh_interval_s"])
+                )
         else:
             await storage.set_stale_marker("all providers failed this round")
             logger.error("finance refresh_all: no quotes produced (%s symbols)", len(symbols))

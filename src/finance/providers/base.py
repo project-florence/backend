@@ -14,7 +14,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from src.core.config import get_config
 from src.finance.models import ProviderName, ProviderStatus, Quote, QuoteKind
@@ -163,6 +163,31 @@ class BaseProvider(ABC):
         self._circuit.last_error_msg = f"{type(exc).__name__}: {exc}"[:500]
         if self._circuit.consecutive_failures >= int(cfg["circuit_threshold"]):
             self._circuit.open_until = time.monotonic() + float(cfg["circuit_open_s"])
+
+    def restore_from_status(self, status) -> None:
+        """Rehydrate the in-memory circuit from persisted provider health.
+
+        Called at startup so a restarted process honors an open circuit whose
+        cooldown window has not yet elapsed (no more blind full tries). If the
+        cooldown already elapsed, the provider is left half-open (probes allowed).
+        """
+        try:
+            cfg = get_config()["finance"]
+            open_s = float(cfg["circuit_open_s"])
+        except Exception:
+            open_s = 600.0
+        self._circuit.consecutive_failures = getattr(status, "consecutive_failures", 0) or 0
+        self._circuit.last_success = getattr(status, "last_success", None)
+        self._circuit.last_error = getattr(status, "last_error", None)
+        self._circuit.last_error_msg = getattr(status, "last_error_msg", None)
+        open = bool(getattr(status, "circuit_open", False)) and self._circuit.last_error is not None
+        if open:
+            remaining = (
+                self._circuit.last_error + timedelta(seconds=open_s) - datetime.now(timezone.utc)
+            ).total_seconds()
+            if remaining > 0:
+                self._circuit.open_until = time.monotonic() + remaining
+            # else: cooldown elapsed -> leave open_until None (half-open probe).
 
     @property
     def is_available(self) -> bool:
