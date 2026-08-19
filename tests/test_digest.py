@@ -12,9 +12,11 @@ Covers:
 3. service: slot validation raises ValueError on an invalid slot.
 4. service: happy path normalizes + writes Redis + inserts into digests.
 5. service: down-tolerance — Redis/DB failures never propagate.
-6. tools: down-tolerance markers on external failure.
-7. cron: _due_digest_slot window logic.
-8. cron: dedup — existing (date, slot) row short-circuits generation.
+6. service: hard timeout — a slow agent.run raises TimeoutError, never hangs.
+7. tools: down-tolerance markers on external failure.
+8. tools: economy_quotes + gainers/losers are cache-only (no refresh trigger).
+9. cron: _due_digest_slot window logic.
+10. cron: dedup — existing (date, slot) row short-circuits generation.
 """
 
 import json
@@ -254,6 +256,41 @@ async def test_generate_digest_tolerates_redis_and_db_failure(monkeypatch):
     assert digest.language == "tr"
 
 
+async def test_generate_digest_times_out_instead_of_hanging(monkeypatch):
+    import asyncio
+
+    _patch_precollect(monkeypatch)
+
+    def _config():
+        return {
+            "digest": {
+                "slot_times": {"morning": "09:45", "noon": "13:15", "evening": "18:45"},
+                "redis_key": "current_digest",
+                "redis_ttl": 14400,
+                "max_requests": 200,
+                "timeout_s": 0.05,
+            }
+        }
+
+    monkeypatch.setattr(service_module, "get_config", _config)
+
+    class _SlowAgent:
+        async def run(self, *args, **kwargs):
+            await asyncio.sleep(10)
+            raise AssertionError("agent must be cancelled by the timeout")
+
+    monkeypatch.setattr(service_module, "_build_agent", lambda: _SlowAgent())
+
+    with pytest.raises(asyncio.TimeoutError):
+        await generate_digest(slot="morning")
+
+
+async def test_generate_digest_config_has_timeout_default():
+    from src.core.config import get_config
+
+    assert get_config()["digest"]["timeout_s"] == 300
+
+
 # ---------------------------------------------------------------------------
 # 6. tools down-tolerance
 # ---------------------------------------------------------------------------
@@ -280,11 +317,166 @@ async def test_tool_get_news_feed_down_tolerant(monkeypatch):
 
 
 async def test_tool_get_economy_quotes_down_tolerant(monkeypatch):
-    monkeypatch.setattr(
-        "src.finance.finance_service.get_quotes", _raiser, raising=False
-    )
+    async def _boom(*args, **kwargs):
+        raise RuntimeError("external down")
+
+    monkeypatch.setattr("src.finance.storage.get_quotes_cache", _boom)
+    monkeypatch.setattr("src.finance.storage.load_latest_db_snapshot", _boom)
     out = await tools_module.get_economy_quotes()
     assert out == {}
+
+
+def _quote_bundle(quotes: dict) -> "QuoteBundle":
+    from datetime import datetime, timezone
+
+    from src.finance.models import ProviderName, Quote, QuoteBundle
+
+    ts = datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)
+    return QuoteBundle(
+        ts=ts,
+        source=ProviderName.GENELPARA,
+        quotes={
+            sym: Quote(symbol=sym, buying=val, price=val, change_pct=pct, source=ProviderName.GENELPARA, ts=ts)
+            for sym, (val, pct) in quotes.items()
+        },
+    )
+
+
+async def test_tool_get_economy_quotes_cache_only(monkeypatch):
+    bundle = _quote_bundle({"USD": (41.0, 0.5), "EUR": (44.0, 1.0)})
+
+    async def _cached() -> "QuoteBundle":
+        return bundle
+
+    async def _no_snapshot(symbols):
+        return {}
+
+    called = {"refresh": False}
+    async def _must_not_refresh(*args, **kwargs):
+        called["refresh"] = True
+        raise AssertionError("refresh must not be triggered")
+
+    monkeypatch.setattr("src.finance.storage.get_quotes_cache", _cached)
+    monkeypatch.setattr("src.finance.storage.load_latest_db_snapshot", _no_snapshot)
+    monkeypatch.setattr("src.finance.finance_service.get_quotes", _must_not_refresh, raising=False)
+
+    out = await tools_module.get_economy_quotes()
+
+    assert out["USD"] == {"last": 41.0, "change_pct": 0.5}
+    assert out["EUR"] == {"last": 44.0, "change_pct": 1.0}
+    assert called["refresh"] is False
+
+
+async def test_tool_get_economy_quotes_db_snapshot_fallback(monkeypatch):
+    from datetime import datetime, timezone
+
+    from src.finance.models import ProviderName, Quote
+
+    bundle = _quote_bundle({"USD": (41.0, 0.5)})
+    ts = datetime(2026, 8, 19, 12, 0, tzinfo=timezone.utc)
+    snapshot = {
+        "GBP": Quote(symbol="GBP", buying=48.0, price=48.0, change_pct=-0.2, source=ProviderName.DB_SNAPSHOT, ts=ts, stale=True),
+    }
+
+    async def _cached() -> "QuoteBundle":
+        return bundle
+
+    async def _snapshot(symbols):
+        return {sym: q for sym, q in snapshot.items() if sym in symbols}
+
+    called = {"refresh": False}
+    async def _must_not_refresh(*args, **kwargs):
+        called["refresh"] = True
+        raise AssertionError("refresh must not be triggered")
+
+    monkeypatch.setattr("src.finance.storage.get_quotes_cache", _cached)
+    monkeypatch.setattr("src.finance.storage.load_latest_db_snapshot", _snapshot)
+    monkeypatch.setattr("src.finance.finance_service.get_quotes", _must_not_refresh, raising=False)
+
+    out = await tools_module.get_economy_quotes()
+
+    assert out["USD"] == {"last": 41.0, "change_pct": 0.5}
+    assert out["GBP"] == {"last": 48.0, "change_pct": -0.2}
+    assert called["refresh"] is False
+
+
+async def test_tool_get_gainers_losers_down_tolerant(monkeypatch):
+    class _BoomRedis:
+        async def get(self, key):
+            raise RuntimeError("redis down")
+
+    monkeypatch.setattr("src.core.redis.r", _BoomRedis())
+    out = await tools_module.get_gainers_losers()
+    assert out == {"gainers": [], "losers": []}
+
+
+async def test_tool_get_gainers_losers_empty_when_no_cache(monkeypatch):
+    class _EmptyRedis:
+        async def get(self, key):
+            return None
+
+    called = {"summary": False}
+    async def _must_not_fetch(*args, **kwargs):
+        called["summary"] = True
+        raise AssertionError("company fetch must not be triggered")
+
+    monkeypatch.setattr("src.core.redis.r", _EmptyRedis())
+    monkeypatch.setattr("src.services.company.get_companies_summary", _must_not_fetch, raising=False)
+
+    out = await tools_module.get_gainers_losers()
+
+    assert out == {"gainers": [], "losers": []}
+    assert called["summary"] is False
+
+
+async def test_tool_get_gainers_losers_from_cached_profiles(monkeypatch):
+    companies = json.dumps(
+        [{"ticker": t, "name": t} for t in ("A", "B", "C", "D", "E", "F")]
+    )
+    profiles = {
+        "A.IS": json.dumps({"market": {"currentPrice": 110.0, "previousClose": 100.0}}),   # +10.0
+        "B.IS": json.dumps({"market": {"currentPrice": 90.0, "previousClose": 100.0}}),    # -10.0
+        "C.IS": json.dumps({"market": {"currentPrice": 105.0, "previousClose": 100.0}}),   # +5.0
+        "D.IS": json.dumps({"market": {"currentPrice": 97.0, "previousClose": 100.0}}),    # -3.0
+        "E.IS": json.dumps({"market": {"currentPrice": 101.0, "previousClose": 100.0}}),   # +1.0
+        "F.IS": json.dumps({"market": {"currentPrice": 92.0, "previousClose": 100.0}}),    # -8.0
+    }
+
+    class _CachedRedis:
+        async def get(self, key):
+            if key == "companies":
+                return companies
+            return profiles.get(key)
+
+    monkeypatch.setattr("src.core.redis.r", _CachedRedis())
+
+    out = await tools_module.get_gainers_losers()
+
+    assert [g["ticker"] for g in out["gainers"]] == ["A", "C", "E", "D", "F"]
+    assert [l["ticker"] for l in out["losers"]] == ["B", "F", "D", "E", "C"]
+    assert out["gainers"][0] == {"ticker": "A", "last_price": 110.0, "change_pct": pytest.approx(10.0)}
+    assert out["losers"][0] == {"ticker": "B", "last_price": 90.0, "change_pct": pytest.approx(-10.0)}
+
+
+async def test_tool_get_gainers_losers_skips_profiles_without_prices(monkeypatch):
+    companies = json.dumps([{"ticker": "A"}, {"ticker": "B"}])
+    profiles = {
+        "A.IS": json.dumps({"market": {"currentPrice": 110.0, "previousClose": 100.0}}),
+        "B.IS": json.dumps({"market": {"currentPrice": None, "previousClose": 100.0}}),
+    }
+
+    class _CachedRedis:
+        async def get(self, key):
+            if key == "companies":
+                return companies
+            return profiles.get(key)
+
+    monkeypatch.setattr("src.core.redis.r", _CachedRedis())
+
+    out = await tools_module.get_gainers_losers()
+
+    assert [g["ticker"] for g in out["gainers"]] == ["A"]
+    assert [l["ticker"] for l in out["losers"]] == ["A"]
 
 
 async def test_tool_search_news_down_tolerant(monkeypatch):

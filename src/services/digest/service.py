@@ -5,6 +5,7 @@ the model output and persists it to Redis with a TTL. Redis is down-tolerant:
 a digest is still returned when the cache write fails.
 """
 
+import asyncio
 import json
 import logging
 import uuid
@@ -58,14 +59,16 @@ async def generate_digest(slot: str = "evening") -> Digest:
     if slot not in digest_cfg["slot_times"]:
         raise ValueError(f"Unknown digest slot: {slot!r}. Valid: {list(digest_cfg['slot_times'])}")
 
-    snapshot = await tools.get_market_snapshot()
-    news = await tools.get_news_feed()
+    timeout_s = float(digest_cfg.get("timeout_s", 300))
+    async with asyncio.timeout(timeout_s):
+        snapshot = await tools.get_market_snapshot()
+        news = await tools.get_news_feed()
 
-    agent = _build_agent()
-    result = await agent.run(
-        prepare_context(slot, snapshot, news),
-        usage_limits=UsageLimits(request_limit=int(digest_cfg.get("max_requests", 200))),
-    )
+        agent = _build_agent()
+        result = await agent.run(
+            prepare_context(slot, snapshot, news),
+            usage_limits=UsageLimits(request_limit=int(digest_cfg.get("max_requests", 200))),
+        )
 
     digest: Digest = result.output
     digest.id = uuid.uuid4().hex

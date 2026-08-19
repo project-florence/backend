@@ -116,18 +116,35 @@ async def get_macro_events() -> list:
 
 
 async def get_economy_quotes() -> dict:
-    """Compact FX/precious-metal quotes for the digest's macro section."""
-    try:
-        from src.finance import finance_service
+    """Compact FX/precious-metal quotes for the digest's macro section.
 
-        bundle = await finance_service.get_quotes(list(_ECONOMY_SYMBOLS))
+    Cache-only: reads the already-available Redis ``fx:quotes`` bundle and, for
+    symbols missing from it, the last known DB snapshot rows. Never triggers a
+    refresh and never waits on an external fetch, so it returns immediately
+    even when the data is stale or a subset.
+    """
+    try:
+        from src.finance import storage
+
         out: dict = {}
+        missing: list = []
+        bundle = await storage.get_quotes_cache()
+        cached = bundle.quotes if bundle else {}
         for symbol in _ECONOMY_SYMBOLS:
-            quote = bundle.quotes.get(symbol)
+            quote = cached.get(symbol)
             if quote is None:
+                missing.append(symbol)
                 continue
             last = quote.price if quote.price is not None else quote.buying
             out[symbol] = {"last": last, "change_pct": quote.change_pct}
+        if missing:
+            snapshot = await storage.load_latest_db_snapshot(set(missing))
+            for symbol in missing:
+                quote = snapshot.get(symbol)
+                if quote is None:
+                    continue
+                last = quote.price if quote.price is not None else quote.buying
+                out[symbol] = {"last": last, "change_pct": quote.change_pct}
         return out
     except Exception:
         return {}
@@ -147,25 +164,54 @@ async def get_macroeconomy() -> dict:
 
 
 async def get_gainers_losers() -> dict:
-    """Top 5 BIST gainers and losers by daily change percent."""
+    """Top 5 BIST gainers and losers by daily change percent.
+
+    Cache-only: reads company profiles already stored in Redis (``<TICKER>.IS``)
+    and the BIST company list (``companies``). Never performs a yfinance/quote
+    fetch and never triggers a refresh; when no cached profiles are available it
+    returns empty lists immediately.
+    """
     try:
-        from src.services.company import get_companies_summary
+        import json
 
-        def _compact(rows: list) -> list:
-            return [
+        from src.core.redis import r
+
+        raw_companies = await r.get("companies")
+        if not raw_companies:
+            return {"gainers": [], "losers": []}
+        companies = json.loads(raw_companies)
+        if not isinstance(companies, list):
+            return {"gainers": [], "losers": []}
+
+        rows: list = []
+        for company in companies:
+            ticker = company.get("ticker")
+            if not ticker:
+                continue
+            raw_profile = await r.get(f"{ticker}.IS")
+            if not raw_profile:
+                continue
+            try:
+                profile = json.loads(raw_profile)
+            except Exception:
+                continue
+            market = profile.get("market") or {}
+            price = market.get("currentPrice")
+            previous = market.get("previousClose") or market.get("regularMarketPreviousClose")
+            if price is None or previous is None or previous == 0:
+                continue
+            rows.append(
                 {
-                    "ticker": row["ticker"],
-                    "last_price": row["last_price"],
-                    "change_pct": row["change_pct"],
+                    "ticker": ticker,
+                    "last_price": price,
+                    "change_pct": (price - previous) / previous * 100,
                 }
-                for row in rows
-            ]
+            )
 
-        gainers = await get_companies_summary(sort="gainers", limit=5)
-        losers = await get_companies_summary(sort="losers", limit=5)
+        rows.sort(key=lambda row: row["change_pct"], reverse=True)
         return {
-            "gainers": _compact(gainers.get("data", [])),
-            "losers": _compact(losers.get("data", [])),
+            "gainers": rows[:5],
+            "losers": list(reversed(rows[-5:])),
         }
     except Exception:
         return {"gainers": [], "losers": []}
