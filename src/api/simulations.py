@@ -10,7 +10,7 @@ from src.core.job_slots import require_job_slot
 from src.services.analytics import track_event
 from src.services.credits import spend as credit_spend, refund as credit_refund, get_total as get_credits
 from src.services.maintenance import require_feature
-from src.services.price import get_current_price
+from src.services.price import get_current_price, get_price_history
 from src.services.simulation_history import save_simulation, get_simulation_history, get_simulation_detail
 from src.services.stats import increment_stat
 
@@ -79,7 +79,9 @@ async def simulate(
     await db.release_current()
 
     try:
-        result = await asyncio.to_thread(montecarlo.simulate, ticker, days, bounds, target)
+        history = await get_price_history(ticker, "2y", "1d")
+        current_price = await get_current_price(ticker)
+        result = await asyncio.to_thread(montecarlo.simulate_from_data, history, days, bounds, target, current_price)
     except TypeError as e:
         await credit_refund(current_user_id, cost)
         raise HTTPException(status_code=400, detail="Invalid simulation parameters")
@@ -90,7 +92,6 @@ async def simulate(
     await increment_stat(ticker, "simulation_count")
 
     actual_target = str(target) if target else "auto"
-    current_price = await get_current_price(ticker)
     if target is None or current_price is None:
         direction = "above"
     else:

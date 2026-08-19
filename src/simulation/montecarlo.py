@@ -1,7 +1,14 @@
-from src.services.price import get_price_history
+"""Monte Carlo price simulation for a single ticker.
+
+Pure computation module: it never performs network I/O, never touches the
+database, and has no dependency on ``src.services.price``. The caller is
+responsible for fetching price history and the current price in the async
+layer and passing them in; this module only turns that data into simulated
+price paths and probability/confidence outputs.
+"""
+
 import numpy as np
 import pandas as pd
-from src.services.price import get_current_price
 
 financial_days: int = 252
 sim_times: int = 10000
@@ -35,24 +42,8 @@ def _calculate_options(prices: pd.Series, days: int):
     return options
 
 
-def _montecarlo(ticker: str, days: int):
-    history = get_price_history(ticker, "2y", "1d")
-    price_data = []
-    for row in history:
-        # int yerine float yapıyoruz ki kuruşlar kaybolmasın
-        price_data.append(float(row['close']))
-
-    prices = pd.Series(price_data)
-    # 0 ile doldurmak yerine ffill (önceki fiyatla doldur) daha mantıklı
-    prices = prices.ffill()
-
-    options = _calculate_options(prices, days)
-    return options
-
-
-def probability(ticker: str, days: int, target: str | float, options = None) -> float:
-    if options is None:
-        options = _montecarlo(ticker, days)
+def probability(target, options) -> float:
+    """Simüle edilen final fiyatların ``target`` değerine eşit veya üstünde kalma oranı."""
     target = float(target)
 
     success: int = 0
@@ -64,10 +55,9 @@ def probability(ticker: str, days: int, target: str | float, options = None) -> 
     return float(success / total)
 
 
-def confidence_interval(ticker: str, days: int, bounds: str | float, options = None):
-    if options is None:
-        options = _montecarlo(ticker, days)
-    options.sort()
+def confidence_interval(days: int, bounds: str | float, options):
+    """Simüle edilen final fiyatlarından güven aralığı bantını hesaplar."""
+    options = sorted(options)
     bounds = float(bounds)
 
     lower_bound = int(len(options) * bounds)
@@ -79,15 +69,32 @@ def confidence_interval(ticker: str, days: int, bounds: str | float, options = N
     # min ve max diye değişken atamak Python'da gömülü fonksiyonları ezar, o yüzden min_price yaptım
     return {"min": min_price, "max": max_price, "percent": 1.0 - 2 * bounds, "days": days, "bounds": str(bounds)}
 
-def simulate(ticker: str, days: int, bounds : str | float = "0.05", target: str | None = None):
-    options = _montecarlo(ticker, days)
-    if target is None:
-        target = get_current_price(ticker)
-        if target is None:
-            raise TypeError("target cannot be None")
-        target = target + ((target * 10) / 100)
 
-    prob_above = probability(ticker, days, target, options)
+def simulate_from_data(history_rows, days: int, bounds: str | float = "0.05", target=None, current_price=None) -> dict:
+    """Fetch edilmiş geçmiş veriden saf hesaplama ile Monte Carlo simülasyonu üretir.
+
+    ``history_rows`` her satırı ``{"close": float}`` içeren bir dict listesidir.
+    ``target`` verilmezse ``current_price`` üzerinden +%10 otomatik hedef üretilir;
+    ikisi de yoksa ``ValueError`` yükselir.
+    """
+    price_data = []
+    for row in history_rows:
+        # int yerine float yapıyoruz ki kuruşlar kaybolmasın
+        price_data.append(float(row['close']))
+
+    prices = pd.Series(price_data)
+    # 0 ile doldurmak yerine ffill (önceki fiyatla doldur) daha mantıklı
+    prices = prices.ffill()
+
+    options = _calculate_options(prices, days)
+
+    if target is None:
+        if current_price is None:
+            raise ValueError("target requires current_price")
+        current = float(current_price)
+        target = current + ((current * 10) / 100)
+
+    prob_above = probability(target, options)
     prob_below = 1.0 - prob_above
-    confidence_output = confidence_interval(ticker, days, bounds, options)
+    confidence_output = confidence_interval(days, bounds, options)
     return {"prob_above": prob_above, "prob_below": prob_below, "confidence": confidence_output}
