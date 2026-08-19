@@ -31,6 +31,7 @@ fastapi==0.139.0
 fastcore==2.1.15
 fastmcp-slim==3.4.4
 fastspec==0.1.2
+feedparser==6.0.11
 fredapi==0.5.2
 genai-prices==0.0.72
 google-api-core==2.31.0

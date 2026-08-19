@@ -123,6 +123,41 @@ _DEFAULTS: dict = {
     "macroeconomy": {
         "cache_ttl": 86400,
     },
+    "marketfeed": {
+        # Kaynak -> RSS URL. Core becerileri plan dosyasindan (20260819-rss-data-collection).
+        # Not: bigpara (404) ve AA rss (400) canli dogrulamada calismadi -> disarida tutuluyor.
+        "rss_urls": {
+            "Yahoo Finance": "https://finance.yahoo.com/news/rss",
+            "Investing.com TR": "https://tr.investing.com/rss/news.rss",
+            "MarketWatch": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+            "NTV Para": "https://www.ntv.com.tr/ntvpara.rss",
+            "Bloomberg HT": "https://www.bloomberght.com/rss/",
+            "Dunya": "https://www.dunya.com/rss/",
+        },
+        "index_symbols": [
+            "^GSPC", "^IXIC", "^DJI", "^GDAXI", "^FTSE", "^FCHI",
+            "^STOXX50E", "^N225", "^HSI", "XU100.IS",
+        ],
+        "index_names": {
+            "^GSPC": "S&P 500",
+            "^IXIC": "NASDAQ Composite",
+            "^DJI": "Dow Jones",
+            "^GDAXI": "DAX",
+            "^FTSE": "FTSE 100",
+            "^FCHI": "CAC 40",
+            "^STOXX50E": "EURO STOXX 50",
+            "^N225": "Nikkei 225",
+            "^HSI": "Hang Seng",
+            "XU100.IS": "BIST 100",
+        },
+        "news_limit": 20,
+        "news_cache_ttl": 1800,       # 30 dk — haber digest toleransi
+        "index_cache_ttl": 1500,      # 25 dk
+        "events_cache_ttl": 28800,    # 8 sa
+        "events_days": 45,
+        "rss_semaphore": 5,
+        "rss_timeout": 15,
+    },
     "credits": {
         "default_credits": 100,
     },
@@ -140,6 +175,8 @@ def _coerce(env_name: str, value: str, default):
     if isinstance(default, float):
         return float(value)
     if isinstance(default, dict):
+        return json.loads(value)
+    if isinstance(default, list):
         return json.loads(value)
     return value
 
