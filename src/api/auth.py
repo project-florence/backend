@@ -155,7 +155,7 @@ async def auth_register(request: Request, user: UserRegister):
 
         base_url = os.getenv("PUBLIC_BASE_URL") or str(request.base_url)
         base_url = base_url.rstrip("/")
-        verify_url = f"{base_url}/api/v1/auth/verify-email?token={verify_token}"
+        verify_url = f"{base_url}/verify-email?token={verify_token}"
         html = render_template("verify_email.html", verify_url=verify_url)
         verification_sent = await send_email(
             email, "Florence — E-postanı Doğrula", html
@@ -282,7 +282,7 @@ async def resend_verification(request: Request, payload: ResendVerification):
 
         base_url = os.getenv("PUBLIC_BASE_URL") or str(request.base_url)
         base_url = base_url.rstrip("/")
-        verify_url = f"{base_url}/api/v1/auth/verify-email?token={verify_token}"
+        verify_url = f"{base_url}/verify-email?token={verify_token}"
         html = render_template("verify_email.html", verify_url=verify_url)
         verification_sent = await send_email(
             email, "Florence — E-postanı Doğrula", html
