@@ -158,6 +158,9 @@ _DEFAULTS: dict = {
         "rss_semaphore": 5,
         "rss_timeout": 15,
     },
+    "auth": {
+        "password_reset_ttl_minutes": 30,
+    },
     "credits": {
         "default_credits": 100,
     },

@@ -486,6 +486,18 @@ async def init_db() -> None:
                 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
             """)
             await cur.execute("""
+                CREATE TABLE IF NOT EXISTS password_resets (
+                    id BIGSERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    token_hash TEXT NOT NULL,
+                    expires_at TIMESTAMPTZ NOT NULL,
+                    used_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                );
+                CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
+                CREATE INDEX IF NOT EXISTS idx_password_resets_token_hash ON password_resets(token_hash);
+            """)
+            await cur.execute("""
                 CREATE OR REPLACE FUNCTION create_default_prefs()
                 RETURNS TRIGGER AS $$
                 BEGIN

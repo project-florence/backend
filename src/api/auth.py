@@ -14,6 +14,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
 
 from src.api.deps import SECRET_KEY, ALGORITHM, get_current_user
+from src.core.config import get_config
 from src.core.database import db
 from src.core.ratelimit import rate_limiter
 from src.services.credits import get_total as get_credits
@@ -88,6 +89,15 @@ class RefreshRequest(BaseModel):
 class ResendVerification(BaseModel):
     # Kullanici adi VEYA e-posta (login ile ayni esnekligi sunar).
     username_or_email: str
+
+
+class ForgotPassword(BaseModel):
+    email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    token: str
+    new_password: str = Field(min_length=10)
 
 
 def create_jwt_token(user_id: int):
@@ -364,6 +374,93 @@ async def change_password(payload: ChangePassword, current_user_id: int = Depend
         await revoke_all_user_tokens(current_user_id)
 
     return {"message": "Password changed successfully"}
+
+
+@router.post("/auth/forgot-password")
+async def forgot_password(request: Request, payload: ForgotPassword):
+    """Sifre sifirlama baglantisini e-posta ile gonderir (public, rate limited).
+
+    Hesap var olup olmamasindan bagimsiz olarak her zaman 200 doner: hesap
+    varligi sizintisini onlemek icin. Kullanici varsa hashed token uretilir,
+    ``password_resets`` tablosuna yazilir ve sifirlama maili gonderilir.
+    Mail hatalari asla 5xx uretmez (register deseni).
+    """
+    email = payload.email.lower()
+    client_ip = request.client.host if request.client else "unknown"
+    await rate_limiter.check(
+        f"forgot-password:{email or client_ip}", max_requests=5, window_seconds=3600
+    )
+
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute("SELECT id, email FROM users WHERE lower(email) = %s", (email,))
+        row = await cur.fetchone()
+
+        if row:
+            user_id = row[0]
+            token = secrets.token_urlsafe(32)
+            token_hash = hash_token(token)
+            ttl_minutes = int(get_config()["auth"]["password_reset_ttl_minutes"])
+            expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=ttl_minutes)
+            try:
+                await cur.execute(
+                    "INSERT INTO password_resets (user_id, token_hash, expires_at) "
+                    "VALUES (%s, %s, %s)",
+                    (user_id, token_hash, expires_at),
+                )
+                await db.commit()
+            except Exception as e:
+                await db.rollback()
+                logger.warning("forgot-password: token yazilamadi (user %s): %s", user_id, e)
+                return {"message": "if the account exists, a password reset link was sent"}
+
+            try:
+                from src.clients.mail import render_template, send_email
+
+                base_url = os.getenv("PUBLIC_BASE_URL") or str(request.base_url)
+                base_url = base_url.rstrip("/")
+                reset_url = f"{base_url}/reset-password?token={token}"
+                html = render_template("reset_password.html", reset_url=reset_url)
+                await send_email(email, "Florence — Şifreni Sıfırla", html)
+            except Exception as e:
+                logger.warning("Reset password email could not be sent to %s: %s", email, e)
+
+    return {"message": "if the account exists, a password reset link was sent"}
+
+
+@router.post("/auth/reset-password")
+async def reset_password(payload: ResetPassword):
+    """Sifirlama token'i ile sifreyi degistirir (public)."""
+    token_hash = hash_token(payload.token)
+
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
+            "SELECT id, user_id FROM password_resets "
+            "WHERE token_hash = %s AND used_at IS NULL AND expires_at > NOW()",
+            (token_hash,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="error_invalid_or_expired_token")
+
+        reset_id, user_id = row
+        new_hashed_pw = await asyncio.to_thread(ph.hash, payload.new_password)
+        try:
+            await cur.execute(
+                "UPDATE users SET hashed_pw = %s, password_changed_at = NOW() WHERE id = %s",
+                (new_hashed_pw, user_id),
+            )
+            await cur.execute(
+                "UPDATE password_resets SET used_at = NOW() WHERE id = %s", (reset_id,)
+            )
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            logger.warning("reset-password: guncelleme basarisiz (reset %s): %s", reset_id, e)
+            raise HTTPException(status_code=500, detail="Database error")
+
+    await revoke_all_user_tokens(user_id)
+
+    return {"message": "password reset successful"}
 
 
 @router.put("/auth/change-email")
