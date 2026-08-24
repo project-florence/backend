@@ -345,6 +345,38 @@ async def test_logout(monkeypatch, fake_db, fake_redis):
     assert resp.json() == {"message": "Logged out"}
 
 
+async def test_logout_without_body_succeeds(fake_db, fake_redis):
+    # Body-less logout is what the web client sends via cookies.
+    fake_db.rowcount = 1
+
+    app = build_app(auth_router)
+    resp = await request(app, "POST", "/auth/logout")
+
+    assert resp.status_code == 200
+    assert resp.status_code != 422
+
+
+async def test_logout_deletes_auth_cookies(fake_db, fake_redis):
+    fake_db.rowcount = 1
+
+    app = build_app(auth_router)
+    resp = await request(app, "POST", "/auth/logout")
+
+    cookies = resp.headers.get_list("set-cookie")
+    by_name = {}
+    for c in cookies:
+        by_name[c.split("=", 1)[0]] = c
+
+    assert "access_token" in by_name
+    assert "refresh_token" in by_name
+    assert "path=/api/v1/auth" in by_name["refresh_token"].lower()
+    for c in cookies:
+        low = c.lower()
+        assert "max-age=0" in low or "expires=" in low
+        assert "httponly" in low
+        assert "samesite=strict" in low
+
+
 async def test_delete_account(fake_db, fake_redis):
     app = build_app(auth_router)
     resp = await request(app, "DELETE", "/auth/delete")
