@@ -361,15 +361,21 @@ class FinanceService:
         )
 
     async def _cached_bundle(self, wanted: set[str] | None) -> QuoteBundle | None:
-        """Cache hit only when every requested symbol is present."""
+        """Serve whatever of the requested symbols the last full refresh collected.
+
+        A symbol no provider can deliver must not permanently defeat the cache:
+        a hit is still useful as long as at least one requested symbol is present.
+        """
         bundle = await storage.get_quotes_cache()
         if bundle is None or not bundle.quotes:
             return None
         if wanted is None:
             return bundle
-        if not wanted.issubset(set(bundle.quotes)):
+        available = wanted & set(bundle.quotes)
+        if not available:
+            # Hiçbiri yoksa önbellek işe yaramaz; gerçek bir yenileme denensin.
             return None
-        return self._filter_bundle(bundle, wanted)
+        return self._filter_bundle(bundle, available)
 
     async def _stale_fallback(self, wanted: set[str] | None) -> QuoteBundle:
         """Last resort: last known-good DB snapshot, marked stale."""
