@@ -57,8 +57,9 @@ def _set_auth_cookies(response, access_token: str, refresh_token: str):
 
 
 def _delete_auth_cookies(response):
-    response.delete_cookie(key="access_token", path="/")
-    response.delete_cookie(key="refresh_token", path="/api/v1/auth")
+    secure = os.getenv("ENVIRONMENT", "development") == "production"
+    response.delete_cookie(key="access_token", httponly=True, secure=secure, samesite="strict", path="/")
+    response.delete_cookie(key="refresh_token", httponly=True, secure=secure, samesite="strict", path="/api/v1/auth")
 
 
 class UserRegister(BaseModel):
@@ -326,8 +327,10 @@ async def auth_refresh(request: Request, payload: RefreshRequest | None = None):
 
 
 @router.post("/auth/logout")
-async def auth_logout(request: Request, payload: RefreshRequest):
-    token = payload.refresh_token or request.cookies.get("refresh_token")
+async def auth_logout(request: Request, payload: RefreshRequest | None = None):
+    # Body yoksa (veya token body'de verilmediyse) cookie'den oku. Null body
+    # 422 uretmez; frontend cookie akisi boylece logout edebilir.
+    token = (payload.refresh_token if payload else None) or request.cookies.get("refresh_token")
     if token:
         await revoke_token(token)
     response = JSONResponse(content={"message": "Logged out"})
