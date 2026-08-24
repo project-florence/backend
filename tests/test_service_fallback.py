@@ -13,8 +13,9 @@ import pytest
 import respx
 from httpx import Response
 
+import src.finance.storage as storage
 from src.finance import FinanceService
-from src.finance.models import ProviderName
+from src.finance.models import ProviderName, QuoteBundle
 from src.finance.providers.genelpara import GenelParaProvider
 from src.finance.providers.registry import provider
 from tests.helpers import (
@@ -144,3 +145,63 @@ async def test_circuit_half_open_probe_and_success_resets():
     assert status.consecutive_failures == 0
     assert status.circuit_open is False
     assert status.last_error_msg is None
+
+
+async def test_cached_bundle_hits_when_a_symbol_is_never_delivered(monkeypatch):
+    """Regression: JOD (never delivered by any provider) must not defeat the cache."""
+    mock_storage(monkeypatch)
+    cached = QuoteBundle(
+        ts=datetime.now(timezone.utc),
+        source=ProviderName.GENELPARA,
+        quotes={
+            "USD": make_quote("USD", buying=40.5, selling=40.6),
+            "EUR": make_quote("EUR", buying=44.5, selling=44.6),
+            "GBP": make_quote("GBP", buying=52.0, selling=52.1),
+        },
+    )
+
+    async def _cached():
+        return cached
+
+    refresh_calls = {"count": 0}
+
+    async def _no_refresh(*args, **kwargs):
+        refresh_calls["count"] += 1
+
+    monkeypatch.setattr(storage, "get_quotes_cache", _cached)
+    monkeypatch.setattr(FinanceService, "refresh_all", _no_refresh)
+
+    bundle = await FinanceService().get_quotes(["USD", "EUR", "GBP", "JOD"])
+
+    assert refresh_calls["count"] == 0  # served from the cache, no refresh
+    assert set(bundle.quotes) == {"USD", "EUR", "GBP"}
+    assert "JOD" not in bundle.quotes
+
+
+async def test_cached_bundle_misses_when_no_symbol_is_available(monkeypatch):
+    mock_storage(monkeypatch)
+    cached = QuoteBundle(
+        ts=datetime.now(timezone.utc),
+        source=ProviderName.GENELPARA,
+        quotes={
+            "USD": make_quote("USD", buying=40.5, selling=40.6),
+            "EUR": make_quote("EUR", buying=44.5, selling=44.6),
+        },
+    )
+
+    async def _cached():
+        return cached
+
+    refresh_calls = {"count": 0}
+
+    async def _refresh(*args, **kwargs):
+        refresh_calls["count"] += 1
+        return QuoteBundle(ts=datetime.now(timezone.utc), quotes={})
+
+    monkeypatch.setattr(storage, "get_quotes_cache", _cached)
+    monkeypatch.setattr(FinanceService, "refresh_all", _refresh)
+
+    bundle = await FinanceService().get_quotes(["JOD"])
+
+    assert refresh_calls["count"] == 1  # cache unusable -> refresh attempted
+    assert bundle.quotes == {}
