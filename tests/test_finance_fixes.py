@@ -230,6 +230,95 @@ def test_circuit_restore_half_open_when_cooldown_elapsed():
     assert p.is_available is True
 
 
+# ---------------------------------------------------------------------------
+# Bug 5 — load_previous_closes falls back to economy_rates when a symbol has
+# no rate_candles history (FX/metal change_pct data-availability fix).
+# ---------------------------------------------------------------------------
+
+
+class _PrevCloseFakeCursor:
+    """Fakes two distinct queries: rate_candles first, economy_rates second."""
+
+    def __init__(self, db):
+        self._db = db
+        self._rows = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def execute(self, query, params=None):
+        self._db.calls.append((query, params))
+        if "FROM rate_candles" in query:
+            self._rows = self._db.candle_rows
+        elif "FROM economy_rates" in query:
+            self._rows = self._db.economy_rows
+        else:
+            self._rows = []
+
+    async def fetchall(self):
+        return self._rows
+
+
+class _PrevCloseFakeDB:
+    def __init__(self, candle_rows, economy_rows):
+        self.candle_rows = candle_rows
+        self.economy_rows = economy_rows
+        self.calls = []
+
+    def cursor(self, row_factory=None):
+        return _PrevCloseFakeCursor(self)
+
+
+async def test_load_previous_closes_uses_rate_candles_when_present(monkeypatch):
+    """Symbol with candle history: unchanged behaviour, no economy_rates fallback query."""
+    fake = _PrevCloseFakeDB(
+        candle_rows=[{"symbol": "USD", "close": 40.5}],
+        economy_rows=[],
+    )
+    monkeypatch.setattr(storage, "db", fake)
+
+    before = datetime.now(timezone.utc)
+    out = await storage.load_previous_closes(["USD"], before)
+
+    assert out == {"USD": 40.5}
+    # Nothing missing after the rate_candles pass -> no fallback query fired.
+    assert len(fake.calls) == 1
+    assert "FROM rate_candles" in fake.calls[0][0]
+
+
+async def test_load_previous_closes_falls_back_to_economy_rates(monkeypatch):
+    """Symbol with no candles but with an economy_rates snapshot gets a previous close."""
+    fake = _PrevCloseFakeDB(
+        candle_rows=[],  # no rate_candles row for GRAM-ALTIN
+        economy_rows=[{"ticker": "GRAM-ALTIN", "price": {"Buying": 2450.0}}],
+    )
+    monkeypatch.setattr(storage, "db", fake)
+
+    before = datetime.now(timezone.utc)
+    out = await storage.load_previous_closes(["GRAM-ALTIN"], before)
+
+    assert out == {"GRAM-ALTIN": 2450.0}
+    assert len(fake.calls) == 2
+    assert "FROM rate_candles" in fake.calls[0][0]
+    assert "FROM economy_rates" in fake.calls[1][0]
+    # Batched: single query for the whole missing set, not per symbol.
+    assert fake.calls[1][1] == (["GRAM-ALTIN"], before)
+
+
+async def test_load_previous_closes_none_when_neither_source_has_data(monkeypatch):
+    """Symbol with neither candles nor economy_rates history yields no entry (None downstream)."""
+    fake = _PrevCloseFakeDB(candle_rows=[], economy_rows=[])
+    monkeypatch.setattr(storage, "db", fake)
+
+    out = await storage.load_previous_closes(["GHOST"], datetime.now(timezone.utc))
+
+    assert out == {}
+    assert len(fake.calls) == 2  # rate_candles pass + economy_rates fallback attempt
+
+
 async def test_service_restore_wires_persisted_state_into_providers(monkeypatch):
     # Point restore_circuit_breakers' storage reads at a fake persisted row.
     async def _load_statuses():

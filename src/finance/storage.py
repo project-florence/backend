@@ -312,9 +312,19 @@ async def persist_provider_status(status: ProviderStatus) -> bool:
 
 
 async def load_previous_closes(symbols: list[str], before_ts: datetime) -> dict[str, float]:
-    """Last 1d close per symbol before ``before_ts`` (for change_pct)."""
+    """Last 1d close per symbol before ``before_ts`` (for change_pct).
+
+    rate_candles is the primary source, but it is only populated for the
+    symbols the yfinance providers cover (USD/EUR/GBP + the four ounce
+    metals — see ``run_fx_candles_daily``). Every other registry symbol
+    (GenelPara-only Turkish jeweller varieties etc.) has no candle history,
+    so its previous close is derived from the ``economy_rates`` snapshot
+    table instead (one extra batched query, see
+    ``_load_economy_previous_closes``).
+    """
     if not symbols:
         return {}
+    out: dict[str, float] = {}
     try:
         async with db.cursor() as cur:
             await cur.execute(
@@ -324,10 +334,52 @@ async def load_previous_closes(symbols: list[str], before_ts: datetime) -> dict[
                 (symbols, before_ts),
             )
             rows = await cur.fetchall()
-        return {row["symbol"]: row["close"] for row in rows if row["close"] is not None}
+        out = {row["symbol"]: row["close"] for row in rows if row["close"] is not None}
     except Exception:
         logger.warning("load_previous_closes failed", exc_info=True)
         return {}
+
+    missing = [s for s in symbols if s not in out]
+    if missing:
+        out.update(await _load_economy_previous_closes(missing, before_ts))
+    return out
+
+
+async def _load_economy_previous_closes(symbols: list[str], before_ts: datetime) -> dict[str, float]:
+    """rate_candles fallback: most recent economy_rates snapshot before ``before_ts``.
+
+    Tek ek sorguda (DISTINCT ON + ``= ANY(...)``), mum gecmisi olmayan
+    sembollerin onceki kapanisi economy_rates anlik goruntulerinden turetilir
+    (``_load_economy_series`` ile ayni teknik, bkz. ``src/cron/tasks.py``).
+    GenelPara'nin kendi ``degisim``/``oran`` alanlari kasitli olarak
+    kullanilmiyor (hafta sonu sifirlari; bkz.
+    ``src/finance/providers/genelpara.py`` modul docstring'i) — burada da
+    her zaman economy_rates'teki ham ``Buying`` fiyatindan hesap yapilir.
+    """
+    if not symbols:
+        return {}
+    try:
+        async with db.cursor() as cur:
+            await cur.execute(
+                "SELECT DISTINCT ON (ticker) ticker, price FROM economy_rates "
+                "WHERE ticker = ANY(%s) AND ts < %s "
+                "ORDER BY ticker, ts DESC",
+                (symbols, before_ts),
+            )
+            rows = await cur.fetchall()
+    except Exception:
+        logger.warning("_load_economy_previous_closes failed", exc_info=True)
+        return {}
+    out: dict[str, float] = {}
+    for row in rows:
+        try:
+            price = json.loads(row["price"]) if isinstance(row["price"], str) else row["price"]
+            buying = price.get("Buying") if isinstance(price, dict) else None
+        except Exception:
+            continue
+        if isinstance(buying, (int, float)):
+            out[row["ticker"]] = float(buying)
+    return out
 
 
 async def load_candles(

@@ -7,7 +7,11 @@ order when multiple selectors are provided (most specific wins):
 2. ``date`` only        -> JSON array of that date's digests (possibly empty).
 3. ``at`` only          -> the digest whose slot window covers the ISO8601
    datetime (Istanbul slot boundaries), 404 if none exists.
-4. none                 -> the current digest from Redis, 404 if unavailable.
+4. none                 -> the current digest: Redis fast path, falling back to
+   the newest row in the ``digests`` table when Redis has nothing usable
+   (e.g. a generation gap caused by AI provider rate limits), 404 only if no
+   digest exists anywhere. The response always carries ``date``/``slot`` so a
+   stale-but-valid digest is never mistaken for a fresh one.
 
 Providing ``slot`` without ``date`` is invalid (422). Invalid ``date``,
 ``slot`` or ``at`` formats are rejected with 422. This endpoint is

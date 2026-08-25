@@ -38,6 +38,29 @@ def _compute_cost(total_tokens: int) -> int:
     return max(1, math.ceil(total_tokens / 1000 * TOKEN_COST_PER_1K))
 
 
+def _credits_spend_from_token_usage(token_usage) -> int | None:
+    """Kaydedilmis token_usage.total degerinden rapor maliyetini hesaplar.
+
+    NOT: credits_spend veritabaninda ayrica saklanmiyor (bkz. POST /reports/generate);
+    burada bugunku TOKEN_COST_PER_1K konfigurasyonuyla YENIDEN hesaplaniyor. Eger bu
+    konfigurasyon degeri gecmiste degistiyse, gosterilen maliyet o rapor icin o an
+    gercekte tahsil edilen maliyetten farkli olabilir. Dogru uzun vadeli cozum,
+    maliyeti uretim aninda ayri bir sutuna yazip buradan okumaktir; bu, kapsam disi
+    birakilan bir semadegisikligi gerektirir.
+    Bozuk/eksik veri (dict degil, 'total' yok ya da sayisal degil) durumunda 500
+    atmak yerine None dondurulur.
+    """
+    if not isinstance(token_usage, dict):
+        return None
+    total = token_usage.get("total")
+    if not isinstance(total, (int, float)) or isinstance(total, bool):
+        return None
+    try:
+        return _compute_cost(total)
+    except Exception:
+        return None
+
+
 @router.post("/reports/generate")
 async def generate_report_endpoint(
     ticker: str,
@@ -171,6 +194,7 @@ class ReportHistoryItem(BaseModel):
     type: str
     title: str | None = None
     token_usage: dict | None = None
+    credits_spend: int | None = None
     purpose: str | None = None
     created_at: str
 
@@ -187,6 +211,7 @@ def _parse_history_rows(rows: list) -> list[ReportHistoryItem]:
             type=row[2],
             title=row[3],
             token_usage=tu,
+            credits_spend=_credits_spend_from_token_usage(tu),
             purpose=row[5],
             created_at=row[6].isoformat(),
         )
@@ -285,6 +310,7 @@ async def get_single_report(report_id: int, current_user_id: int = Depends(get_c
         "type": row[1],
         "title": row[2],
         "token_usage": token_usage,
+        "credits_spend": _credits_spend_from_token_usage(token_usage),
         "purpose": row[4],
         "report": row[5],
         "sentiments": sentiments,

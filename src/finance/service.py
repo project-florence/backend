@@ -327,8 +327,11 @@ class FinanceService:
     async def _attach_change_pct(self, quotes: dict[str, Quote]) -> None:
         """Daily change from our own series (previous 1d close in rate_candles).
 
-        Never uses the source's ``degisim`` field (weekend zeros) nor the
-        legacy economy_rates window — plan 7.2 rule: 1d close = rate_candles.
+        Never uses the source's ``degisim`` field (weekend zeros) — plan 7.2
+        rule. The previous close comes from ``rate_candles``; for symbols
+        without candle history, ``storage.load_previous_closes`` falls back
+        to the ``economy_rates`` snapshot table (still the raw ``Buying``
+        price, never the provider's own change field).
         """
         if not quotes:
             return
