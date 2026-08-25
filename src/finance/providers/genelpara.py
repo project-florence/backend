@@ -1,9 +1,15 @@
-"""GenelPara provider — new API contract (verified live 2026-08-16).
+"""GenelPara provider — new API contract (verified live 2026-08-24).
 
-Endpoint: ``{base}?list=doviz|altin|emtia&sembol=...``
+Endpoint: ``{base}?list=doviz|altin|emtia&sembol=all``
 Envelope: ``{"success": true, "list": ..., "count": N, "remaining": N, "data": {...}}``
 Item: ``{"alis": "47.8424", "satis": "47.9149", "degisim": "+0.20", "oran": ...,
 "yon": "moneyUp", "kur": "TRY", "sembol": "₺"}`` — every field is a string.
+
+Every category is requested with ``sembol=all`` — one small request per
+category returns the full list (doviz=63, emtia=14, altin=18 rows) and costs
+the same single unit of quota as a filtered request. Comma-joining many
+requested symbols into one long ``sembol=`` value (the old doviz behaviour)
+trips the provider's own rate limiting (HTTP 429); ``all`` does not.
 
 The daily quota (``remaining``, 1000/day per IP) is tracked on the provider
 and surfaced through the bundle. The API's own ``degisim``/``oran`` fields are
@@ -50,15 +56,14 @@ class GenelParaProvider(BaseProvider):
         fetched_any = False
 
         for category, syms in per_category.items():
-            raw_symbols = sorted(
-                SYMBOL_REGISTRY[s].provider_symbols[self.name] for s in syms
-            )
-            params = {"list": category}
-            if category == "altin":
-                # One request covers the whole gold list (18 varieties).
-                params["sembol"] = "all"
-            else:
-                params["sembol"] = ",".join(raw_symbols)
+            # sembol=all is a single small request that returns every symbol
+            # in the category (verified live 2026-08-24: doviz=63, emtia=14,
+            # altin=18 rows, quota cost is 1 request regardless of "all" vs a
+            # comma-joined symbol list). Comma-joining many symbols into one
+            # long doviz sembol= value trips the provider's own rate limiting
+            # (HTTP 429), so "all" is used for every category and we filter
+            # down to the requested canonical symbols locally below.
+            params = {"list": category, "sembol": "all"}
             try:
                 resp = await client.get(
                     base,

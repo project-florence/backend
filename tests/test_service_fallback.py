@@ -85,6 +85,33 @@ async def test_all_providers_down_serves_db_snapshot_stale(monkeypatch):
     assert quote.buying == pytest.approx(40.10)
 
 
+async def test_variety_and_commodity_fall_back_to_db_snapshot_when_genelpara_down(monkeypatch):
+    """VARIETY_CHAIN / COMMODITY_CHAIN have no live fallback provider — a
+    GenelPara outage must degrade to a stale DB snapshot instead of the
+    symbol silently vanishing from the bundle."""
+    snapshot_quote = make_quote(
+        "XAU-CEYREK", buying=8500.0, selling=8600.0,
+        source=ProviderName.DB_SNAPSHOT, stale=True,
+    )
+    commodity_quote = make_quote(
+        "COIL-BRENT-USD", buying=82.0, selling=82.0,
+        source=ProviderName.DB_SNAPSHOT, stale=True,
+    )
+    mock_storage(
+        monkeypatch,
+        snapshot={"XAU-CEYREK": snapshot_quote, "COIL-BRENT-USD": commodity_quote},
+    )
+    with respx.mock:
+        respx.get(url__startswith=GENELPARA_URL).mock(return_value=Response(500))
+        bundle = await FinanceService().refresh_symbols({"XAU-CEYREK", "COIL-BRENT-USD"})
+
+    assert set(bundle.quotes) == {"XAU-CEYREK", "COIL-BRENT-USD"}
+    assert bundle.quotes["XAU-CEYREK"].stale is True
+    assert bundle.quotes["XAU-CEYREK"].source is ProviderName.DB_SNAPSHOT
+    assert bundle.quotes["XAU-CEYREK"].buying == pytest.approx(8500.0)
+    assert bundle.quotes["COIL-BRENT-USD"].source is ProviderName.DB_SNAPSHOT
+
+
 async def test_circuit_breaker_opens_after_three_failures():
     with respx.mock:
         respx.get(url__startswith=GENELPARA_URL).mock(return_value=Response(500))

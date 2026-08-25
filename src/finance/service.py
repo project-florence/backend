@@ -241,15 +241,35 @@ class FinanceService:
         )
 
         # Merge: first provider on the chain that delivered a quote wins.
+        # A symbol whose chain ends in DB_SNAPSHOT and got nothing from a live
+        # provider this round is collected into `snapshot_candidates` instead
+        # of being silently dropped (e.g. VARIETY_CHAIN / COMMODITY_CHAIN when
+        # GenelPara's circuit is open).
         quotes: dict[str, Quote] = {}
+        snapshot_candidates: set[str] = set()
         for symbol in symbols:
+            found = False
             for name in chains_for(symbol):
                 if name is ProviderName.DB_SNAPSHOT:
                     continue
                 q = results.get(name, {}).get(symbol)
                 if q is not None:
                     quotes[symbol] = q
+                    found = True
                     break
+            if not found and ProviderName.DB_SNAPSHOT in chains_for(symbol):
+                snapshot_candidates.add(symbol)
+
+        if snapshot_candidates:
+            try:
+                snapshot_quotes = await storage.load_latest_db_snapshot(snapshot_candidates)
+            except Exception:
+                snapshot_quotes = {}
+                logger.warning(
+                    "DB snapshot fallback failed for %d symbols",
+                    len(snapshot_candidates), exc_info=True,
+                )
+            quotes.update(snapshot_quotes)
 
         self._derive_grams(quotes)
         await self._attach_change_pct(quotes)

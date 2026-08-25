@@ -24,8 +24,11 @@ FX_CHAIN = (
     ProviderName.YFINANCE_FX,
 )
 ONS_CHAIN = (ProviderName.GENELPARA, ProviderName.YFINANCE_METALS)
-VARIETY_CHAIN = (ProviderName.GENELPARA,)  # TRY jeweller varieties; DB snapshot last
-COMMODITY_CHAIN = (ProviderName.GENELPARA,)
+# TRY jeweller varieties and commodities have GenelPara as their only live
+# provider; DB_SNAPSHOT is a service-level (not fetched) last resort so a
+# GenelPara outage degrades to a stale value instead of the symbol vanishing.
+VARIETY_CHAIN = (ProviderName.GENELPARA, ProviderName.DB_SNAPSHOT)
+COMMODITY_CHAIN = (ProviderName.GENELPARA, ProviderName.DB_SNAPSHOT)
 
 _ONS_SET = frozenset(ONS_METALS)
 

@@ -88,7 +88,7 @@ async def test_fetch_quotes_single_category_and_remaining_tracking():
     assert provider.status().consecutive_failures == 0  # record_success ran
 
 
-async def test_fetch_quotes_groups_categories_and_uses_sembol_all_for_altin():
+async def test_fetch_quotes_groups_categories_and_uses_sembol_all_everywhere():
     requests: list[str] = []
 
     def handler(request):
@@ -122,9 +122,10 @@ async def test_fetch_quotes_groups_categories_and_uses_sembol_all_for_altin():
     assert quotes["XAG-ONS"].price == pytest.approx(29.75)
     assert quotes["XAU-GRAM"].buying == pytest.approx(2570.00)  # direct GA row
     assert provider.last_remaining == 900
-    # altin list is fetched as one "sembol=all" request; doviz per-symbol
-    assert "all" in requests
-    assert "USD" in requests
+    # every category is fetched as one "sembol=all" request (avoids the doviz
+    # 429 that a long comma-joined symbol list used to trigger); the results
+    # are still filtered down to the requested canonical symbols locally.
+    assert requests == ["all"] * 3
 
 
 async def test_fetch_quotes_bad_envelope_records_failure():
