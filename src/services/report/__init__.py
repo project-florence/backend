@@ -86,6 +86,29 @@ async def content_fetch(urls: list[str]) -> list[dict]:
     return results
 
 
+# Agent'a taninan araclarin tek kaynagi: hem Agent kaydina hem de prompt'taki
+# "bu adlari asla yazma" uyarisina buradan besleniyor, boylece isim listesi
+# elle tekrar yazilip senkron disi kalmaz.
+_TOOL_FUNCTIONS = [get_date, search_news, content_fetch, get_economic_data]
+_TOOL_NAMES = tuple(f.__name__ for f in _TOOL_FUNCTIONS)
+
+
+def _strip_tool_identifiers(text: str) -> str:
+    """Dahili arac adlarinin (ör. get_economic_data) rapor metnine sizmasina karsi
+    son bir guvenlik agi (belt-and-braces). Asil onlem prompt'taki kuraldir; bu
+    fonksiyon sadece modelin yine de kacirdigi durumlar icin yedektir.
+    """
+    if not text:
+        return text
+    cleaned = text
+    for name in _TOOL_NAMES:
+        cleaned = cleaned.replace(f"**{name}**", "").replace(name, "")
+    # Kaldirma sonrasi kalabilecek art arda bosluklari sadelestir.
+    while "  " in cleaned:
+        cleaned = cleaned.replace("  ", " ")
+    return cleaned
+
+
 def _mode_config(mode: str) -> tuple[int, str, str]:
     cfg = get_config()["article_analyzer"]
     if mode == "quick":
@@ -121,16 +144,17 @@ Rapor uzunlugu: {length_desc}
 
 1. **search_news** ile en az 2-3 farkli arama yap (farkli terimler dene: ticker, sirket adi, sektor). Arama sonuclarindaki **content (ozet)** bilgisi genellikle yeterlidir.
 2. Arama sonuclarini birlestir, en onemli haberleri **content_fetch** ile acip oku. Icerik cekilemezse, search_news'teki ozet bilgisini kullan.
-3. **get_economic_data** ile finansal verileri kontrol et. Bu arac henuz kullanilamiyorsa, mevcut bilgilerle raporu olustur.
+3. Finansal verileri (fiyat, sektor, degerleme, doviz/altin piyasasi) kontrol et. Bu veriler su an alinamiyorsa, mevcut bilgilerle raporu olustur.
 4. Tum bilgileri sentezle ve raporu olustur.
 
 ## Kurallar
 
-- **Kesinlikle uydurma bilgi ekleme.** Sadece okudugun haberlerden ve get_economic_data'dan gelen bilgileri kullan. Eger bazi veriler eksikse (get_economic_data calismiyorsa, icerik cekilemiyorsa), **mevcut verilerle en iyi raporu olustur** ve eksik oldugunu belirt. Eksik bilgi nedeniyle raporu reddetme.
+- **Kesinlikle uydurma bilgi ekleme.** Sadece okudugun haberlerden ve elde ettigin finansal verilerden gelen bilgileri kullan. Eger bazi veriler eksikse (finansal veriler alinamiyorsa, haber icerigi cekilemiyorsa), **mevcut verilerle en iyi raporu olustur** ve bunu raporun sonunda kisa, genel bir ifadeyle belirt (ornegin: "bazi finansal veriler bu raporda yer almamaktadir" veya "bazi haber kaynaklarinin tam metnine ulasilamamistir"). Eksik bilgi nedeniyle raporu reddetme.
 - Kullandigin her haber icin **sentiment** belirt (positive/neutral/negative), haberin URL'sini ve nedenini acikla.
 - Raporu **markdown** formatinda yaz. Baslik, alt basliklar, maddeler ve vurgular kullan.
 - Raporun bir **title** (baslik) olsun. "{ticker}" icin bir analiz basligi belirle.
-- Finansal terimleri gerektigi yerde kullan ama karmasiklastirma. Basit yatirimcilar da anlasin."""
+- Finansal terimleri gerektigi yerde kullan ama karmasiklastirma. Basit yatirimcilar da anlasin.
+- **Rapor metninde (title ve report alanlarinda) hicbir sekilde arac veya fonksiyon adindan bahsetme** ({", ".join(_TOOL_NAMES)} gibi). Bunlar senin kullandigin dahili araclardir, kullaniciya gorunmemelidir; veri eksikligini yalnizca yukaridaki gibi genel ifadelerle ("finansal veriler", "haber kaynaklari") anlat."""
 
     if purpose:
         prompt += f"""
@@ -177,7 +201,7 @@ def _build_agent(ticker: str, mode: str, purpose: str | None = None) -> Agent:
         model=model,
         system_prompt=_build_system_prompt(ticker, mode, purpose),
         output_type=ReportDraft,
-        tools=[get_date, search_news, content_fetch, get_economic_data],
+        tools=_TOOL_FUNCTIONS,
     )
 
 
@@ -212,10 +236,10 @@ async def generate_report(ticker: str, mode: str, user_id: int | None = None, pu
         logger.warning("log_token_usage failed: %s", e)
 
     return Report(
-        title=draft.title,
+        title=_strip_tool_identifiers(draft.title),
         about=draft.about,
         date=draft.date,
-        report=draft.report,
+        report=_strip_tool_identifiers(draft.report),
         sentiments=draft.sentiments,
         token_usage={
             "prompt": prompt_tokens,

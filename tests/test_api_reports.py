@@ -181,6 +181,32 @@ async def test_generate_missing_type(monkeypatch, fake_db, fake_redis):
 
 
 # ---------------------------------------------------------------------------
+# FIX 1: _credits_spend_from_token_usage helper (pure function, no I/O)
+# ---------------------------------------------------------------------------
+
+
+def test_credits_spend_from_token_usage_valid_dict():
+    result = reports_module._credits_spend_from_token_usage({"total": 20000, "prompt": 1000, "completion": 19000})
+    assert isinstance(result, int)
+    assert result == reports_module._compute_cost(20000)
+
+
+def test_credits_spend_from_token_usage_none_when_not_dict():
+    assert reports_module._credits_spend_from_token_usage([1, 2, 3]) is None
+    assert reports_module._credits_spend_from_token_usage("not a dict") is None
+    assert reports_module._credits_spend_from_token_usage(None) is None
+
+
+def test_credits_spend_from_token_usage_none_when_no_total():
+    assert reports_module._credits_spend_from_token_usage({"prompt": 100}) is None
+
+
+def test_credits_spend_from_token_usage_none_when_total_not_numeric():
+    assert reports_module._credits_spend_from_token_usage({"total": "a lot"}) is None
+    assert reports_module._credits_spend_from_token_usage({"total": True}) is None
+
+
+# ---------------------------------------------------------------------------
 # history / search
 # ---------------------------------------------------------------------------
 
@@ -205,8 +231,13 @@ async def test_history_success(fake_db, fake_redis):
     assert items[0]["id"] == 1
     assert items[0]["token_usage"] == {"total": 100}
     assert items[0]["purpose"] == "bir amac"
+    # FIX 1: gecerli token_usage.total -> sayisal credits_spend.
+    assert isinstance(items[0]["credits_spend"], int)
+    assert items[0]["credits_spend"] > 0
     assert items[1]["token_usage"] is None
     assert items[1]["title"] == "ASELS Analizi"
+    # FIX 1: token_usage yoksa credits_spend de None olmali, 500 atmamali.
+    assert items[1]["credits_spend"] is None
 
 
 async def test_history_invalid_sort(fake_db, fake_redis):
@@ -274,6 +305,33 @@ async def test_get_single_report_success(fake_db, fake_redis):
     assert body["about"] == "THYAO"
     assert body["token_usage"] == {"total": 1200}
     assert body["sentiments"] == [{"sentiment": "positive", "url": "http://x"}]
+    # FIX 1: token_usage.total gecerliyse credits_spend sayisal olmali (bkz.
+    # test_credits_spend_from_token_usage for the pure helper's edge cases).
+    assert isinstance(body["credits_spend"], int)
+    assert body["credits_spend"] > 0
+
+
+async def test_get_single_report_malformed_token_usage_returns_none_credits(fake_db, fake_redis):
+    """Bozuk token_usage (dict degil / 'total' yok) credits_spend'i None yapmali,
+    500 firlatmamali."""
+    created_at = datetime(2026, 8, 20, 9, 0, tzinfo=timezone.utc)
+    fake_db.fetchone_result = (
+        "THYAO",
+        "quick_report",
+        "THYAO Analizi",
+        '[1, 2, 3]',  # liste - dict degil
+        "amac",
+        "# Rapor",
+        None,
+        created_at,
+    )
+
+    app = build_app(reports_router)
+    resp = await request(app, "GET", "/reports/1")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["credits_spend"] is None
 
 
 async def test_get_single_report_not_found(fake_db, fake_redis):
