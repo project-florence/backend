@@ -170,10 +170,25 @@ _DEFAULTS: dict = {
         "redis_ttl": 14400,
         "model": "deepseek-v4-flash",
         "max_news": 20,
-        "max_requests": 200,
-        "max_search": 10,
-        "max_fetch": 20,
-        "timeout_s": 3600,
+        # max_requests: max_search (3) + max_fetch (5) araç tur-turu, artı ilk ve
+        # son (yapılandırılmış çıktı) model istekleri, artı pydantic-ai'nin kendi
+        # arg/çıktı doğrulama retry'ları için pay. Araç bütçeleri artık mekanik
+        # olarak zorlanıyor (bkz. digest/tools.py prepare hook'ları), bu yüzden
+        # sağlıklı bir çalıştırma yalnızca birkaç istek gerektirir; bu, beklenen
+        # istek sayısı değil, bir şeyler yine ters giderse harcanan zamanın tavanı.
+        "max_requests": 15,
+        # max_search / max_fetch: çalıştırma prompt'u zaten bir piyasa görünümü ve
+        # max_news (20) önceden toplanmış başlık içeriyor, ve sistem prompt'u tam
+        # metin okumayı 1-3 makaleyle sınırlıyor; bu yüzden bu değerler yalnızca
+        # bunu ve ara sıra bir ek arama/fetch için küçük bir payı kapsamalı.
+        "max_search": 3,
+        "max_fetch": 5,
+        # timeout_s: en kötü durum ağ G/Ç'si (max_search * 10s arama zaman aşımı +
+        # max_fetch * 15s fetch zaman aşımı = 105s) artı max_requests kadar LLM
+        # tur-turu (her biri için birkaç saniye cömertçe), yukarı yuvarlanmış pay
+        # ile. Sağlıklı bir çalıştırma bir-iki dakika sürer; bu, takılan bir
+        # çalıştırmayı önceki bir saat yerine birkaç dakikayla sınırlar.
+        "timeout_s": 180,
         "timezone": "Europe/Istanbul",
     },
 }

@@ -289,7 +289,7 @@ async def test_generate_digest_times_out_instead_of_hanging(monkeypatch):
 async def test_generate_digest_config_has_timeout_default():
     from src.core.config import get_config
 
-    assert get_config()["digest"]["timeout_s"] == 3600
+    assert get_config()["digest"]["timeout_s"] == 180
 
 
 # ---------------------------------------------------------------------------
@@ -566,9 +566,97 @@ async def test_reset_budget_resets_counters(monkeypatch):
 
 async def test_budget_defaults_in_config():
     digest_cfg = _digest_config()["digest"]
-    assert digest_cfg.get("max_search") == 10
-    assert digest_cfg.get("max_fetch") == 20
-    assert digest_cfg.get("timeout_s") == 3600
+    assert digest_cfg.get("max_search") == 3
+    assert digest_cfg.get("max_fetch") == 5
+    assert digest_cfg.get("timeout_s") == 180
+
+
+# ---------------------------------------------------------------------------
+# 6c. mechanical budget enforcement: once a tool's budget is exhausted, the
+#     pydantic-ai ``prepare`` hook must drop it from the tool schema offered
+#     to the model (not merely return a soft "budget exceeded" sentinel).
+# ---------------------------------------------------------------------------
+
+
+async def _offered_tool_names(agent) -> set:
+    """Tool names that would be offered to the model for the next step
+    (prepare hooks run inside FunctionToolset.get_tools())."""
+    from pydantic_ai._run_context import RunContext
+    from pydantic_ai.usage import RunUsage
+
+    ctx = RunContext(deps=None, model=agent.model, usage=RunUsage())
+    offered = await agent._function_toolset.get_tools(ctx)
+    return set(offered)
+
+
+async def test_search_news_tool_dropped_when_search_budget_exhausted(monkeypatch):
+    tools_module.reset_budget()
+
+    async def _empty_search(query, limit=None):
+        return []
+
+    monkeypatch.setattr("src.clients.search.news_search", _empty_search, raising=False)
+
+    config = _digest_config(max_search=2, max_fetch=5)
+    monkeypatch.setattr(tools_module, "get_config", lambda: config)
+
+    agent = _build_agent()
+    assert await _offered_tool_names(agent) == {"search_news", "fetch_article_text"}
+
+    await tools_module.search_news("q")
+    await tools_module.search_news("q")
+
+    assert await _offered_tool_names(agent) == {"fetch_article_text"}
+    tools_module.reset_budget()
+
+
+async def test_fetch_article_text_tool_dropped_when_fetch_budget_exhausted(monkeypatch):
+    tools_module.reset_budget()
+
+    def _some_text(url):
+        return "some article body"
+
+    monkeypatch.setattr(
+        "src.clients.scraping.get_text_from_url", _some_text, raising=False
+    )
+
+    config = _digest_config(max_search=3, max_fetch=2)
+    monkeypatch.setattr(tools_module, "get_config", lambda: config)
+
+    agent = _build_agent()
+    assert await _offered_tool_names(agent) == {"search_news", "fetch_article_text"}
+
+    await tools_module.fetch_article_text("http://x")
+    await tools_module.fetch_article_text("http://x")
+
+    assert await _offered_tool_names(agent) == {"search_news"}
+    tools_module.reset_budget()
+
+
+async def test_both_tools_dropped_when_both_budgets_exhausted(monkeypatch):
+    tools_module.reset_budget()
+
+    async def _empty_search(query, limit=None):
+        return []
+
+    def _some_text(url):
+        return "some article body"
+
+    monkeypatch.setattr("src.clients.search.news_search", _empty_search, raising=False)
+    monkeypatch.setattr(
+        "src.clients.scraping.get_text_from_url", _some_text, raising=False
+    )
+
+    config = _digest_config(max_search=1, max_fetch=1)
+    monkeypatch.setattr(tools_module, "get_config", lambda: config)
+
+    agent = _build_agent()
+
+    await tools_module.search_news("q")
+    await tools_module.fetch_article_text("http://x")
+
+    assert await _offered_tool_names(agent) == set()
+    tools_module.reset_budget()
 
 
 def test_agent_keeps_exactly_two_tools():

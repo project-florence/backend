@@ -11,6 +11,7 @@ import logging
 import uuid
 from datetime import date, datetime, timezone
 
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
 from src.core.config import get_config
@@ -68,10 +69,34 @@ async def generate_digest(slot: str = "evening") -> Digest:
         news = await tools.get_news_feed()
 
         agent = _build_agent()
-        result = await agent.run(
-            prepare_context(slot, snapshot, news),
-            usage_limits=UsageLimits(request_limit=int(digest_cfg.get("max_requests", 200))),
-        )
+        try:
+            result = await agent.run(
+                prepare_context(slot, snapshot, news),
+                usage_limits=UsageLimits(request_limit=int(digest_cfg.get("max_requests", 200))),
+            )
+        except UsageLimitExceeded:
+            usage = tools.get_budget_usage()
+            max_search = int(digest_cfg.get("max_search", 10))
+            max_fetch = int(digest_cfg.get("max_fetch", 20))
+            exhausted = [
+                name
+                for name, count, budget in (
+                    ("search_news", usage["search_count"], max_search),
+                    ("fetch_article_text", usage["fetch_count"], max_fetch),
+                )
+                if count >= budget
+            ]
+            logger.warning(
+                "Digest generation hit request_limit without producing output "
+                "(slot=%s, search_calls=%d/%d, fetch_calls=%d/%d, exhausted_budgets=%s)",
+                slot,
+                usage["search_count"],
+                max_search,
+                usage["fetch_count"],
+                max_fetch,
+                exhausted or "none",
+            )
+            raise
 
     digest: Digest = result.output
     digest.id = uuid.uuid4().hex

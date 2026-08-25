@@ -4,11 +4,22 @@ Each tool is an ``async`` function that wraps an existing backend service or
 client and is down-tolerant: on any external failure it returns an
 "unavailable" marker / empty container and never raises. Imports happen inside
 the function body to avoid circular imports at module load time.
+
+``prepare_search_news`` / ``prepare_fetch_article_text`` are pydantic-ai
+``ToolPrepareFunc`` hooks (see ``agent.py``): once a tool's budget is spent
+they return ``None`` so the tool is dropped from the schema sent to the model
+for the next step, making the budget mechanically enforceable instead of a
+soft "budget exceeded" sentinel the model can choose to ignore.
 """
 
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from src.core.config import get_config
+
+if TYPE_CHECKING:
+    from pydantic_ai import RunContext
+    from pydantic_ai.tools import ToolDefinition
 
 _ARTICLE_TEXT_MAX = 4000
 _ECONOMY_SYMBOLS = ("USD", "EUR", "GBP", "XAU-GRAM", "XAU-ONS")
@@ -22,6 +33,31 @@ def reset_budget():
     global _search_count, _fetch_count
     _search_count = 0
     _fetch_count = 0
+
+
+def get_budget_usage() -> dict:
+    """Current search/fetch call counters, for diagnostic logging."""
+    return {"search_count": _search_count, "fetch_count": _fetch_count}
+
+
+def prepare_search_news(
+    ctx: "RunContext", tool_def: "ToolDefinition"
+) -> "ToolDefinition | None":
+    """Drop the search_news tool once its budget is spent."""
+    max_search = int(get_config()["digest"].get("max_search", 10))
+    if _search_count >= max_search:
+        return None
+    return tool_def
+
+
+def prepare_fetch_article_text(
+    ctx: "RunContext", tool_def: "ToolDefinition"
+) -> "ToolDefinition | None":
+    """Drop the fetch_article_text tool once its budget is spent."""
+    max_fetch = int(get_config()["digest"].get("max_fetch", 20))
+    if _fetch_count >= max_fetch:
+        return None
+    return tool_def
 
 
 async def get_datetime() -> dict:

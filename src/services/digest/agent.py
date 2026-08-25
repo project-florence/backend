@@ -6,8 +6,13 @@ and ``fetch_article_text``. Objective data (market snapshot and news feed) is
 pre-collected by the service and embedded in the conversation context, so the
 model only reads the full text of headlines it finds impactful and then
 converges on a Digest. Keeping the tool surface minimal is required so the
-model never loops on tool calls. The agent is built per generation (see
-``service.generate_digest``) so stale tool state never leaks between runs.
+model never loops on tool calls. Both tools are wrapped in ``Tool(..., prepare=...)``
+so that once ``tools.py``'s per-tool budget is spent, the ``prepare`` hook drops
+the tool from the schema sent to the model for the next step -- a weak model
+that ignores the "budget exceeded" text sentinel simply can no longer call the
+tool, instead of looping until ``max_requests`` is hit. The agent is built per
+generation (see ``service.generate_digest``) so stale tool state never leaks
+between runs.
 """
 
 import os
@@ -15,6 +20,7 @@ import os
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.tools import Tool
 
 from src.core.config import get_config
 from src.services.digest import tools
@@ -65,7 +71,7 @@ def _build_agent() -> Agent:
             "parallel_tool_calls": False,
         },
         tools=[
-            tools.search_news,
-            tools.fetch_article_text,
+            Tool(tools.search_news, prepare=tools.prepare_search_news),
+            Tool(tools.fetch_article_text, prepare=tools.prepare_fetch_article_text),
         ],
     )
