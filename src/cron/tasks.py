@@ -24,6 +24,7 @@ from src.services.bist import get_bist_companies_as_dict_from_redis
 from src.services.company import get_company_info
 from src.services.price import INTRADAY_INTERVALS, get_price_history, invalidate_price_cache
 from src.services.stats import get_all_stats
+from src.services.ticker_health import NOT_FOUND, classify_error, filter_suppressed, record_failure, record_success
 from src.utils.mapping import load_bist_mapping
 
 from psycopg.sql import Identifier, SQL
@@ -47,31 +48,15 @@ BIST30_TICKERS = [
 BATCH_DELAY = 10
 INFO_TICKER_DELAY = 2
 
-# Delisted (borsadan cikmis) ticker'larin tutuldugu Redis set'i. Her turda
-# yf.download / get_company_info'yu 30-60s yavaslatan olu ticker'lar ilk
-# basarisizlikta isaretlenir; sonraki turlarda tamamen atlanir.
-DELISTED_KEY = "delisted_tickers"
-
 # _refresh_company_info turu 20-94 dk surebildigi icin lock TTL'i 7200s:
 # tur hala surerken lock expire olup ust uste binmesin.
 INFO_LOCK_TTL = 7200
 
-
-async def _load_delisted() -> set[str]:
-    """Redis'teki delisted ticker setini dondurur (Redis down ise bos)."""
-    try:
-        members = await r.smembers(DELISTED_KEY)
-        return set(members) if members else set()
-    except Exception:
-        return set()
-
-
-async def _mark_delisted(ticker: str) -> None:
-    """Basarisiz (buyuk olasilikla delisted) ticker'i Redis set'ine ekler."""
-    try:
-        await r.sadd(DELISTED_KEY, ticker)
-    except Exception:
-        pass
+# Olu (borsadan cikmis/upstream'de bulunamayan) ticker'larin toplu tazeleme
+# donglerinden dislanmasi src.services.ticker_health uzerinden yapilir
+# (ardisik basarisizlik esigi + gecici bastirma penceresi; bkz. o modulun
+# docstring'i). Eskiden burada kalici, geri donusu olmayan bir Redis set'i
+# (DELISTED_KEY) kullaniliyordu — ticker_health onun yerini alir.
 
 # Tier config: (name, cron_frequency, default_interval, batch_size)
 TIERS = {
@@ -168,6 +153,8 @@ async def _update_batch(batch_tickers: list[str], interval: str, period: str, ti
 
     count = 0
     updated_tickers = []
+    empty_tickers = []
+    commit_ok = True
 
     async with price_write_lock:
         try:
@@ -179,6 +166,7 @@ async def _update_batch(batch_tickers: list[str], interval: str, period: str, ti
                         tdf = df[ticker] if multi else df
                         tdf = tdf.dropna(how="all")
                         if tdf.empty:
+                            empty_tickers.append(ticker)
                             continue
 
                         values = []
@@ -216,9 +204,28 @@ async def _update_batch(batch_tickers: list[str], interval: str, period: str, ti
             logger.warning("Batch commit basarisiz, {} ticker yazilamadi".format(len(batch_tickers)))
             count = 0
             updated_tickers = []
+            commit_ok = False
 
     for ticker in updated_tickers:
         await invalidate_price_cache(ticker, interval)
+
+    # ticker_health: yalniz batch/commit tamamen basarili oldugunda (yani
+    # asagidaki listeler upstream'in verdigi gercek cevabi yansitiyorsa)
+    # kaydet. Bir DB yazma hatasi bizim tarafimizdadir, upstream'e mal
+    # edilmemeli — bu durumda hicbir kayit yapilmaz.
+    if commit_ok:
+        for ticker in updated_tickers:
+            await record_success(ticker.removesuffix(".IS"))
+        # available'de hic olmayan (yf.download sonucunda sutunu bile
+        # gelmeyen) ve veri sonrasi tamamen bos cikan ticker'lar: upstream'in
+        # sembolu tanimadigina dair ucuz ama makul kanit ("possibly
+        # delisted" ile ayni anlamda — data.py/history.py'nin urettigi
+        # mesajla ayni sinif, sadece burada mesaj yok).
+        not_found_tickers = [t for t in batch_tickers if t not in available] + empty_tickers
+        for ticker in not_found_tickers:
+            await record_failure(
+                ticker.removesuffix(".IS"), NOT_FOUND, "yf.download batch: veri yok"
+            )
 
     logger.info("%s mum kaydedildi, %s cache invalidated", count, len(updated_tickers))
 
@@ -233,10 +240,9 @@ async def _refresh_company_info(tier_keys: list[str]) -> None:
     mapping = load_bist_mapping()
     popular_tickers = list(mapping.keys())
 
-    # Delisted ticker'lari atla (her biri get_company_info'yu 30-60s uzatir).
-    delisted = await _load_delisted()
-    if delisted:
-        popular_tickers = [t for t in popular_tickers if t not in delisted]
+    # Bastirilan (muhtemelen olu) ticker'lari atla (her biri get_company_info'yu
+    # 30-60s uzatir) — bkz. src/services/ticker_health.py.
+    popular_tickers = await filter_suppressed(popular_tickers)
 
     total = len(popular_tickers)
     for i, ticker in enumerate(popular_tickers, 1):
@@ -245,14 +251,15 @@ async def _refresh_company_info(tier_keys: list[str]) -> None:
             profile = await get_company_info(ticker, use_cache=False)
             if profile:
                 logger.info("OK (%s alan)", len(profile))
+                await record_success(ticker)
             else:
                 # Surekli "veri yok" donen ticker: buyuk olasilikla delisted.
-                # Sonraki turlarda yine 30-60s harcamamak icin isaretle.
-                logger.info("veri yok — delisted olarak isaretleniyor")
-                await _mark_delisted(ticker)
+                logger.info("veri yok")
+                await record_failure(ticker, NOT_FOUND, "get_company_info: bos profil")
         except Exception as e:
-            logger.warning("hata: %s — delisted olarak isaretleniyor", e)
-            await _mark_delisted(ticker)
+            kind = classify_error(e)
+            logger.warning("hata: %s (%s)", e, kind)
+            await record_failure(ticker, kind, str(e))
 
         if i < total:
             await asyncio.sleep(INFO_TICKER_DELAY)
@@ -268,11 +275,9 @@ async def update_tier(tier_name: str, interval: str | None = None, info: bool = 
     effective_interval = interval or default_interval
     ticker_list = (await _ticker_sets())[tier_name]
 
-    # Delisted ticker'lari fiyat turlarindan da cikar (yf.download batch'ini
-    # 30-60s yavaslatirlar).
-    delisted = await _load_delisted()
-    if delisted:
-        ticker_list = [t for t in ticker_list if t not in delisted]
+    # Bastirilan (muhtemelen olu) ticker'lari fiyat turlarindan da cikar
+    # (yf.download batch'ini yavaslatirlar) — bkz. src/services/ticker_health.py.
+    ticker_list = await filter_suppressed(ticker_list)
 
     # Info turu (20-94 dk) dahil tum tur boyunca lock tutulur; TTL tur
     # suresini karsilasin ki lock expire olup ust uste binmesin.
@@ -328,10 +333,8 @@ async def run_update_daily_closes() -> None:
     companies = await get_bist_companies_as_dict_from_redis()
     all_tickers = sorted({c["ticker"] for c in companies})
 
-    # Delisted ticker'lari atla (yf.download'u yavaslatirlar).
-    delisted = await _load_delisted()
-    if delisted:
-        all_tickers = [t for t in all_tickers if t not in delisted]
+    # Bastirilan ticker'lari atla (yf.download'u yavaslatirlar).
+    all_tickers = await filter_suppressed(all_tickers)
 
     total = len(all_tickers)
     logger.info("Gunluk kapanis mumlari guncelleniyor: %s ticker", total)
@@ -362,6 +365,7 @@ async def run_credit_refill() -> None:
 async def run_seed_vectors(count: int = 200, delay: float | None = None) -> None:
     stats = await get_all_stats()
     all_tickers = [s["ticker"] for s in stats]
+    all_tickers = await filter_suppressed(all_tickers)
 
     if count == -1:
         tickers = all_tickers
@@ -380,14 +384,18 @@ async def run_seed_vectors(count: int = 200, delay: float | None = None) -> None
             profile = await get_company_info(ticker, use_cache=True)
             if not profile:
                 logger.info("profil verisi yok")
+                await record_failure(ticker, NOT_FOUND, "get_company_info: bos profil")
                 errors += 1
                 continue
 
+            await record_success(ticker)
             vec = company_vector(profile)
             vectors.append({"ticker": ticker, **vec})
             logger.info("risk=%.2f horizon=%.2f profitability=%.2f", vec["risk"], vec["horizon"], vec["profitability"])
         except Exception as e:
-            logger.warning("hata: %s", e)
+            kind = classify_error(e)
+            logger.warning("hata: %s (%s)", e, kind)
+            await record_failure(ticker, kind, str(e))
             errors += 1
 
         batch_size = 50
@@ -412,14 +420,15 @@ async def run_seed_vectors(count: int = 200, delay: float | None = None) -> None
 # ----------------------------------------------------------------------
 # Redis fiyat cache on-isitma
 # ----------------------------------------------------------------------
-async def _warm_one(ticker: str) -> None:
-    await get_price_history(ticker, "5y", "1d", hot=True)
+async def _warm_one(ticker: str) -> list:
+    return await get_price_history(ticker, "5y", "1d", hot=True)
 
 
 async def run_warm_price_cache() -> None:
     from src.services.bist import get_bist_tickers_as_json_from_redis
 
     tickers = json.loads(await get_bist_tickers_as_json_from_redis())
+    tickers = await filter_suppressed(tickers)
     logger.info("Warming %s tickers with 3 parallel workers...", len(tickers))
 
     start_time = time.time()
@@ -430,14 +439,24 @@ async def run_warm_price_cache() -> None:
 
     async def _warm(ticker: str) -> None:
         nonlocal done, errors
+        base = ticker.removesuffix(".IS")
         try:
             async with sem:
-                await _warm_one(ticker)
+                candles = await _warm_one(ticker)
             done += 1
-            logger.info("[%s/%s] OK  %s", done, len(tickers), ticker)
+            if candles:
+                await record_success(base)
+                logger.info("[%s/%s] OK  %s", done, len(tickers), ticker)
+            else:
+                # yfinance sessizce bos mum listesi dondurur (istisna
+                # firlatmaz) — bu, "possibly delisted; no price data found"
+                # ile ayni anlamda ucuz bir "bulunamadi" kaniti.
+                await record_failure(base, NOT_FOUND, "get_price_history: bos sonuc")
+                logger.info("[%s/%s] EMPTY %s (no candles)", done, len(tickers), ticker)
         except Exception as e:
             done += 1
             errors += 1
+            await record_failure(base, classify_error(e), str(e))
             logger.warning("[%s/%s] ERR %s: %s", done, len(tickers), ticker, e)
 
     tasks = []

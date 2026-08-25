@@ -89,6 +89,18 @@ _DEFAULTS: dict = {
         "circuit_open_s": 600,
         "gram_per_oz": 31.1035,
     },
+    "ticker_health": {
+        # Olu ticker bastirma (dead-ticker suppression) esikleri.
+        # Ardisik basarisizlik sayaci bu esigi asinca ticker gecici olarak
+        # toplu tazeleme dongulerinden (bkz. src/cron/tasks.py) dislanir.
+        "failure_threshold": 3,
+        # "not_found": upstream'in sembolu tanimadigina dair guclu kanit
+        # (404 / bos quote / bos yfinance sonucu) -> uzun bekleme (7 gun).
+        "not_found_cooldown_s": 7 * 24 * 60 * 60,
+        # "transient": ag/istek hatasi gibi zayif kanit -> kisa bekleme (6 saat),
+        # geçici sorunlar ayni gun icinde kendiliginden duzelsin.
+        "transient_cooldown_s": 6 * 60 * 60,
+    },
     "halkarz": {
         "base_url": "https://halkarz.com",
         "wp_api": "https://halkarz.com/wp-json/wp/v2/posts",
