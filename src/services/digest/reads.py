@@ -74,20 +74,44 @@ def _digest_from_row(row) -> Digest | None:
 
 
 async def get_current_digest() -> Digest | None:
-    """Read the current digest from Redis (config key), None if missing/invalid."""
+    """Read the current digest: Redis fast path, DB fallback on miss/invalid/error.
+
+    Saglayici (AI provider) kota/rate limit asimlari yuzunden bazi gunler
+    yeni bir digest uretilemeyebilir; Redis TTL'i (varsayilan 4 saat) slot
+    araliklarindan (09:45/13:15/18:45) kisa oldugu icin gece boyunca Redis
+    dogal olarak bosalir. Bu durumda kullaniciya 404 yerine digests
+    tablosundaki en son basariyla uretilmis kaydi gostermek daha dogru bir
+    kullanici deneyimi saglar. Redis her zaman hizli yol olarak denenir;
+    sadece Redis'te gecerli bir deger yoksa (miss, hata veya bozuk payload)
+    DB'ye dusulur.
+    """
     redis_key = get_config()["digest"]["redis_key"]
     try:
         raw = await r.get(redis_key)
     except Exception as e:
         logger.warning("Failed to read current digest from Redis: %s", e)
-        return None
-    if not raw:
-        return None
+        raw = None
+    if raw:
+        try:
+            return Digest(**json.loads(raw))
+        except Exception as e:
+            logger.warning("Invalid current digest payload in Redis: %s", e)
+
+    return await get_latest_digest()
+
+
+async def get_latest_digest() -> Digest | None:
+    """Return the newest digest across all dates/slots, or None if the table is empty."""
     try:
-        return Digest(**json.loads(raw))
+        async with db.cursor() as cur:
+            await cur.execute(
+                f"SELECT {_DIGEST_COLUMNS} FROM digests ORDER BY created_at DESC LIMIT 1"
+            )
+            row = await cur.fetchone()
     except Exception as e:
-        logger.warning("Invalid current digest payload in Redis: %s", e)
+        logger.warning("Failed to read latest digest: %s", e)
         return None
+    return _digest_from_row(row)
 
 
 async def get_digest_by_date_slot(digest_date: date, slot: str) -> Digest | None:

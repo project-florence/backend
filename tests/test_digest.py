@@ -706,6 +706,13 @@ async def test_get_current_digest_happy_path(monkeypatch):
 
 
 async def test_get_current_digest_missing_invalid_or_down(monkeypatch):
+    # DB fallback bilerek bos: bu test "Redis'te hicbir sey yok VE DB'de de
+    # hicbir sey yok" durumunu kapsiyor. DB'de gercekten bir kayit varken
+    # Redis miss/hata durumunda ne olacagi asagidaki fallback testinde.
+    fake_db = _FakeDB()
+    fake_db.fetchone_result = None
+    monkeypatch.setattr(reads_module, "db", fake_db)
+
     monkeypatch.setattr(reads_module, "r", _FakeRedis(value=None))
     assert await reads_module.get_current_digest() is None
 
@@ -717,6 +724,40 @@ async def test_get_current_digest_missing_invalid_or_down(monkeypatch):
 
     monkeypatch.setattr(reads_module, "r", _FakeRedis(value='{"id":"x"}', error=True))
     assert await reads_module.get_current_digest() is None
+
+
+async def test_get_current_digest_falls_back_to_latest_db_row_on_redis_miss(monkeypatch):
+    """Redis miss/invalid/hata olsa da digests tablosundaki en son kayit donmeli.
+
+    Bu, saglayici kota asimi yuzunden yeni digest uretilemeyen gecelerde
+    kullaniciya 404 yerine son basarili digestin gosterilmesini saglayan
+    fallback davranisini dogrular.
+    """
+    fake_db = _FakeDB()
+    fake_db.fetchone_result = _row(id="latest-db-row", slot="morning")
+    monkeypatch.setattr(reads_module, "db", fake_db)
+
+    # 1) Redis'te anahtar hic yok (TTL suresi dolmus / hic yazilmamis).
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value=None))
+    out = await reads_module.get_current_digest()
+    assert isinstance(out, Digest)
+    assert out.id == "latest-db-row"
+    assert out.slot == "morning"
+
+    # 2) Redis'te bozuk bir payload var.
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value="not-json{"))
+    out = await reads_module.get_current_digest()
+    assert out.id == "latest-db-row"
+
+    # 3) Redis erisimi hata veriyor (down).
+    monkeypatch.setattr(reads_module, "r", _FakeRedis(value="x", error=True))
+    out = await reads_module.get_current_digest()
+    assert out.id == "latest-db-row"
+
+    # Sorgu ORDER BY created_at DESC LIMIT 1 ile, tarih/slot filtresi olmadan calisir.
+    query = fake_db.queries[-1][0]
+    assert "ORDER BY created_at DESC LIMIT 1" in query
+    assert "WHERE" not in query
 
 
 async def test_get_digest_by_date_slot_happy_path(monkeypatch):
