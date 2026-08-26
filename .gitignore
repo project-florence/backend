@@ -224,3 +224,6 @@ project*
 # database
 *.sql
 !migrations/*.sql
+
+# .env yedekleri (sir icerir)
+.env.bak*
