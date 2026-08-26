@@ -1,9 +1,12 @@
 """Veri disa aktarim iscisi: exports tablosundaki kayitlari arka planda isler.
 
 Akis (``_run_export``):
-  (a) status='processing' -> coverage kontrolu: yil icin DB'deki 1d mum
-      sayisi beklenenin (ticker sayisi x 245) %97'sinden azsa bulk fill
-      (``bulk.fill_year``) calistirilir, sonra sayim yenilenir.
+  (a) status='processing' -> coverage kontrolu: yil icin DB'de verisi olan
+      benzersiz islem gunu (session date) sayisi beklenen islem gununun
+      (``EXPECTED_TRADING_DAYS``) %97'sinden azsa bulk fill
+      (``bulk.fill_year``) calistirilir, sonra sayim yenilenir. Bu olcum
+      ticker bazli tamlik degil, yilin BIST takviminin DB'de ne kadar
+      temsil edildigidir — bkz. ``_coverage_count`` docstring'i.
   (b) Veri akisli uretilir (fetchmany 5000) ve gzip (zlib, wbits=31)
       dosyaya yazilir: CSV -> ``ticker,date,open,high,low,close,volume``;
       JSON -> ``{ticker: [...]}`` (ticker degisiminde blok kapatilir/acilir).
@@ -39,9 +42,34 @@ EXPORTS_DIR = BASE_DIR / "data" / "exports"
 
 CSV_HEADER = "ticker,date,open,high,low,close,volume"
 
-# Coverage kurali: beklenen mum sayisi = ticker sayisi x 245 islem gunu.
+# Coverage kurali: beklenen deger, yil icindeki BIST islem gunu sayisi
+# (takvim bazli — bkz. _coverage_count). ONEMLI: bu ticker basina satir
+# sayisi DEGIL; ticker sayisiyla carpilmaz. yfinance'in duz-sifir hacim
+# placeholder satirlari ingest'ten cikarilip gecmisten silindiginden
+# (halt gecmisi olan ticker'lar artik kalici olarak eksik satirli), eski
+# "ticker sayisi x 245 satir" varsayimi bir daha asla saglanamaz ve her
+# export'ta bosuna fill_year tetiklerdi. Bkz. _coverage_count docstring'i.
 EXPECTED_TRADING_DAYS = 245
 COVERAGE_RATIO = 0.97
+
+
+def _year_bounds_utc(year: int) -> tuple[datetime, datetime]:
+    """BIST islem-yili sinirlarini UTC olarak dondurur.
+
+    Sinirlar Istanbul gece yarisina gore hesaplanir (21:00Z convention):
+    yilin ilk BIST gunu, bir onceki UTC yilinin 31 Aralik 21:00'inde
+    baslar. Raw UTC yil siniri (``datetime(year,1,1,tzinfo=utc)``)
+    kullanilirsa 1 Ocak seansi bir onceki yila, 31 Aralik seansi ise hic
+    sayilmadan disari dusebilir.
+
+    NOT: src.services.market ileride ``session_date``/``session_ts``
+    helper'lari eklerse bu fonksiyon ``session_ts(date(year,1,1))`` /
+    ``session_ts(date(year+1,1,1))`` ile degistirilebilir — imza ve donus
+    tipi (start, end UTC datetime ciftleri) kasitli olarak uyumlu tutuldu.
+    """
+    start = datetime(year, 1, 1, tzinfo=IST).astimezone(timezone.utc)
+    end = datetime(year + 1, 1, 1, tzinfo=IST).astimezone(timezone.utc)
+    return start, end
 
 
 def _csv_val(v) -> str:

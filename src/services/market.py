@@ -8,6 +8,7 @@ onbelleklenir (Redis proxy down ise her cagri dogrudan hesaplanir).
 
 import json
 import logging
+import math
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -101,3 +102,80 @@ async def get_market_status_payload(now: datetime | None = None) -> dict:
     except Exception:
         pass
     return payload
+
+
+# ----------------------------------------------------------------------
+# Mum (candle) yazma katmani icin ortak yardimcilar
+#
+# D1/D2 duzeltmesi: yfinance halt edilmis sembollerde duz/hacimsiz "placeholder"
+# mum uretiyor, ve on-demand (Ticker.history, tz-aware) ile cron (yf.download,
+# naive) yollari ayni seans icin iki farkli ts konvansiyonu ((21:00Z eski,
+# 00:00Z yeni) yaziyor. Bu dorduzu tum yazim yollari (price.py, cron/tasks.py,
+# bulk.py, scripts/seed_prices.py) tarafindan kullanilir; imzalar sabittir.
+# ----------------------------------------------------------------------
+
+# Kanonik normalizasyon sadece gunluk-ve-uzeri araliklar icin tanimli;
+# intraday (5m/30m/1h vb.) araliklar oldugu gibi birakilir.
+DAILY_INTERVALS = {"1d", "1wk", "1mo"}
+
+
+def session_date(ts: datetime) -> date:
+    """Bir mum zaman damgasini BIST seans tarihine cevirir (Istanbul saati).
+
+    ``ts`` tz-aware olmalidir (DB'den TIMESTAMPTZ olarak okunan degerler
+    hep boyledir). Hem eski (21:00Z gece yarisi) hem yeni (00:00Z gece
+    yarisi) yazim konvansiyonu icin dogru seans tarihini dondurur, cunku
+    ikisi de Istanbul saatine cevrildiginde ayni takvim gunune duser.
+    """
+    return ts.astimezone(MARKET_TIMEZONE).date()
+
+
+def session_ts(d: date) -> datetime:
+    """Bir seans tarihini kanonik saklama anina cevirir: Istanbul gece yarisi.
+
+    Turkiye 2016'dan beri yaz saati uygulamiyor (sabit UTC+3), bu yuzden bu
+    deger her zaman onceki UTC gununun 21:00'ine esittir.
+    """
+    return datetime(d.year, d.month, d.day, tzinfo=MARKET_TIMEZONE)
+
+
+def normalize_candle_ts(ts: datetime, interval: str) -> datetime:
+    """Gunluk-ve-uzeri mum zaman damgasini kanonik Istanbul gece yarisina
+    normalize eder; intraday araliklari oldugu gibi birakir.
+
+    Bu, D2'nin duzeltmesidir: on-demand yol (``Ticker.history``, tz-aware,
+    21:00Z yazar) ile cron yolu (``yf.download``, naive, 00:00Z yazar) ayni
+    seans icin farkli ``ts`` uretiyordu ve PK ``(ticker, interval, ts)``
+    ON CONFLICT hicbir zaman tetiklenmiyordu — iki satir da kaliciydi.
+
+    Naive (tz bilgisi olmayan) bir zaman damgasi ozellikle ``yf.download``'in
+    cron yolundan gelir; bu deger UTC DEGIL, doganidan BIST seans tarihinin
+    kendisidir (saat kismi her zaman 00:00) — bu yuzden UTC varsayip
+    Istanbul'a cevirmek yerine dogrudan tarih olarak okunur. Bunu yanlis
+    yapmak D2 hatasini geri getirir.
+    """
+    if interval not in DAILY_INTERVALS:
+        return ts
+    d = ts.date() if ts.tzinfo is None else session_date(ts)
+    return session_ts(d)
+
+
+def is_placeholder_candle(open_, high, low, close, volume) -> bool:
+    """Halt edilmis bir sembolde yfinance'in urettigi duz/hacimsiz yer
+    tutucu mumu tespit eder: hacim 0/None VE OHLC'nin dordu de esit.
+
+    Herhangi bir fiyat ``None`` ise placeholder SAYILMAZ (bu durum ayri bir
+    kontrolle -- Open/Close None kontrolu -- zaten elenir). Float esitligi
+    icin ``math.isclose`` kullanilir; yfinance'in urettigi placeholder
+    satirlarda dort deger de ayni kaynaktan (son islem fiyati) geldigi icin
+    bu tam esitlestirmeyi de kapsar.
+    """
+    if open_ is None or high is None or low is None or close is None:
+        return False
+    if volume not in (0, None):
+        return False
+    return (
+        math.isclose(open_, high)
+        and math.isclose(open_, low)
+        and math.isclose(open_, close)
+    )
