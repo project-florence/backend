@@ -578,6 +578,29 @@ async def init_db() -> None:
                 );
                 CREATE INDEX IF NOT EXISTS idx_digests_date_slot ON digests (date, slot);
             """)
+            # --- LLM saglayici/model altyapisi: Adim 1 (temel katman) -------
+            # Tasarim: florence/REFACTOR_PLAN.md Bolum 2.3 (migrations/013 ile
+            # senkron). Davranis degisikligi yok -- digest/rapor bu tablolari
+            # henuz okumuyor (Adim 2'nin isi), sadece sema burada kuruluyor.
+            await cur.execute("""
+                CREATE TABLE IF NOT EXISTS llm_providers (
+                    provider          TEXT PRIMARY KEY,      -- katalogdaki id (src/llm/providers.py)
+                    api_key_encrypted BYTEA,                 -- AES-256-GCM, nonce dahil (src/llm/crypto.py)
+                    base_url          TEXT,                  -- yalniz openai-compatible icin kullanilir
+                    enabled           BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS llm_settings (
+                    purpose    TEXT PRIMARY KEY,             -- digest | report | embedding
+                    provider   TEXT NOT NULL REFERENCES llm_providers(provider),
+                    model      TEXT NOT NULL,
+                    params     JSONB NOT NULL DEFAULT '{}',  -- reasoning, timeout, temperature gecersiz kilmalari
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    updated_by TEXT
+                );
+            """)
         await conn.commit()
     finally:
         await _release_conn()
