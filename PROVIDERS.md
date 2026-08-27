@@ -30,14 +30,15 @@ kendi konvansiyonudur, Florence bunları kullanmaz.
 | `deepseek` | `https://api.deepseek.com` | openai-chat | — | ✅ resmi doküman |
 | `mistral` | `https://api.mistral.ai/v1` | openai-chat | — | ✅ resmi doküman |
 | `openrouter` | `https://openrouter.ai/api/v1` | openai-chat | `openrouter_reasoning` | ✅ resmi doküman |
-| `opencode-zen` | `https://opencode.ai/zen/v1` | openai-chat | — | ✅ canlı (63 model, 8 ücretsiz, auth yok) |
-| `opencode-go` | `https://opencode.ai/zen/go/v1` | openai-chat | — | ✅ canlı (31 model, ücretsiz yok, auth yok) |
+| `opencode-zen` | `https://opencode.ai/zen/v1` | openai-chat | — | ✅ canlı (63 model, 8 ücretsiz) ⁴ |
+| `opencode-go` | `https://opencode.ai/zen/go/v1` | openai-chat | — | ✅ canlı (31 model, ücretsiz yok) ⁴ |
 | `ollama-cloud` | `https://ollama.com/v1` | openai-chat | — | ✅ Hermes ile çapraz doğrulandı³ |
 | `ollama-local` | `http://localhost:11434/v1` | openai-chat | — | ✅ resmi doküman |
 | `openai-compatible` | *(seçimle birlikte saklanır)* | openai-chat | — | — |
 
 ¹ `platform.openai.com` bot engeli (403) verdiği için doğrudan çekilemedi; arama + SDK varsayılanıyla çapraz doğrulandı.
 ² `base_url` doğrudan doğrulandı, `models_url` OpenAI-uyumluluk konvansiyonundan türetildi — resmi sayfada teyit edilemedi.
+⁴ **`/models` roster'ı anahtarsız cevap verir, ama `/chat/completions` anahtar ister** — anahtarsız istek `401 Invalid API key` döndü (2026-08-27 canlı deneme). Bu ikisini karıştırmak, doğrulamayı geçip her çağrıda 401 alan bir seçim yazılmasına yol açar. Gerçekten anahtarsız tek sağlayıcı `ollama-local`.
 ³ Katalog yazılırken resmi `docs.ollama.com` yalnız yerel `/v1`'i belgeliyordu; Hermes sayfası `ollama.com/v1` diyerek bağımsız teyit sağladı.
 
 ### `reasoning_param` neden bazılarında boş
@@ -69,12 +70,12 @@ Aday havuzu. **Durum** sütunu: ✅ Florence'ta var · ⬜ aday · ➖ kapsam d�
 | OpenAI API | `openai-api` | `api.openai.com/v1` | `OPENAI_API_KEY` | ✅ `openai` |
 | Anthropic | `anthropic` | `api.anthropic.com` | `ANTHROPIC_API_KEY` / OAuth | ✅ |
 | OpenRouter | `openrouter` | `openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | ✅ |
-| DeepSeek | `deepseek` | `api.deepseek.com/v1` | `DEEPSEEK_API_KEY` | ✅ ⁴ |
+| DeepSeek | `deepseek` | `api.deepseek.com/v1` | `DEEPSEEK_API_KEY` | ✅ ⁵ |
 | xAI (Grok) | `xai` | `api.x.ai/v1` | `XAI_API_KEY` | ✅ |
 | Ollama Cloud | `ollama-cloud` | `ollama.com/v1` | `OLLAMA_API_KEY` | ✅ |
 | OpenCode Zen | `opencode-zen` | — | `OPENCODE_ZEN_API_KEY` | ✅ |
 | OpenCode Go | `opencode-go` | — | `OPENCODE_GO_API_KEY` | ✅ |
-| OpenCode Free | `opencode-free` | — | anahtarsız | ⬜ ⁵ |
+| OpenCode Free | `opencode-free` | — | anahtarsız | ⬜ ⁷ |
 | Fireworks AI | `fireworks` | `api.fireworks.ai/inference/v1` | `FIREWORKS_API_KEY` | ⬜ |
 | NovitaAI | `novita` | `api.novita.ai/openai/v1` | `NOVITA_API_KEY` | ⬜ |
 | GMI Cloud | `gmi` | `api.gmi-serving.com/v1` | `GMI_API_KEY` | ⬜ |
@@ -101,16 +102,16 @@ Aday havuzu. **Durum** sütunu: ✅ Florence'ta var · ⬜ aday · ➖ kapsam d�
 | AI Gateway | `ai-gateway` | — | `AI_GATEWAY_API_KEY` | ⬜ |
 | Actual Computer | `actual` | `api.actual.inc/v1` / `localhost:8080` | `ACTUAL_API_KEY` | ⬜ |
 | LM Studio | `lmstudio` | `localhost:1234/v1` | `LM_API_KEY` (ops.) | ⬜ |
-| GitHub Copilot | `copilot` | `api.githubcopilot.com` | `COPILOT_GITHUB_TOKEN` | ➖ ⁶ |
-| GitHub Copilot ACP | `copilot-acp` | yerel alt süreç | `HERMES_COPILOT_ACP_COMMAND` | ➖ ⁶ |
-| OpenAI Codex | `openai-codex` | `api.openai.com` | device code OAuth | ➖ ⁶ |
-| MiniMax OAuth | `minimax-oauth` | `api.minimax.io/anthropic` | tarayıcı OAuth | ➖ ⁶ |
-| xAI Grok OAuth | `xai-oauth` | — | tarayıcı OAuth | ➖ ⁶ |
-| Qwen OAuth | `qwen-oauth` | `portal.qwen.ai/v1` | tarayıcı OAuth | ➖ ⁶ |
+| GitHub Copilot | `copilot` | `api.githubcopilot.com` | `COPILOT_GITHUB_TOKEN` | ➖ ⁷ |
+| GitHub Copilot ACP | `copilot-acp` | yerel alt süreç | `HERMES_COPILOT_ACP_COMMAND` | ➖ ⁷ |
+| OpenAI Codex | `openai-codex` | `api.openai.com` | device code OAuth | ➖ ⁷ |
+| MiniMax OAuth | `minimax-oauth` | `api.minimax.io/anthropic` | tarayıcı OAuth | ➖ ⁷ |
+| xAI Grok OAuth | `xai-oauth` | — | tarayıcı OAuth | ➖ ⁷ |
+| Qwen OAuth | `qwen-oauth` | `portal.qwen.ai/v1` | tarayıcı OAuth | ➖ ⁷ |
 
-⁴ Hermes `api.deepseek.com/v1` diyor, Florence kataloğu `https://api.deepseek.com` tutuyor (resmi dokümandaki OpenAI-format base'i). İşlevsel fark yok ama **bir kez canlı teyit edilmeli**.
-⁵ Anahtarsız ücretsiz katman — cazip, ama Florence kataloğunda `opencode-zen` zaten anahtarsız çalışıyor ve ücretsiz modeller barındırıyor. Ayrı bir giriş gerekip gerekmediği değerlendirilmeli.
-⁶ Tarayıcı/device OAuth gerektiriyor. Florence sunucu tarafında başsız (headless) çalışır; interaktif oturum akışı uygun değil.
+⁵ Hermes `api.deepseek.com/v1` diyor, Florence kataloğu `https://api.deepseek.com` tutuyor (resmi dokümandaki OpenAI-format base'i). İşlevsel fark yok ama **bir kez canlı teyit edilmeli**.
+⁶ Anahtarsız ücretsiz katman. Florence kataloğundaki `opencode-zen` ücretsiz modeller barındırıyor ama chat için anahtar istiyor (bkz. dipnot ⁴), dolayısıyla gerçekten anahtarsız bir giriş olarak ayrı değer taşıyabilir — değerlendirilmeli.
+⁷ Tarayıcı/device OAuth gerektiriyor. Florence sunucu tarafında başsız (headless) çalışır; interaktif oturum akışı uygun değil.
 
 ### Kendi barındırdıkların
 
