@@ -92,6 +92,31 @@ async def test_spend_insufficient_rolls_back(fake_db):
     assert fake_db.commit_calls == 0
 
 
+async def test_spend_bot_resolves_owner_and_preserves_free_before_gift_order(fake_db):
+    """Bot hesaplari sahibinin cuzdanindan harcar (_resolve_owner) VE
+    free_credits -> gift_credits sirasi bot icin de korunur. Bu iki davranis
+    ayri ayri test edilmisti (bkz. test_get_total_resolves_bot_owner,
+    test_spend_uses_gift_after_free_exhausted) ama KOMBINASYONLARI (bot +
+    kova sirasi ayni harcamada) degil -- rapor/simulasyon akislarinda botun
+    da dogru kovadan ve dogru kullanicidan dustugunu dogrular."""
+    # 1) _resolve_owner(99) -> bot, sahibi 42
+    # 2) UPDATE free_credits WHERE user_id=42 -> None (yetersiz)
+    # 3) UPDATE gift_credits WHERE user_id=42 -> basarili
+    # 4) get_total(42) icindeki _resolve_owner(42) -> bot degil
+    # 5) get_total(42) -> SUM
+    fake_db.queue_fetchone(("bot", 42), None, (3.0,), None, (3.0,))
+    ok, remaining = await credits_module.spend(99, 5.0)
+
+    assert ok is True
+    assert remaining == 3.0
+    updates = [q for q in fake_db.queries if q[0].strip().startswith("UPDATE user_credits")]
+    assert len(updates) == 2
+    assert updates[0][1][2] == "free_credits"
+    assert updates[0][1][1] == 42  # botun DEGIL, sahibinin user_id'si
+    assert updates[1][1][2] == "gift_credits"
+    assert updates[1][1][1] == 42
+
+
 # ---------------------------------------------------------------------------
 # refund / add_free_credits / add_gift_credits
 # ---------------------------------------------------------------------------

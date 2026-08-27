@@ -341,6 +341,104 @@ async def test_add_transaction_invalid_type(fake_db):
     assert p.transactions == []
 
 
+async def test_add_transaction_exempt_from_market_hours_gate_does_not_apply_to_update(fake_db, monkeypatch):
+    """update_transaction (elle fiyat duzeltme) piyasa saati kontrolunden
+    MUAF olmalidir -- CLAUDE.md ve add_transaction'in kendi yorumu bunu acikca
+    soyluyor. Bu istisna kolayca yanlislikla kaldirilabilir (birisi
+    update_transaction'in basina bir get_market_status() kontrolu ekleyebilir);
+    bu test get_market_status'u patlatarak, cagrilirsa testin HEMEN
+    yakalamasini saglar."""
+    def _must_not_be_called():
+        raise AssertionError(
+            "update_transaction piyasa saati kontrolu YAPMAMALI -- "
+            "elle fiyat duzeltme bu kapidan muaf (bkz. CLAUDE.md)"
+        )
+
+    monkeypatch.setattr(portfolio_module, "get_market_status", _must_not_be_called)
+
+    p = _portfolio(initial_balance=10000.0, balance=8999.0)
+    tx = _tx("THYAO", "BUY", 10, 100.0, commission=1.0, total=1001.0)
+    p.transactions.append(tx)
+    fake_db.queue_fetchone((p.model_dump(),))
+
+    ok = await portfolio_module.update_transaction("port-test", 1, tx.id, price=95.0)
+    assert ok is True
+
+
+# ---------------------------------------------------------------------------
+# Komisyon: PORTFOLIO_COMMISSION_RATE -- ALIS'ta maliyete EKLENIR,
+# SATIS'ta hasilattan DUSULUR. Yon karisirsa sessizce yanlis para hesabi olur.
+# ---------------------------------------------------------------------------
+
+
+def test_commission_rate_default_is_one_per_mille(monkeypatch):
+    monkeypatch.delenv("PORTFOLIO_COMMISSION_RATE", raising=False)
+    assert portfolio_module._commission_rate() == 0.001
+
+
+def test_commission_rate_reads_env_override(monkeypatch):
+    monkeypatch.setenv("PORTFOLIO_COMMISSION_RATE", "0.025")
+    assert portfolio_module._commission_rate() == 0.025
+
+
+async def test_add_transaction_buy_commission_added_to_cost(fake_db, monkeypatch):
+    """ALIS: toplam maliyet = subtotal + komisyon (bakiyeden DAHA FAZLA duser)."""
+    monkeypatch.setenv("PORTFOLIO_COMMISSION_RATE", "0.02")  # varsayilandan farkli, kasitli
+    p = _portfolio(balance=2000.0)
+    fake_db.queue_fetchone((p.model_dump(),))
+
+    ok = await portfolio_module.add_transaction("port-test", 1, "THYAO", "BUY", 10)
+    assert ok is True
+
+    saved = _saved_portfolio(fake_db)
+    tx = saved.transactions[0]
+    subtotal = 10 * 100.0  # _stub_external: get_current_price -> 100.0
+    expected_commission = round(subtotal * 0.02, 2)
+    assert tx.commission == expected_commission
+    assert tx.total == pytest.approx(subtotal + expected_commission)
+    assert saved.metadata.balance == pytest.approx(2000.0 - (subtotal + expected_commission))
+
+
+async def test_add_transaction_sell_commission_subtracted_from_proceeds(fake_db, monkeypatch):
+    """SATIS: net hasilat = subtotal - komisyon (bakiyeye DAHA AZ eklenir)."""
+    monkeypatch.setenv("PORTFOLIO_COMMISSION_RATE", "0.02")
+    p = _portfolio(balance=0.0)
+    p.transactions.append(_tx("THYAO", "BUY", 10, 100.0, commission=1.0))
+    fake_db.queue_fetchone((p.model_dump(),))
+
+    ok = await portfolio_module.add_transaction("port-test", 1, "THYAO", "SELL", 10)
+    assert ok is True
+
+    saved = _saved_portfolio(fake_db)
+    sell_tx = saved.transactions[-1]
+    subtotal = 10 * 100.0
+    expected_commission = round(subtotal * 0.02, 2)
+    assert sell_tx.commission == expected_commission
+    assert sell_tx.total == pytest.approx(subtotal - expected_commission)
+    # Bakiye: sadece SELL islemi sonrasi net hasilat kadar artti (BUY, balance=0 iken
+    # zaten portfoyde hazir varlik olarak var sayildi, save_portfolio'dan gecmedi).
+    assert saved.metadata.balance == pytest.approx(round(subtotal - expected_commission, 2))
+
+
+async def test_update_transaction_recomputes_commission_with_current_rate(fake_db, monkeypatch):
+    """update_transaction fiyat/miktar degistiginde komisyonu GUNCEL orana
+    gore yeniden hesaplar (BUY yonu: maliyete eklenir)."""
+    monkeypatch.setenv("PORTFOLIO_COMMISSION_RATE", "0.05")
+    p = _portfolio(initial_balance=10000.0, balance=8999.0)
+    tx = _tx("THYAO", "BUY", 10, 100.0, commission=1.0, total=1001.0)
+    p.transactions.append(tx)
+    fake_db.queue_fetchone((p.model_dump(),))
+
+    ok = await portfolio_module.update_transaction("port-test", 1, tx.id, price=100.0)
+    assert ok is True
+
+    saved = _saved_portfolio(fake_db)
+    saved_tx = saved.transactions[0]
+    expected_commission = round(1000.0 * 0.05, 2)
+    assert saved_tx.commission == expected_commission
+    assert saved_tx.total == pytest.approx(1000.0 + expected_commission)
+
+
 # ---------------------------------------------------------------------------
 # get_transactions
 # ---------------------------------------------------------------------------

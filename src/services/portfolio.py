@@ -247,16 +247,23 @@ async def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: s
     if not await is_valid_ticker(ticker):
         return False
 
+    # Fiyat kilit ALINMADAN ONCE cozulur (bilerek). get_current_price DB'ye
+    # varsayilan keep=False bir cursor ile erisir; bu, _lock_portfolio'nun
+    # ayni is (asyncio task) icin acik tuttugu (keep=True) baglantiyi
+    # cursor cikisinda erken serbest birakir (rollback + havuza iade) ve
+    # pg_advisory_xact_lock'u islem ortasinda dusurur — bkz. BEKLEYENLER.md
+    # ve tests/test_portfolio_lock_integration.py. Kilit alindiktan sonra
+    # save_portfolio'ya kadar baska hicbir DB cagrisi olmamali.
+    price = await get_current_price(ticker)
+    if price is None:
+        return False
+
     await _lock_portfolio(portfolio_id)
     portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return False
 
     assets = calculate_assets(portfolio)
-
-    price = await get_current_price(ticker)
-    if price is None:
-        return False
 
     subtotal = price * quantity
     rate = _commission_rate()
