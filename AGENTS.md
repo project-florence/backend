@@ -37,16 +37,83 @@ The codebase is fully async. Follow these rules when editing:
 
 ## Verification
 
-- No repository test, lint, formatter, typecheck, CI, or pre-commit configuration is present.
+- No repository lint, formatter, typecheck, CI, or pre-commit configuration is present. There
+  *is* a test suite (`tests/`, pytest) — see "Test suite" below; it does not run in CI.
 - For a dependency-free syntax check after Python edits, run `python -m compileall src scripts`.
 - There is no `launch.sh` workflow to rely on; it is currently empty.
 
-## Integration tests (opt-in, `tests/test_llm_integration.py`)
+## Test suite (`tests/`, pytest) — two lanes
 
-The rest of `tests/` is fully hermetic (`fake_db`/`fake_redis`, no network/DB — `python -m
-pytest`, ~550 tests, ~3s). REFACTOR_PLAN.md Step 6 added one deliberately non-hermetic file that
-runs against **real** local Postgres/Redis, because three real bugs surfaced during the LLM
-provider refactor that a mocked suite structurally cannot see:
+Two lanes, selected by the `integration` marker (registered in `pyproject.toml`):
+
+- **Hermetic lane (default)** — `python -m pytest`. 553 tests, **~3.3s warm** (measured; see
+  "Measured timings" below). No real Postgres, Redis, or network socket is reachable from this
+  lane — see "Hermeticity guard" below. `addopts = "-m 'not integration'"` in `pyproject.toml`
+  makes plain `pytest` skip the integration file entirely by default.
+- **Integration lane (opt-in)** — `python -m pytest -m integration -q`. 8 tests in
+  `tests/test_llm_integration.py`, run against **real** local Postgres/Redis (see below).
+
+```bash
+python -m pytest -q                    # hermetic lane, 553 tests
+python -m pytest -m integration -q     # integration lane, 8 tests, containers must be up
+```
+
+### Hermeticity guard
+
+`tests/conftest.py::_forbid_real_db_and_redis_sockets` is an autouse fixture that patches the
+real connection-establishment entry points — `src.core.database._get_pool` and
+`src.core.redis._AsyncRedisProxy._get_conn` — to `pytest.fail()` immediately instead of opening a
+socket, for every test **outside** `-m integration`. `fake_db`/`fake_redis` (below) patch the
+*higher-level* methods (`db.cursor`/`commit`/`rollback`/`release_current`, `r.get`/`set`/...), so
+a test that correctly uses them never reaches the guard; a test that forgets to (or wires a fake
+badly) gets a fast, explicit failure at the connection point instead of silently falling through
+to a real socket. `pytest.fail()` raises `_pytest.outcomes.Failed`, which subclasses
+`BaseException` (not `Exception`) specifically so broad `except Exception:` blocks in application
+code (e.g. `get_economy_rate_history`'s DB try/except) cannot swallow it. The guard is a no-op
+under `@pytest.mark.integration` (checks `request.node.get_closest_marker("integration")`), where
+real connections are the point.
+
+This guard is what caught the bug below and is meant to catch the next one automatically instead
+of manifesting as a multi-minute slowdown days later.
+
+### Known bug fixed: `test_get_price_history_stock` was not hermetic
+
+`tests/test_services_ticker.py::test_get_price_history_stock` monkeypatched
+`price_module.get_price_history` but not `ticker_module.get_currency` (the sibling test
+`test_get_price_history_currency`, three tests above it, does both). `ticker.get_price_history`
+calls the real `get_currency()` before reaching the stock branch; unstubbed, that call falls
+through to `finance_service.get_quotes()`, which hits real Redis (`fx:quotes` cache check) and,
+on a miss, real Postgres (provider refresh + persistence) — invisible when the local dev
+containers happen to be up (fast success, ~0.95s — already the single slowest test in the suite),
+catastrophic when they are down (real connection attempts retry/timeout instead of failing
+instantly, ~55s for this one test alone). Fixed by stubbing `ticker_module.get_currency` in that
+test, matching its neighbor. The hermeticity guard above now fails this class of bug in
+milliseconds instead of letting it degrade into a multi-second hang.
+
+### Measured timings (2026-08-27, this machine)
+
+| Scenario | Before fix | After fix |
+|---|---|---|
+| `python -m pytest -q`, containers **up** | 553 passed in 4.24s | 553 passed in 3.28s |
+| `python -m pytest -q`, containers **down** | 553 passed in **58.13s** | 553 passed in **3.33s** |
+| `python -m pytest -m integration -q`, containers up | 8 passed in 1.67s | 8 passed in 1.67s (unchanged) |
+| `pytest --collect-only -q` | 553/561 collected in ~1.45s (unchanged; collection was never the bottleneck — no heavy top-level imports like `yfinance`/`pandas` showed up under `python -X importtime`, they're already lazily imported inside the provider modules) | |
+
+Before the fix, `--durations=25` with containers down showed a single outlier —
+`54.78s call tests/test_services_ticker.py::test_get_price_history_stock` — against a suite
+otherwise identical (same 25 next-slowest entries, all <0.25s) to the containers-up run. That one
+test accounted for effectively all of the 54s regression.
+
+**`pytest-xdist` was evaluated and rejected.** Installed temporarily and measured against the
+hermetic lane (24 cores available): `-n auto` 7.56s, `-n 4` 4.04s, `-n 2` 4.05s, all *slower* than
+the 3.28s serial baseline — worker startup/IPC overhead dominates a suite this small and fast, as
+the task brief anticipated. Uninstalled afterward; `requirements.txt` is untouched.
+
+### Why `tests/test_llm_integration.py` is the one non-hermetic file
+
+REFACTOR_PLAN.md Step 6 added this file deliberately non-hermetic, against **real** local
+Postgres/Redis, because three real bugs surfaced during the LLM provider refactor that a mocked
+suite structurally cannot see:
 
 1. A synchronous bridge (`asyncio.run` in a worker thread) touching the loop-bound
    `AsyncConnectionPool` / async Redis client from a foreign event loop — `fake_db`/`fake_redis`
@@ -56,15 +123,6 @@ provider refactor that a mocked suite structurally cannot see:
 3. `opencode-zen` serving `/models` without auth but rejecting `/chat/completions` with 401 —
    not covered by this test layer (no real network calls here), but the distinction is
    documented in `src/llm/providers.py`.
-
-Marker: `@pytest.mark.integration` / `pytestmark = pytest.mark.integration`, registered in
-`pyproject.toml`. `addopts = "-m 'not integration'"` means plain `python -m pytest` never runs
-or connects for these tests; an explicit `-m integration` on the command line overrides that.
-
-```bash
-docker compose up -d postgres redis   # florence_postgres / florence_redis, if not already up
-python -m pytest -m integration -q
-```
 
 If the containers aren't reachable, the tests **skip** cleanly (a short, independent connection
 probe in the `_integration_target` fixture) rather than failing. Every test cleans up its own

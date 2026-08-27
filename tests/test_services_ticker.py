@@ -125,6 +125,14 @@ async def test_get_price_history_stock(monkeypatch):
             {"ts": "2026-08-02T00:00:00+00:00", "close": 101.0},
         ]
 
+    async def _cur():
+        # THYAO bu map'te yok; ticker.get_price_history hisse dalina duser.
+        return {"USD": {"Buying": 41.0}}
+
+    # Regresyon: bu stub eksikti, gercek get_currency() -> finance_service
+    # -> gercek Postgres/Redis'e dusuyordu (container kapaliyken ~55s'e
+    # kadar bekleyip test paketini hermetik olmaktan cikariyordu).
+    monkeypatch.setattr(ticker_module, "get_currency", _cur)
     monkeypatch.setattr(price_module, "get_price_history", _stock_hist)
     start = datetime(2026, 8, 1, tzinfo=timezone.utc)
     end = datetime(2026, 8, 2, tzinfo=timezone.utc)
