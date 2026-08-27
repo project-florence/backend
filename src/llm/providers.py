@@ -6,8 +6,8 @@ farkli sekilde ifade ediliyordu. Bu modul onu tek bir yerde normalize eder.
 Saglayici secimi ile base URL'in ayrilamamasi tasarimin cekirdegi: ``resolve()``
 tek bir ``"saglayici/model"`` spec'ini birlikte cozer, boylece 2026-08-26
 arizasindaki gibi model ve base URL'in birbirinden bagimsiz suruklenmesi
-(``CUSTOM_MODEL`` degisip ``CUSTOM_URL`` sabit kalmasi) yapisal olarak
-imkansiz hale gelir.
+(eski model env degiskeni degisip eski base-URL env degiskeni sabit kalmasi)
+yapisal olarak imkansiz hale gelir.
 
 ``api_key_env`` alani BILINCLI OLARAK YOK -- anahtarlar artik veritabaninda
 sifreli (bkz. ``src/llm/crypto.py`` + ``src/llm/settings.py``), ortam

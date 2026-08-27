@@ -90,6 +90,21 @@ class Unconfigured:
 ResolveResult = ResolvedLLM | Unconfigured
 
 
+class LLMPurposeUnconfigured(RuntimeError):
+    """Bir amac (digest/report/embedding) icin saglayici/model secili degil
+    ya da cozulemiyor. ``resolve_purpose`` sessizce ``Unconfigured`` dondugu
+    icin cokmez; bu istisna cagiran katmanlarin (``src/llm/agents.py``,
+    ``src/clients/embedding.py``) o durumu acik bir hataya cevirmek icin
+    kullandigi ortak tip -- boylece cagiran taraf yakalayip anlamli bir
+    HTTP/cron hatasi dondurebilir, sessizce varsayilana dusmek YOK
+    (REFACTOR_PLAN.md 2.4)."""
+
+    def __init__(self, unconfigured: Unconfigured) -> None:
+        self.purpose = unconfigured.purpose
+        self.reason = unconfigured.reason
+        super().__init__(f"LLM not configured for purpose {unconfigured.purpose!r}: {unconfigured.reason}")
+
+
 # --------------------------------------------------------------------------
 # llm_providers: yazma
 # --------------------------------------------------------------------------

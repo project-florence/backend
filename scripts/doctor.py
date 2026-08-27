@@ -35,7 +35,7 @@ SUGGESTIONS = {
     "db": "POSTGRES_HOST/POSTGRES_PORT/POSTGRES_USER/POSTGRES_PASSWORD ve `docker compose up -d postgres` kontrol et.",
     "redis": "REDIS_HOST/REDIS_PORT/REDIS_PASSWORD ve `docker compose up -d redis` kontrol et.",
     "searxng": "`docker compose up -d searxng`; NEWS_SEARCH_URL dogru mu?",
-    "llm": "CUSTOM_URL/CUSTOM_MODEL/CUSTOM_API_KEY veya OPENROUTER_URL/OPENROUTER_API_KEY kontrol et.",
+    "llm": "`admin_cli.py llm show` ile amac basina saglayici/model secimini kontrol et; anahtarlar llm_providers tablosunda, FLORENCE_MASTER_KEY env'de.",
     "disk": "Log dizini diskinin dolu olmamasina dikkat; eski loglari temizle.",
     "docker": "`docker compose ps` ile servislerin ayakta oldugundan emin ol.",
     "logs": "Son 24 saatteki ERROR satirlarini incele (florence.log).",

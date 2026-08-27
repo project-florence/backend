@@ -5,7 +5,8 @@ Tum degerler ortam degiskenlerinden ve varsayilanlar dict'inden okunur.
 
 Env semasi: ``<SECTION>_<KEY>`` (ornek: ``report.token_cost_per_1k`` ->
 ``REPORT_TOKEN_COST_PER_1K``). Mevcut anahtarlarla uyumludur (``NEWS_SEARCH_URL``
--> ``news_search.search_url``, ``EMBEDDING_BASE_URL`` -> ``embedding.base_url``).
+-> ``news_search.search_url``). LLM/gomme yapilandirmasi burada DEGIL --
+``llm_providers``/``llm_settings`` (bkz. ``src/llm/``, REFACTOR_PLAN.md).
 
 Eski ``config.toml`` dosyasi varsa uyari loglanir ama OKUNMAZ.
 """
@@ -55,12 +56,6 @@ _DEFAULTS: dict = {
     "get_bist_companies": {
         "cache_interval": 2592000,
     },
-    "llm_client": {
-        "type": "custom",
-        "openrouter_url": "https://openrouter.ai/api/v1",
-        "custom_url": "http://localhost:7777/v1",
-        "custom_model": "gemma",
-    },
     "generate_bist_mapping": {
         "scrape_url": "https://borsacoo.com/firmalar",
         "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
@@ -107,11 +102,6 @@ _DEFAULTS: dict = {
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "list_cache_ttl": 3600,
         "detail_cache_ttl": 3600,
-    },
-    "embedding": {
-        "base_url": "http://127.0.0.1:11434/v1",
-        "api_key": "ollama",
-        "model": "mxbai-embed-large",
     },
     "report": {
         "token_cost_per_1k": 0.05,
@@ -180,7 +170,6 @@ _DEFAULTS: dict = {
         "slot_times": {"morning": "09:45", "noon": "13:15", "evening": "18:45"},
         "redis_key": "current_digest",
         "redis_ttl": 14400,
-        "model": "deepseek-v4-flash",
         "max_news": 20,
         # max_requests: max_search (3) + max_fetch (5) araç tur-turu, artı ilk ve
         # son (yapılandırılmış çıktı) model istekleri, artı pydantic-ai'nin kendi

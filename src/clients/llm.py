@@ -1,115 +1,85 @@
-import json
+"""LLM saglik probu.
+
+Bu modul artik gercek trafik icin KULLANILMIYOR -- digest, rapor ve gomme
+``src.llm.agents.build_agent`` / ``src.clients.embedding`` uzerinden
+dogrudan ``src.llm.settings.resolve_purpose``'a baglidir (REFACTOR_PLAN.md
+Adim 2). Bu dosyanin tek cagirani ``src/admin/__init__.py::healthcheck`` ve
+``scripts/doctor.py::check_llm``.
+
+2026-08-26 arizasinin bir parcasi da buydu: eskiden bu modul kendi ayri env
+degiskenleri uzerinden, digest'in GERCEKTEN kullandigi yapilandirmadan
+TAMAMEN AYRI bir sey test ediyordu -- digest'in yapilandirmasi
+bozulduktan sonra bile saglik kontrolu yesil kalmaya devam etti, cunku farkli
+bir (hala calisan) sagliayiciyi yokluyordu. ``health_check()`` artik
+``PURPOSES`` icindeki her amaci ``resolve_purpose`` ile cozup GERCEKTEN o
+saglayiciya canli, hafif bir istek atar; boylece saglik kontrolu digest/
+rapor/gomme'nin fiilen kullandigi seyi test eder.
+"""
+
 import logging
-import os
 
-from dotenv import load_dotenv
-from openai import AsyncOpenAI
+import httpx
 
-from src.core.config import get_config
-
-load_dotenv()
+from src.clients.http import get_client
+from src.llm.settings import PURPOSES, ResolvedLLM, resolve_purpose
 
 logger = logging.getLogger(__name__)
 
-_client = None
-_default_model = None
-_client_type = None
 
+async def _probe_provider(resolved: ResolvedLLM) -> bool:
+    """Cozulmus bir amacin saglayicisina canli, hafif bir istek atar.
 
-def init_client(url=None, default_model=None, api_key=None):
-    global _client, _default_model, _client_type
-    cfg = get_config()
-    llm_cfg = cfg.get("llm_client", {})
-    _client_type = llm_cfg.get("type", "custom")
+    ``models_url`` yoksa (ornegin ``openai-compatible``/``ollama-local`` gibi
+    ozel kurulumlarda katalogda tanimli bir canli roster ucnoktasi yoktur)
+    yapilandirmanin cozulebilir olmasi yeterli kabul edilir -- agdan test
+    edilmez.
+    """
+    provider = resolved.provider
+    if not provider.models_url:
+        return True
 
-    if _client_type == "openrouter":
-        base_url = url or os.getenv("OPENROUTER_URL") or llm_cfg.get("openrouter_url")
-        key = api_key or os.getenv("OPENROUTER_API_KEY")
-        _default_model = default_model or "openrouter/free"
-    else:
-        base_url = url or os.getenv("CUSTOM_URL") or llm_cfg.get("custom_url")
-        key = api_key or os.getenv("CUSTOM_API_KEY") or llm_cfg.get("api_key", "")
-        _default_model = default_model or os.getenv("CUSTOM_MODEL") or llm_cfg.get("custom_model")
-
-    # 600s'e asili kalmasin: 60s timeout + 1 retry (havuz baglantilarini
-    # LLM beklemesiyle tutmamak icin sinirli bekleme).
-    _client = AsyncOpenAI(api_key=key, base_url=base_url, timeout=60, max_retries=1)
-
-
-async def get_response(
-    prompt: str,
-    role: str = "user",
-    model: str = None,
-    tools: list[dict] | None = None,
-    messages: list[dict] | None = None,
-    reasoning: bool = False,
-) -> dict:
-    global _client, _default_model, _client_type
-    if _client is None:
-        init_client()
-    assert _client is not None
-    if model is None:
-        model = _default_model
-        if model is None:
-            raise ValueError("No model provided")
-
-    if messages is None:
-        messages = [{"role": role, "content": prompt}]
-
-    kwargs = {"model": model, "messages": messages}
-    if tools:
-        kwargs["tools"] = tools
-    if reasoning and _client_type == "openrouter":
-        kwargs["extra_body"] = {"reasoning": {"enabled": True}}
+    headers: dict[str, str] = {}
+    if resolved.api_key:
+        if provider.api_style == "anthropic":
+            headers["x-api-key"] = resolved.api_key
+            headers["anthropic-version"] = "2023-06-01"
+        else:
+            headers["Authorization"] = f"Bearer {resolved.api_key}"
 
     try:
-        response = await _client.chat.completions.create(**kwargs)
-        choice = response.choices[0]
-        usage = getattr(response, "usage", None)
-        usage_dict = {
-            "prompt": usage.prompt_tokens,
-            "completion": usage.completion_tokens,
-            "total": usage.total_tokens,
-            "model": getattr(response, "model", model),
-        } if usage else None
-
-        if choice.finish_reason == "tool_calls":
-            calls = []
-            for tc in choice.message.tool_calls:
-                calls.append({
-                    "id": tc.id,
-                    "name": tc.function.name,
-                    "arguments": json.loads(tc.function.arguments),
-                })
-            return {
-                "type": "tool_calls",
-                "calls": calls,
-                "usage": usage_dict,
-                "assistant_message": choice.message,
-            }
-
-        result = {"type": "text", "content": choice.message.content, "usage": usage_dict}
-
-        reasoning_details = getattr(choice.message, "reasoning_details", None)
-        if not reasoning_details and hasattr(choice.message, "model_extra"):
-            reasoning_details = choice.message.model_extra.get("reasoning_details")
-        if reasoning_details:
-            result["reasoning_details"] = reasoning_details
-
-        return result
-    except Exception:
-        # Hata dict'i dondurme: cagiran taraf basarisizligi exception olarak
-        # gorsun (hata gizlenmesin).
-        logger.exception("LLM request failed")
-        raise
-
-
-async def health_check():
-    global _client
-    try:
-        if _client is None:
-            init_client()
-        response = await _client.models.list()
-        return response is not None
-    except Exception:
+        client = await get_client()
+        response = await client.get(provider.models_url, headers=headers, timeout=10)
+        # 401/403 (gecersiz/reddedilen anahtar) gercek bir arizadir; 4xx'in
+        # geri kalani (ornegin bazi gateway'lerin GET /models'a verdigi
+        # beklenmedik ama sunucu-tarafi olmayan yanitlar) saglayicinin
+        # ulasilabilir oldugunu gosterir.
+        return response.status_code < 500 and response.status_code not in (401, 403)
+    except httpx.HTTPError as e:
+        logger.warning("LLM health probe failed for provider=%s: %s", provider.id, e)
         return False
+
+
+async def health_check() -> bool:
+    """En az bir amac (digest/report/embedding) yapilandirilmis VE saglikli mi?
+
+    Hicbir amac yapilandirilmamissa (temiz kurulum, REFACTOR_PLAN.md Adim 7'nin
+    bilincli "kisa yapilandirilmamis pencere"si) ``False`` doner -- sessiz
+    basari YOK. Yapilandirilmis amaclardan biri bile saglaniyorsa (canli
+    probu gecerse) genel sonuc olumsuz sayilir.
+    """
+    any_configured = False
+    all_healthy = True
+    for purpose in PURPOSES:
+        resolved = await resolve_purpose(purpose)
+        if not isinstance(resolved, ResolvedLLM):
+            continue
+        any_configured = True
+        if not await _probe_provider(resolved):
+            logger.warning(
+                "LLM health check failed for purpose=%s provider=%s model=%s",
+                purpose,
+                resolved.provider.id,
+                resolved.model,
+            )
+            all_healthy = False
+    return any_configured and all_healthy

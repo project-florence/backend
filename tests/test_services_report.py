@@ -82,7 +82,10 @@ async def test_generate_report_strips_tool_name_from_title_and_body(monkeypatch)
         async def run(self, prompt):
             return _FakeResult(draft)
 
-    monkeypatch.setattr(report_module, "_build_agent", lambda *a, **k: _FakeAgent())
+    async def _fake_build_agent(*a, **k):
+        return _FakeAgent()
+
+    monkeypatch.setattr(report_module, "_build_agent", _fake_build_agent)
 
     async def _no_log(*args, **kwargs):
         return None

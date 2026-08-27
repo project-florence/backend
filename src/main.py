@@ -17,9 +17,7 @@ from psycopg_pool import PoolTimeout
 from src.api.deps import SECRET_KEY, get_current_user_optional
 from src.api.router import router
 from src.clients.cron import cron_client
-from src.clients.embedding import init_client as init_embedding_client
 from src.clients.http import close_client
-from src.clients.llm import init_client as init_llm_client
 from src.core.config import init_config, is_production
 from src.core.database import db, init_db
 from src.core.logging import init_logging
@@ -41,8 +39,8 @@ async def lifespan(app: FastAPI):
     # Startuplar: config, DB, external client'lar ve ticker cache'i.
     init_config()
     await init_db()
-    init_llm_client()
-    init_embedding_client()
+    # LLM/embedding istemcileri artik istek/ajan basina llm_settings'ten
+    # cozuluyor (REFACTOR_PLAN.md Adim 2) -- burada eager init YOK.
     await cache_tickers_and_companies()
 
     await cron_client.init()

@@ -13,16 +13,19 @@ that ignores the "budget exceeded" text sentinel simply can no longer call the
 tool, instead of looping until ``max_requests`` is hit. The agent is built per
 generation (see ``service.generate_digest``) so stale tool state never leaks
 between runs.
+
+Model/provider wiring comes from ``src.llm.agents.build_agent`` (REFACTOR_PLAN.md
+Adim 2) -- no more ``CUSTOM_*`` env reads and no more model-name-based
+reasoning heuristic. Reasoning is off by default for this agent because
+``Digest`` is a structured (pydantic) ``output_type``
+(``structured_output_forbids_reasoning("digest")``), enforced centrally in
+``build_agent``, not here.
 """
 
-import os
-
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.tools import Tool
 
-from src.core.config import get_config
+from src.llm.agents import build_agent
 from src.services.digest import tools
 from src.services.digest.models import Digest
 
@@ -50,24 +53,15 @@ Dil ve üslup:
 - Yalnızca bugünün haber ve olaylarından bahset."""
 
 
-def _build_agent() -> Agent:
-    digest_cfg = get_config()["digest"]
-    model_name = os.getenv("CUSTOM_MODEL") or digest_cfg.get("model", "deepseek-v4-flash")
-    base_url = os.getenv("CUSTOM_URL", "https://opencode.ai/zen/go/v1").rstrip("/")
-    api_key = os.getenv("CUSTOM_API_KEY") or "not-needed"
+async def _build_agent() -> Agent:
+    built = await build_agent("digest")
 
-    provider = OpenAIProvider(base_url=base_url, api_key=api_key)
-    model = OpenAIChatModel(model_name, provider=provider)
-
-    reasoning_enabled = "deepseek" not in model_name.lower()
-    effort = "medium" if reasoning_enabled else "none"
-
-    return Agent(
-        model=model,
+    agent = Agent(
+        model=built.model,
         system_prompt=_SYSTEM_PROMPT,
         output_type=Digest,
         model_settings={
-            "openai_reasoning_effort": effort,
+            **built.model_settings,
             "parallel_tool_calls": False,
         },
         tools=[
@@ -75,3 +69,8 @@ def _build_agent() -> Agent:
             Tool(tools.fetch_article_text, prepare=tools.prepare_fetch_article_text),
         ],
     )
+    # Sadece gunlukleme/denetim icin (bkz. REFACTOR_PLAN.md Adim 3): gercek
+    # trafigi/davranisi etkilemez.
+    agent.florence_model_name = built.model_name
+    agent.florence_provider_id = built.provider_id
+    return agent

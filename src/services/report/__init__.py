@@ -1,13 +1,11 @@
 from datetime import datetime, timezone
 import logging
-import os
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIChatModel
-from pydantic_ai.providers.openai import OpenAIProvider
 
 from src.core.config import get_config
+from src.llm.agents import build_agent
 from src.services.bist import is_valid_bist_ticker
 from src.services.company import get_company_info
 from src.services.economy import get_currency, get_gold_prices
@@ -188,25 +186,30 @@ class Report(BaseModel):
     token_usage: dict = {"prompt": 0, "completion": 0, "total": 0}
 
 
-def _build_agent(ticker: str, mode: str, purpose: str | None = None) -> Agent:
-    cfg = get_config()["llm_client"]
-    model_id = os.getenv("CUSTOM_MODEL") or cfg.get("custom_model", "gemma")
-    base_url = os.getenv("CUSTOM_URL") or cfg.get("custom_url")
-    api_key = os.getenv("CUSTOM_API_KEY") or "dummy-api-key"
+async def _build_agent(ticker: str, mode: str, purpose: str | None = None) -> Agent:
+    # Model/saglayici secimi src.llm.agents.build_agent uzerinden llm_settings'ten
+    # gelir (REFACTOR_PLAN.md Adim 2) -- CUSTOM_*/llm_client env/config yolu yok.
+    # Yapilandirilmis cikti (ReportDraft) oldugu icin reasoning varsayilan olarak
+    # kapali (structured_output_forbids_reasoning); bu davranis daha once de
+    # hicbir reasoning ayari gondermiyordu, aynen korunuyor.
+    built = await build_agent("report")
 
-    provider = OpenAIProvider(base_url=base_url, api_key=api_key)
-    model = OpenAIChatModel(model_id, provider=provider)
-
-    return Agent(
-        model=model,
+    agent = Agent(
+        model=built.model,
         system_prompt=_build_system_prompt(ticker, mode, purpose),
         output_type=ReportDraft,
         tools=_TOOL_FUNCTIONS,
+        model_settings=built.model_settings or None,
     )
+    # Sadece gunlukleme icin (bkz. generate_report): gercek trafigi etkilemez.
+    # _FakeAgent gibi test stub'larinda bu oznitelik yok -- generate_report
+    # bunu getattr(..., "unknown") ile guvenli sekilde okur.
+    agent.florence_model_name = built.model_name
+    return agent
 
 
 async def generate_report(ticker: str, mode: str, user_id: int | None = None, purpose: str | None = None) -> Report:
-    report_agent = _build_agent(ticker, mode, purpose=purpose)
+    report_agent = await _build_agent(ticker, mode, purpose=purpose)
     result = await report_agent.run(
         f"'{ticker}' hissesi icin {mode} analiz raporunu olustur."
     )
@@ -223,7 +226,7 @@ async def generate_report(ticker: str, mode: str, user_id: int | None = None, pu
     try:
         from src.services.token import log_token_usage
 
-        model_id = os.getenv("CUSTOM_MODEL") or get_config()["llm_client"].get("custom_model", "gemma")
+        model_id = getattr(report_agent, "florence_model_name", "unknown")
         await log_token_usage(
             model=model_id,
             prompt_tokens=prompt_tokens,

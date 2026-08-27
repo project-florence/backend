@@ -1,15 +1,14 @@
 """LLM saglayici/model altyapisi.
 
-REFACTOR_PLAN.md'de tanimlanan katmanin temeli (Adim 1). Bu asamada yalnizca
-temel yapi taslari var: sifreleme (``crypto``), saglayici katalogu
-(``providers``) ve ayar okuma/yazma + cozumleme (``settings``). Digest,
-rapor ve gomme (embedding) akislari HENUZ bu katmana baglanmadi -- hala eski
-``CUSTOM_*``/``LLM_CLIENT_*`` env yolundan calisiyorlar (Adim 2'nin isi).
-
-Amac-bazli ajan insasi (``build_agent(purpose)``) Adim 2'de ``src/llm/agents.py``
-olarak eklenecek; bu paket o zamana kadar hicbir yere baglanmaz.
+REFACTOR_PLAN.md'de tanimlanan katman: sifreleme (``crypto``), saglayici
+katalogu (``providers``), ayar okuma/yazma + cozumleme (``settings``) ve
+amac-bazli pydantic-ai model kurucusu (``agents``). Digest
+(``src/services/digest/agent.py``), rapor (``src/services/report/__init__.py``)
+ve gomme (``src/clients/embedding.py``) Adim 2'de bu katmana baglandi; eski
+ozel LLM/gomme ortam degiskeni yollarinin tamami kaldirildi.
 """
 
+from src.llm.agents import BuiltAgent, build_agent
 from src.llm.crypto import (
     DecryptionFailed,
     LLMCryptoError,
@@ -19,6 +18,7 @@ from src.llm.crypto import (
 from src.llm.providers import PROVIDERS, InvalidModelSpec, ProviderSpec, resolve
 from src.llm.settings import (
     PURPOSES,
+    LLMPurposeUnconfigured,
     ResolvedLLM,
     Unconfigured,
     resolve_purpose,
@@ -28,14 +28,17 @@ from src.llm.settings import (
 __all__ = [
     "PROVIDERS",
     "PURPOSES",
+    "BuiltAgent",
     "DecryptionFailed",
     "InvalidModelSpec",
     "LLMCryptoError",
+    "LLMPurposeUnconfigured",
     "MasterKeyInvalid",
     "MasterKeyMissing",
     "ProviderSpec",
     "ResolvedLLM",
     "Unconfigured",
+    "build_agent",
     "resolve",
     "resolve_purpose",
     "structured_output_forbids_reasoning",

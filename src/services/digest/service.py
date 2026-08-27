@@ -68,7 +68,7 @@ async def generate_digest(slot: str = "evening") -> Digest:
         snapshot = await tools.get_market_snapshot()
         news = await tools.get_news_feed()
 
-        agent = _build_agent()
+        agent = await _build_agent()
         try:
             result = await agent.run(
                 prepare_context(slot, snapshot, news),

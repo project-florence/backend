@@ -1,36 +1,42 @@
+"""Semantik gomme (embedding) istemcisi.
+
+Yapilandirma kaynagi ``llm_settings`` (``purpose="embedding"``) --
+``EMBEDDING_*`` env okumalari YOK (REFACTOR_PLAN.md Adim 2). Digest/rapordan
+farkli olarak gomme bir pydantic-ai ajani DEGIL, dogrudan OpenAI-uyumlu
+``embeddings`` ucnoktasina giden ince bir cagri -- bu yuzden kendi cagri
+yolunu korur, sadece yapilandirmayi ``src.llm.settings.resolve_purpose``'tan
+alir.
+
+Her cagirida yeniden cozulur: ayri bir "init" adimi yok, kalici bir istemci
+singleton'i tutulmuyor. ``resolve_purpose``'un kendi Redis onbellegi (<=60s
+TTL, bkz. ``src/llm/settings.py``) sayesinde bu pratikte neredeyse ucretsiz;
+``AsyncOpenAI`` nesnesi kurmak da ucuz (httpx sarici, baglanti havuzu yeniden
+acilmiyor). Kazanc: bir ayar degisikligi restart beklemeden bir dakika
+icinde etkili olur.
+"""
+
 import logging
-import os
 
 from openai import AsyncOpenAI
 from sklearn.metrics.pairwise import cosine_similarity
 
-from src.core.config import get_config
+from src.llm.settings import LLMPurposeUnconfigured, ResolvedLLM, resolve_purpose
 
 logger = logging.getLogger(__name__)
 
-_client = None
-_model = None
-
-
-def init_client(url=None, model=None, api_key=None):
-    global _client, _model
-    cfg = get_config().get("embedding", {})
-    if url is None:
-        url = os.getenv("EMBEDDING_BASE_URL") or cfg.get("base_url")
-    if api_key is None:
-        api_key = os.getenv("EMBEDDING_API_KEY") or cfg.get("api_key")
-    if model is None:
-        model = os.getenv("EMBEDDING_MODEL") or cfg.get("model")
-    _client = AsyncOpenAI(api_key=api_key, base_url=url)
-    _model = model
+# src.llm.settings.LLMPurposeUnconfigured ile AYNI tip -- bu modulun kendi
+# alaninda daha okunakli bir isimle tekrar disa aktariliyor, boylece
+# cagiranlar "embedding yapilandirilmamis" durumunu bu isimle yakalayabilir.
+EmbeddingUnconfigured = LLMPurposeUnconfigured
 
 
 async def create_embedding(text: str) -> list[float]:
-    global _client, _model
-    if _client is None:
-        init_client()
-    assert _client is not None
-    response = await _client.embeddings.create(model=_model, input=text)
+    resolved = await resolve_purpose("embedding")
+    if not isinstance(resolved, ResolvedLLM):
+        raise EmbeddingUnconfigured(resolved)
+
+    client = AsyncOpenAI(api_key=resolved.api_key or "not-needed", base_url=resolved.base_url)
+    response = await client.embeddings.create(model=resolved.model, input=text)
     return response.data[0].embedding
 
 

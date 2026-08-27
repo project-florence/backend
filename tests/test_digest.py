@@ -115,7 +115,10 @@ def _make_digest(**overrides) -> Digest:
 
 
 def _patch_agent(monkeypatch, output: Digest) -> None:
-    monkeypatch.setattr(service_module, "_build_agent", lambda: _FakeAgent(output))
+    async def _fake_build_agent():
+        return _FakeAgent(output)
+
+    monkeypatch.setattr(service_module, "_build_agent", _fake_build_agent)
 
 
 def _patch_precollect(monkeypatch) -> None:
@@ -127,6 +130,25 @@ def _patch_precollect(monkeypatch) -> None:
 
     monkeypatch.setattr(service_module.tools, "get_market_snapshot", _no_snapshot)
     monkeypatch.setattr(service_module.tools, "get_news_feed", _no_news)
+
+
+def _seed_llm_selection(
+    fake_db,
+    *,
+    provider: str = "opencode-zen",
+    model: str = "deepseek-v4-flash-free",
+    params: dict | None = None,
+) -> None:
+    """``_build_agent()`` artik gercek ``resolve_purpose("digest")``'i (DB+Redis
+    uzerinden) cagiriyor -- bu, ``fake_db``'nin fetchone kuyrugunu
+    resolve_purpose'un gercek sorgu sirasiyla besler: (1) llm_settings SELECT ->
+    (provider, model, params), (2) llm_providers SELECT -> (api_key_encrypted,
+    base_url, enabled). ``api_key_encrypted=None`` -- varsayilan olarak secilen
+    opencode-zen auth istemiyor, decrypt hic tetiklenmiyor. ``fake_redis``
+    fixture'i da her cagiran testte istenmeli (bos store -> cache miss -> bu
+    kuyruk kullanilir).
+    """
+    fake_db.queue_fetchone((provider, model, params or {}), (None, None, True))
 
 
 # ---------------------------------------------------------------------------
@@ -168,14 +190,16 @@ def test_digest_dump_round_trip():
 # ---------------------------------------------------------------------------
 
 
-def test_build_agent_output_type_and_model_settings():
-    agent = _build_agent()
+async def test_build_agent_output_type_and_model_settings(fake_db, fake_redis):
+    _seed_llm_selection(fake_db)
+    agent = await _build_agent()
     assert agent is not None
     assert agent.output_type is Digest
-    assert agent.model_settings == {
-        "openai_reasoning_effort": "none",
-        "parallel_tool_calls": False,
-    }
+    # Digest'in output_type'i pydantic modeli oldugundan reasoning varsayilan
+    # olarak KAPALI -- bir "kapali" degeri (ornegin eski "none" sentinel'i)
+    # DEGIL, anahtarin kendisi hic gonderilmiyor (REFACTOR_PLAN.md 2.5).
+    # Sadece digest'e ozgu parallel_tool_calls=False kalir.
+    assert agent.model_settings == {"parallel_tool_calls": False}
     tool_names = set(agent._function_toolset.tools)
     assert tool_names == {
         "search_news",
@@ -280,7 +304,10 @@ async def test_generate_digest_times_out_instead_of_hanging(monkeypatch):
             await asyncio.sleep(10)
             raise AssertionError("agent must be cancelled by the timeout")
 
-    monkeypatch.setattr(service_module, "_build_agent", lambda: _SlowAgent())
+    async def _fake_build_agent():
+        return _SlowAgent()
+
+    monkeypatch.setattr(service_module, "_build_agent", _fake_build_agent)
 
     with pytest.raises(asyncio.TimeoutError):
         await generate_digest(slot="morning")
@@ -589,7 +616,7 @@ async def _offered_tool_names(agent) -> set:
     return set(offered)
 
 
-async def test_search_news_tool_dropped_when_search_budget_exhausted(monkeypatch):
+async def test_search_news_tool_dropped_when_search_budget_exhausted(monkeypatch, fake_db, fake_redis):
     tools_module.reset_budget()
 
     async def _empty_search(query, limit=None):
@@ -600,7 +627,8 @@ async def test_search_news_tool_dropped_when_search_budget_exhausted(monkeypatch
     config = _digest_config(max_search=2, max_fetch=5)
     monkeypatch.setattr(tools_module, "get_config", lambda: config)
 
-    agent = _build_agent()
+    _seed_llm_selection(fake_db)
+    agent = await _build_agent()
     assert await _offered_tool_names(agent) == {"search_news", "fetch_article_text"}
 
     await tools_module.search_news("q")
@@ -610,7 +638,7 @@ async def test_search_news_tool_dropped_when_search_budget_exhausted(monkeypatch
     tools_module.reset_budget()
 
 
-async def test_fetch_article_text_tool_dropped_when_fetch_budget_exhausted(monkeypatch):
+async def test_fetch_article_text_tool_dropped_when_fetch_budget_exhausted(monkeypatch, fake_db, fake_redis):
     tools_module.reset_budget()
 
     def _some_text(url):
@@ -623,7 +651,8 @@ async def test_fetch_article_text_tool_dropped_when_fetch_budget_exhausted(monke
     config = _digest_config(max_search=3, max_fetch=2)
     monkeypatch.setattr(tools_module, "get_config", lambda: config)
 
-    agent = _build_agent()
+    _seed_llm_selection(fake_db)
+    agent = await _build_agent()
     assert await _offered_tool_names(agent) == {"search_news", "fetch_article_text"}
 
     await tools_module.fetch_article_text("http://x")
@@ -633,7 +662,7 @@ async def test_fetch_article_text_tool_dropped_when_fetch_budget_exhausted(monke
     tools_module.reset_budget()
 
 
-async def test_both_tools_dropped_when_both_budgets_exhausted(monkeypatch):
+async def test_both_tools_dropped_when_both_budgets_exhausted(monkeypatch, fake_db, fake_redis):
     tools_module.reset_budget()
 
     async def _empty_search(query, limit=None):
@@ -650,7 +679,8 @@ async def test_both_tools_dropped_when_both_budgets_exhausted(monkeypatch):
     config = _digest_config(max_search=1, max_fetch=1)
     monkeypatch.setattr(tools_module, "get_config", lambda: config)
 
-    agent = _build_agent()
+    _seed_llm_selection(fake_db)
+    agent = await _build_agent()
 
     await tools_module.search_news("q")
     await tools_module.fetch_article_text("http://x")
@@ -659,22 +689,59 @@ async def test_both_tools_dropped_when_both_budgets_exhausted(monkeypatch):
     tools_module.reset_budget()
 
 
-def test_agent_keeps_exactly_two_tools():
-    agent = _build_agent()
+async def test_agent_keeps_exactly_two_tools(fake_db, fake_redis):
+    _seed_llm_selection(fake_db)
+    agent = await _build_agent()
     tool_names = set(agent._function_toolset.tools)
     assert tool_names == {"search_news", "fetch_article_text"}
 
 
-def test_reasoning_toggles_with_model_name(monkeypatch):
-    monkeypatch.setenv("CUSTOM_MODEL", "")
+# ---------------------------------------------------------------------------
+# 6d. reasoning wiring (REFACTOR_PLAN.md 2.5) -- the model-name-based
+#     heuristic ("deepseek" not in model_name.lower()) that caused the
+#     2026-08-26 incident is gone. Reasoning is now purely a function of
+#     (a) whether the purpose has a structured output_type, and (b) whether
+#     the provider even has a reasoning_param, and (c) an explicit admin
+#     override in llm_settings.params.reasoning.
+# ---------------------------------------------------------------------------
 
-    def _with_model(name):
-        config = _digest_config(model=name)
-        monkeypatch.setattr(agent_module, "get_config", lambda: config)
-        return agent_module._build_agent()
 
-    assert _with_model("deepseek-v4-flash").model_settings["openai_reasoning_effort"] == "none"
-    assert _with_model("qwen2.5").model_settings["openai_reasoning_effort"] == "medium"
+async def test_reasoning_never_sent_by_default_regardless_of_model_name(fake_db, fake_redis):
+    """Digest'in output_type'i pydantic modeli (Digest) oldugundan reasoning
+    varsayilan olarak kapali -- model adi ("deepseek" icerip icermemesi)
+    ARTIK hicbir rol oynamiyor. openai gibi reasoning_param'i olan bir
+    saglayici secilse bile, override yoksa parametre hic gonderilmez."""
+    _seed_llm_selection(fake_db, provider="openai", model="gpt-5", params={})
+    agent = await agent_module._build_agent()
+    assert "openai_reasoning_effort" not in agent.model_settings
+    assert agent.model_settings == {"parallel_tool_calls": False}
+
+
+async def test_reasoning_override_is_honored_even_for_structured_output(fake_db, fake_redis):
+    """llm_settings.params.reasoning acikca ayarlanmissa, digest yapilandirilmis
+    cikti kullansa bile admin'in tercihi onceliklidir (REFACTOR_PLAN.md 2.5)."""
+    _seed_llm_selection(fake_db, provider="openai", model="gpt-5", params={"reasoning": "high"})
+    agent = await agent_module._build_agent()
+    assert agent.model_settings["openai_reasoning_effort"] == "high"
+
+
+async def test_reasoning_omitted_when_provider_has_no_reasoning_param(fake_db, fake_redis):
+    """opencode-zen/opencode-go gibi gateway saglayicilarin reasoning_param'i
+    yok -- arkalarindaki model degisken oldugundan bir override verilse bile
+    hicbir reasoning ayari kor kor gonderilmez (2026-08-26 arizasinin kok
+    nedeni tam olarak buydu)."""
+    _seed_llm_selection(fake_db, provider="opencode-zen", model="some-model", params={"reasoning": "high"})
+    agent = await agent_module._build_agent()
+    assert agent.model_settings == {"parallel_tool_calls": False}
+
+
+async def test_reasoning_invalid_override_value_is_dropped_not_sent(fake_db, fake_redis):
+    """Saglayicinin kabul etmedigi bir reasoning degeri (ornegin openai icin
+    "ultra") kor kor gonderilmez -- 2026-08-26 arizasinda tam olarak boyle bir
+    uyumsuzluk (roster'da olmayan bir effort degeri) 400'e yol acmisti."""
+    _seed_llm_selection(fake_db, provider="openai", model="gpt-5", params={"reasoning": "ultra"})
+    agent = await agent_module._build_agent()
+    assert "openai_reasoning_effort" not in agent.model_settings
 
 
 # ---------------------------------------------------------------------------
