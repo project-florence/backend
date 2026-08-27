@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 import logging
+import time
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
 from src.core.config import get_config
-from src.llm.agents import build_agent
+from src.llm.agents import build_agent, elapsed_ms, log_llm_call
 from src.services.bist import is_valid_bist_ticker
 from src.services.company import get_company_info
 from src.services.economy import get_currency, get_gold_prices
@@ -202,17 +203,37 @@ async def _build_agent(ticker: str, mode: str, purpose: str | None = None) -> Ag
         model_settings=built.model_settings or None,
     )
     # Sadece gunlukleme icin (bkz. generate_report): gercek trafigi etkilemez.
-    # _FakeAgent gibi test stub'larinda bu oznitelik yok -- generate_report
-    # bunu getattr(..., "unknown") ile guvenli sekilde okur.
+    # _FakeAgent gibi test stub'larinda bu oznitelikler yok -- generate_report
+    # bunlari getattr(..., varsayilan) ile guvenli sekilde okur.
     agent.florence_model_name = built.model_name
+    agent.florence_provider_id = built.provider_id
     return agent
 
 
 async def generate_report(ticker: str, mode: str, user_id: int | None = None, purpose: str | None = None) -> Report:
     report_agent = await _build_agent(ticker, mode, purpose=purpose)
-    result = await report_agent.run(
-        f"'{ticker}' hissesi icin {mode} analiz raporunu olustur."
-    )
+    model_id = getattr(report_agent, "florence_model_name", "unknown")
+    provider_id = getattr(report_agent, "florence_provider_id", None)
+
+    # REFACTOR_PLAN.md Adim 3: hem basari hem hata token_usage'a yazilir.
+    # log_llm_call kendi hatasini yutar (DB dususu raporu dusurmez) -- burada
+    # ayrica bir try/except gerekmiyor.
+    start = time.monotonic()
+    try:
+        result = await report_agent.run(
+            f"'{ticker}' hissesi icin {mode} analiz raporunu olustur."
+        )
+    except Exception as exc:
+        await log_llm_call(
+            purpose="report",
+            model_name=model_id,
+            provider_id=provider_id,
+            status="error",
+            duration_ms=elapsed_ms(start),
+            error=exc,
+            user_id=user_id,
+        )
+        raise
 
     draft: ReportDraft = result.output
     usage_data = result.usage
@@ -221,22 +242,17 @@ async def generate_report(ticker: str, mode: str, user_id: int | None = None, pu
     completion_tokens = usage_data.output_tokens or 0
     total_tokens = usage_data.total_tokens or 0
 
-    # Token kullanimini token_usage tablosuna kaydet (admin get_token_summary
-    # ucu bunu okur). Loglama hatasi raporu basarisiz kilmasin.
-    try:
-        from src.services.token import log_token_usage
-
-        model_id = getattr(report_agent, "florence_model_name", "unknown")
-        await log_token_usage(
-            model=model_id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            endpoint="report",
-            user_id=user_id,
-        )
-    except Exception as e:
-        logger.warning("log_token_usage failed: %s", e)
+    await log_llm_call(
+        purpose="report",
+        model_name=model_id,
+        provider_id=provider_id,
+        status="ok",
+        duration_ms=elapsed_ms(start),
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        user_id=user_id,
+    )
 
     return Report(
         title=_strip_tool_identifiers(draft.title),

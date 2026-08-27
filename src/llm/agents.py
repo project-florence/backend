@@ -28,9 +28,22 @@ saglayicilar, sabit CoT modelleri -- bkz. PROVIDERS.md) reasoning HICBIR
 ZAMAN gonderilmez. Model adina bakan sezgi
 (``"deepseek" not in model_name.lower()``) burada TAMAMEN YOK -- 2026-08-26
 arizasinin kok nedeni buydu.
+
+Gozlemlenebilirlik (REFACTOR_PLAN.md Adim 3): 2026-08-26 arizasinin asil
+kalici zarari model/URL uyumsuzlugu degil, bunun HICBIR YERE
+yazilmamasiydi -- digest ``token_usage``'a hic yazmiyordu, hata yalniz
+ucucu container logundaydi. ``log_llm_call`` bu modulde tanimlanir (cagiran
+``digest/service.py`` ve ``report/__init__.py`` olsa da) cunku sir
+temizleme (``_sanitize_error``) LLM cagri hatalarina ozgu bir kaygi --
+API anahtari, Authorization basligi ya da base_url kimlik bilgisi hata
+metninde ASLA DB'ye yazilmamali. ``log_llm_call`` kendi ic hatasini (ornegin
+DB dususe) YUTAR ve ``logger.warning`` ile gecer -- loglama yolu ana LLM
+cagrisini asla dusurmemeli.
 """
 
 import logging
+import re
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -162,3 +175,102 @@ async def build_agent(purpose: str) -> BuiltAgent:
         model_name=resolved.model,
         provider_id=provider.id,
     )
+
+
+# ---------------------------------------------------------------------------
+# Gozlemlenebilirlik (REFACTOR_PLAN.md Adim 3)
+# ---------------------------------------------------------------------------
+
+_MAX_ERROR_LEN = 500
+
+# Sir redaksiyonu -- httpx/openai istisnalari bazen istegin baslıklarini/
+# URL'ini `str(exc)` icine gomer (ornegin bir 401/403 govdesi istek ozetiyle
+# birlikte donuyorsa). Buradaki regex'ler bilinen sekilleri (Authorization
+# basligi, Bearer token, api_key=..., sk-... stili anahtarlar, URL'e gomulu
+# kimlik bilgisi) DB'ye yazilmadan once temizler. Kor bir `str(exc)` YETERLI
+# DEGIL -- bu yuzden CLI'nin de gercek anahtari hicbir zaman basmamasi
+# (bkz. src/llm/settings.py::mask_secret) ayri, bagimsiz bir savunma
+# katmanidir; burasi tek savunma degil.
+_AUTHORIZATION_KV_RE = re.compile(r"(?i)(authorization['\"]?\s*[:=]\s*['\"]?)[^'\"\n\r]+")
+_BEARER_RE = re.compile(r"(?i)bearer\s+[^\s'\"]+")
+_APIKEY_KV_RE = re.compile(r"(?i)((?:api[_-]?key|x-api-key)['\"]?\s*[:=]\s*['\"]?)[^\s'\"&,]+")
+_SK_TOKEN_RE = re.compile(r"\b(?:sk|pk)-[A-Za-z0-9_\-]{6,}\b")
+_URL_CREDENTIALS_RE = re.compile(r"://[^/@\s]+:[^/@\s]+@")
+
+
+def _sanitize_error(exc: BaseException) -> str:
+    """``token_usage.error``'a yazilacak kisa, sirsiz hata metni.
+
+    Bicim: ``"<IstisnaSinifi>: <kisaltilmis mesaj>"``, en fazla
+    ``_MAX_ERROR_LEN`` karakter. Bilinmeyen/gorulmemis bir sir sekli
+    kacabilir -- bu fonksiyon "iyi niyetli" bir filtre, tek savunma hatti
+    degil.
+    """
+    text = f"{type(exc).__name__}: {exc}"
+    text = _AUTHORIZATION_KV_RE.sub(lambda m: m.group(1) + "[REDACTED]", text)
+    text = _BEARER_RE.sub("Bearer [REDACTED]", text)
+    text = _APIKEY_KV_RE.sub(lambda m: m.group(1) + "[REDACTED]", text)
+    text = _SK_TOKEN_RE.sub("[REDACTED]", text)
+    text = _URL_CREDENTIALS_RE.sub("://[REDACTED]@", text)
+    return text[:_MAX_ERROR_LEN]
+
+
+async def log_llm_call(
+    *,
+    purpose: str,
+    model_name: str,
+    provider_id: str | None,
+    status: str,
+    duration_ms: int,
+    prompt_tokens: int | None = None,
+    completion_tokens: int | None = None,
+    total_tokens: int | None = None,
+    error: BaseException | str | None = None,
+    user_id: int | None = None,
+) -> None:
+    """Bir LLM cagrisini (basari veya hata) ``token_usage``'a kaydeder.
+
+    Cagiranlar (``digest/service.py::generate_digest``,
+    ``report/__init__.py::generate_report``) bunu hem ``agent.run()``
+    basarili donduğunde hem de bir istisna yakaladiklarinda cagirir --
+    ikinci durumda ``status="error"`` ve ``error`` (istisnanin kendisi;
+    burada sanitize edilir) ile. Bu fonksiyon KENDI hatasini asla yukari
+    firlatmaz -- DB/Redis dususu gibi bir loglama arizasi gercek LLM
+    cagrisini/digest uretimini asla dusurmemeli (REFACTOR_PLAN.md Adim 3
+    "Kesin kurallar"); yalniz ``logger.warning`` ile gecilir.
+    """
+    try:
+        from src.services.token import log_token_usage
+
+        error_text: str | None
+        if error is None:
+            error_text = None
+        elif isinstance(error, str):
+            error_text = error[:_MAX_ERROR_LEN]
+        else:
+            error_text = _sanitize_error(error)
+
+        await log_token_usage(
+            model=model_name,
+            purpose=purpose,
+            provider=provider_id,
+            status=status,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            duration_ms=duration_ms,
+            error=error_text,
+            user_id=user_id,
+        )
+    except Exception as exc:
+        logger.warning(
+            "token_usage kaydi basarisiz oldu (purpose=%r, status=%r); LLM "
+            "cagrisinin kendisi bundan etkilenmiyor: %s",
+            purpose,
+            status,
+            exc,
+        )
+
+
+def elapsed_ms(start: float) -> int:
+    return int((time.monotonic() - start) * 1000)

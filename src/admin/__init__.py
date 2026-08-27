@@ -138,15 +138,35 @@ async def healthcheck(_: bool = Depends(verify_admin_token)):
 async def token_usage(
     _: bool = Depends(verify_admin_token),
     since: str | None = Query(None, description="ISO format datetime, e.g. 2024-01-01T00:00:00Z"),
-    endpoint: str | None = Query(None),
+    endpoint: str | None = Query(None, description="Eski alan; yeni yazimlarda purpose ile ayni"),
+    purpose: str | None = Query(None, description="digest | report | embedding"),
+    provider: str | None = Query(None),
+    model: str | None = Query(None),
+    status: str | None = Query(None, description="ok | error"),
+    group_by: str | None = Query(
+        None, description="Kirilim boyutu: provider | model | purpose"
+    ),
 ):
+    """Token kullanim ozeti (REFACTOR_PLAN.md Adim 3: saglayici/model/amac
+    kirilimi + status filtresi eklendi). Yol ve auth mekanizmasi degismedi --
+    yalniz yanit zenginlesti."""
     try:
         from datetime import datetime
         since_dt = datetime.fromisoformat(since) if since else None
-        summary = await get_token_summary(since=since_dt, endpoint=endpoint)
+        summary = await get_token_summary(
+            since=since_dt,
+            endpoint=endpoint,
+            purpose=purpose,
+            provider=provider,
+            model=model,
+            status=status,
+            group_by=group_by,
+        )
         return summary
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid datetime format. Use ISO format.")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="Database error")
 

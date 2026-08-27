@@ -87,16 +87,39 @@ class _FakeDB:
         pass
 
 
+class _FakeUsage:
+    """pydantic-ai ``RunResult.usage``'in generate_digest'in okudugu alt kumesi
+    (Adim 3: token_usage'a yazilirken kullanilir)."""
+
+    def __init__(self, input_tokens=100, output_tokens=200, total_tokens=300):
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+        self.total_tokens = total_tokens
+
+
 class _FakeResult:
     def __init__(self, output):
         self.output = output
+        self.usage_value = _FakeUsage()
+
+    @property
+    def usage(self):
+        return self.usage_value
 
 
 class _FakeAgent:
-    def __init__(self, output):
+    def __init__(self, output, *, raise_exc: Exception | None = None):
         self._output = output
+        self._raise_exc = raise_exc
+        # Adim 3: generate_digest bu iki oznitelikten model_name/provider_id
+        # okuyup token_usage'a yazar -- gercek _build_agent() de agent'a ayni
+        # isimlerle ekliyor (bkz. src/services/digest/agent.py::_build_agent).
+        self.florence_model_name = "deepseek-v4-flash-free"
+        self.florence_provider_id = "opencode-zen"
 
     async def run(self, *args, **kwargs):
+        if self._raise_exc is not None:
+            raise self._raise_exc
         return _FakeResult(self._output)
 
 
@@ -119,6 +142,16 @@ def _patch_agent(monkeypatch, output: Digest) -> None:
         return _FakeAgent(output)
 
     monkeypatch.setattr(service_module, "_build_agent", _fake_build_agent)
+
+
+async def _no_log(*args, **kwargs) -> None:
+    """token_usage yazimini no-op'a indirger -- ``src.services.token.db``
+    gercek (mocklanmamis) singleton'a bagli oldugu icin, bu dosyanin yerel
+    ``_FakeDB``'sini ``service_module.db``'ye takan testlerde log_token_usage
+    cagrisi gercek Postgres'e gitmeye calisir (yavas/hermetik-degil). Basari/
+    hata satirinin gercekten yazildigini dogrulayan testler asagida ayrica
+    ``fake_db``/``fake_redis`` fixture'larini kullanir (Adim 3)."""
+    return None
 
 
 def _patch_precollect(monkeypatch) -> None:
@@ -226,6 +259,7 @@ async def test_generate_digest_happy_path(monkeypatch):
     prebuilt = _make_digest()
     _patch_agent(monkeypatch, prebuilt)
     _patch_precollect(monkeypatch)
+    monkeypatch.setattr("src.services.token.log_token_usage", _no_log)
 
     fake_db = _FakeDB()
     monkeypatch.setattr(service_module, "db", fake_db)
@@ -265,6 +299,7 @@ async def test_generate_digest_happy_path(monkeypatch):
 async def test_generate_digest_tolerates_redis_and_db_failure(monkeypatch):
     _patch_agent(monkeypatch, _make_digest())
     _patch_precollect(monkeypatch)
+    monkeypatch.setattr("src.services.token.log_token_usage", _no_log)
 
     async def _boom(*args, **kwargs):
         raise RuntimeError("redis down")
@@ -279,6 +314,111 @@ async def test_generate_digest_tolerates_redis_and_db_failure(monkeypatch):
     assert digest is not None
     assert digest.slot == "morning"
     assert digest.language == "tr"
+
+
+# ---------------------------------------------------------------------------
+# 5b. token_usage gozlemlenebilirlik (REFACTOR_PLAN.md Adim 3)
+#
+# Bu testler gercek fake_db/fake_redis fixture'larini kullanir (yerel
+# _FakeDB'nin aksine): fixture'lar src.core.database.db / src.core.redis.r
+# SINGLETON'inin oznitelikerini yamiyor, bu yuzden hem digest/service.py'nin
+# hem de src/services/token.py'nin ayni (yamalanmis) db/redis nesnesine
+# baktigi garanti -- token_usage INSERT'i gercekten fake_db.queries'de
+# gorunur.
+# ---------------------------------------------------------------------------
+
+
+async def test_generate_digest_logs_success_to_token_usage(monkeypatch, fake_db, fake_redis):
+    _patch_agent(monkeypatch, _make_digest())
+    _patch_precollect(monkeypatch)
+
+    digest = await generate_digest(slot="morning")
+    assert digest is not None
+
+    logged = [q for q in fake_db.queries if "INSERT INTO token_usage" in q[0]]
+    assert len(logged) == 1
+    _, params = logged[0]
+    # (model, prompt_tokens, completion_tokens, total_tokens, endpoint,
+    #  purpose, provider, status, error, duration_ms, user_id, created_at)
+    assert params[0] == "deepseek-v4-flash-free"
+    assert params[1] == 100 and params[2] == 200 and params[3] == 300
+    assert params[4] == "digest"  # endpoint geriye-donuk uyum icin purpose ile ayni
+    assert params[5] == "digest"  # purpose
+    assert params[6] == "opencode-zen"  # provider
+    assert params[7] == "ok"  # status
+    assert params[8] is None  # error
+    assert isinstance(params[9], int) and params[9] >= 0  # duration_ms
+
+
+async def test_generate_digest_logs_failure_to_token_usage(monkeypatch, fake_db, fake_redis):
+    """2026-08-26'nin asil kabul kriteri: basarisiz bir cagri da kalici bir
+    token_usage satiri birakmali -- digest artik sessizce kaybolmuyor."""
+    _patch_precollect(monkeypatch)
+
+    async def _fake_build_agent():
+        return _FakeAgent(None, raise_exc=RuntimeError("400 please use low, high, or max"))
+
+    monkeypatch.setattr(service_module, "_build_agent", _fake_build_agent)
+
+    with pytest.raises(RuntimeError, match="please use low"):
+        await generate_digest(slot="morning")
+
+    logged = [q for q in fake_db.queries if "INSERT INTO token_usage" in q[0]]
+    assert len(logged) == 1
+    _, params = logged[0]
+    assert params[0] == "deepseek-v4-flash-free"
+    assert params[1] is None and params[2] is None and params[3] is None
+    assert params[5] == "digest"
+    assert params[6] == "opencode-zen"
+    assert params[7] == "error"
+    assert params[8] == "RuntimeError: 400 please use low, high, or max"
+    assert isinstance(params[9], int) and params[9] >= 0
+
+
+async def test_generate_digest_failure_log_never_leaks_secrets(monkeypatch, fake_db, fake_redis):
+    """Sir sizdirma yasak (Adim 3 kesin kural): API anahtari/Authorization
+    basligi hata metninde asla DB'ye yazilmamali."""
+    _patch_precollect(monkeypatch)
+
+    leaking_error = RuntimeError(
+        "401 rejected; request had Authorization: Bearer sk-live-supersecret123456 "
+        "against https://user:hunter2@opencode.ai/zen/v1/chat/completions"
+    )
+
+    async def _fake_build_agent():
+        return _FakeAgent(None, raise_exc=leaking_error)
+
+    monkeypatch.setattr(service_module, "_build_agent", _fake_build_agent)
+
+    with pytest.raises(RuntimeError):
+        await generate_digest(slot="morning")
+
+    logged = [q for q in fake_db.queries if "INSERT INTO token_usage" in q[0]]
+    assert len(logged) == 1
+    error_text = logged[0][1][8]
+    assert error_text is not None
+    assert "sk-live-supersecret123456" not in error_text
+    assert "hunter2" not in error_text
+    assert "Bearer sk-live" not in error_text
+    # Hata sinifi + genel baglam korunmali -- yalniz sir kismi maskeleniyor.
+    assert "RuntimeError" in error_text
+    assert "401 rejected" in error_text
+
+
+async def test_generate_digest_token_usage_logging_never_breaks_generation(monkeypatch, fake_db, fake_redis):
+    """Kesin kural: loglama basarisiz olursa (DB down gibi) LLM cagrisinin
+    kendisi bundan etkilenmemeli -- digest yine dogru sekilde donmeli."""
+    _patch_agent(monkeypatch, _make_digest())
+    _patch_precollect(monkeypatch)
+
+    async def _boom_log(*args, **kwargs):
+        raise RuntimeError("token_usage insert failed (db down)")
+
+    monkeypatch.setattr("src.services.token.log_token_usage", _boom_log)
+
+    digest = await generate_digest(slot="morning")
+    assert digest is not None
+    assert digest.slot == "morning"
 
 
 async def test_generate_digest_times_out_instead_of_hanging(monkeypatch):

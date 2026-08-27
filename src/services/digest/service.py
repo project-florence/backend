@@ -8,6 +8,7 @@ a digest is still returned when the cache write fails.
 import asyncio
 import json
 import logging
+import time
 import uuid
 from datetime import date, datetime, timezone
 
@@ -17,6 +18,7 @@ from pydantic_ai.usage import UsageLimits
 from src.core.config import get_config
 from src.core.database import db
 from src.core.redis import r
+from src.llm.agents import elapsed_ms, log_llm_call
 from src.services.digest import tools
 from src.services.digest.agent import _build_agent
 from src.services.digest.models import Digest
@@ -68,13 +70,32 @@ async def generate_digest(slot: str = "evening") -> Digest:
         snapshot = await tools.get_market_snapshot()
         news = await tools.get_news_feed()
 
-        agent = await _build_agent()
+        # REFACTOR_PLAN.md Adim 3: digest'in cagrisi -- basarili VEYA
+        # basarisiz -- artik hep bir token_usage satiri birakir. 2026-08-26
+        # arizasinda digest hicbir zaman yazmiyordu, 36 saat kimse fark
+        # etmedi. model_name/provider_id "unknown"/None kalirsa _build_agent()
+        # kendisi (ornegin LLMPurposeUnconfigured) basarisiz oldu demektir --
+        # o durum da asagida loglanir, sessizce kaybolmaz.
+        start = time.monotonic()
+        model_name = "unknown"
+        provider_id: str | None = None
         try:
+            agent = await _build_agent()
+            model_name = getattr(agent, "florence_model_name", "unknown")
+            provider_id = getattr(agent, "florence_provider_id", None)
             result = await agent.run(
                 prepare_context(slot, snapshot, news),
                 usage_limits=UsageLimits(request_limit=int(digest_cfg.get("max_requests", 200))),
             )
-        except UsageLimitExceeded:
+        except UsageLimitExceeded as exc:
+            await log_llm_call(
+                purpose="digest",
+                model_name=model_name,
+                provider_id=provider_id,
+                status="error",
+                duration_ms=elapsed_ms(start),
+                error=exc,
+            )
             usage = tools.get_budget_usage()
             max_search = int(digest_cfg.get("max_search", 10))
             max_fetch = int(digest_cfg.get("max_fetch", 20))
@@ -97,6 +118,28 @@ async def generate_digest(slot: str = "evening") -> Digest:
                 exhausted or "none",
             )
             raise
+        except Exception as exc:
+            await log_llm_call(
+                purpose="digest",
+                model_name=model_name,
+                provider_id=provider_id,
+                status="error",
+                duration_ms=elapsed_ms(start),
+                error=exc,
+            )
+            raise
+
+        usage_data = result.usage
+        await log_llm_call(
+            purpose="digest",
+            model_name=model_name,
+            provider_id=provider_id,
+            status="ok",
+            duration_ms=elapsed_ms(start),
+            prompt_tokens=usage_data.input_tokens or 0,
+            completion_tokens=usage_data.output_tokens or 0,
+            total_tokens=usage_data.total_tokens or 0,
+        )
 
     digest: Digest = result.output
     digest.id = uuid.uuid4().hex
