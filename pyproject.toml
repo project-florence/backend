@@ -36,6 +36,14 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
+# Varsayilan `pytest` kosusu entegrasyon katmanini calistirmaz (hermetik,
+# ag/DB istemez kalir). Acikca calistirmak icin: `pytest -m integration`
+# (komut satirindaki -m, addopts'takini gecersiz kilar). Bkz.
+# tests/test_llm_integration.py docstring'i -- REFACTOR_PLAN.md Adim 6.
+addopts = "-m 'not integration'"
+markers = [
+    "integration: gercek Postgres/Redis'e karsi calisan, opt-in entegrasyon testleri; container yoksa temiz sekilde skip edilir (tests/test_llm_integration.py).",
+]
 
 [tool.coverage.run]
 source = ["src"]

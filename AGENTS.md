@@ -40,3 +40,36 @@ The codebase is fully async. Follow these rules when editing:
 - No repository test, lint, formatter, typecheck, CI, or pre-commit configuration is present.
 - For a dependency-free syntax check after Python edits, run `python -m compileall src scripts`.
 - There is no `launch.sh` workflow to rely on; it is currently empty.
+
+## Integration tests (opt-in, `tests/test_llm_integration.py`)
+
+The rest of `tests/` is fully hermetic (`fake_db`/`fake_redis`, no network/DB — `python -m
+pytest`, ~550 tests, ~3s). REFACTOR_PLAN.md Step 6 added one deliberately non-hermetic file that
+runs against **real** local Postgres/Redis, because three real bugs surfaced during the LLM
+provider refactor that a mocked suite structurally cannot see:
+
+1. A synchronous bridge (`asyncio.run` in a worker thread) touching the loop-bound
+   `AsyncConnectionPool` / async Redis client from a foreign event loop — `fake_db`/`fake_redis`
+   carry no loop affinity, so this class of bug is invisible to them.
+2. `llm_settings.provider` → `llm_providers` foreign key requiring a row even for keyless
+   providers — only a real Postgres FK constraint enforces this.
+3. `opencode-zen` serving `/models` without auth but rejecting `/chat/completions` with 401 —
+   not covered by this test layer (no real network calls here), but the distinction is
+   documented in `src/llm/providers.py`.
+
+Marker: `@pytest.mark.integration` / `pytestmark = pytest.mark.integration`, registered in
+`pyproject.toml`. `addopts = "-m 'not integration'"` means plain `python -m pytest` never runs
+or connects for these tests; an explicit `-m integration` on the command line overrides that.
+
+```bash
+docker compose up -d postgres redis   # florence_postgres / florence_redis, if not already up
+python -m pytest -m integration -q
+```
+
+If the containers aren't reachable, the tests **skip** cleanly (a short, independent connection
+probe in the `_integration_target` fixture) rather than failing. Every test cleans up its own
+rows in a `_cleanup` fixture (`llm_settings` before `llm_providers`, matching the FK order;
+`token_usage` rows are tagged with a unique `purpose` value so pre-existing data is never
+touched) — running the file twice in a row passes both times. A safety guard skips the whole
+file unless `POSTGRES_HOST`/`REDIS_HOST` resolve to `localhost`/`127.0.0.1` (override with
+`FLORENCE_INTEGRATION_ALLOW_REMOTE=1`) — this layer must never reach production.
