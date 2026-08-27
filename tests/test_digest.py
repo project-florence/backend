@@ -172,9 +172,9 @@ def _seed_llm_selection(
     model: str = "deepseek-v4-flash-free",
     params: dict | None = None,
 ) -> None:
-    """``_build_agent()`` artik gercek ``resolve_purpose("digest")``'i (DB+Redis
+    """``_build_agent()`` artik gercek ``resolve_llm()``'i (DB+Redis
     uzerinden) cagiriyor -- bu, ``fake_db``'nin fetchone kuyrugunu
-    resolve_purpose'un gercek sorgu sirasiyla besler: (1) llm_settings SELECT ->
+    resolve_llm'in gercek sorgu sirasiyla besler: (1) llm_settings SELECT ->
     (provider, model, params), (2) llm_providers SELECT -> (api_key_encrypted,
     base_url, enabled). ``api_key_encrypted=None`` -- varsayilan olarak secilen
     opencode-zen auth istemiyor, decrypt hic tetiklenmiyor. ``fake_redis``

@@ -133,7 +133,7 @@ Hermes bunların hepsini tek bir `custom` kimliği altında topluyor. Florence't
 
 1. `src/llm/providers.py` kataloğuna `ProviderSpec` ekle. **Base URL'i tahmin etme** — resmi
    dokümandan doğrula, doğrulayamıyorsan `verified=False` ve `notes` ile işaretle.
-2. `models_url`'i mümkünse canlı çağırıp teyit et; `llm set` doğrulaması buna dayanıyor.
+2. `models_url`'i mümkünse canlı çağırıp teyit et; `llm model set` doğrulaması buna dayanıyor.
 3. `reasoning_param`'ı ancak belgelenmişse doldur. Emin değilsen `None` bırak — kör göndermek
    2026-08-26 arızasının ta kendisiydi.
 4. **Bu dosyanın 1. bölümüne satır ekle.**

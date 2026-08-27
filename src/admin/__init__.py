@@ -139,7 +139,7 @@ async def token_usage(
     _: bool = Depends(verify_admin_token),
     since: str | None = Query(None, description="ISO format datetime, e.g. 2024-01-01T00:00:00Z"),
     endpoint: str | None = Query(None, description="Eski alan; yeni yazimlarda purpose ile ayni"),
-    purpose: str | None = Query(None, description="digest | report | embedding"),
+    purpose: str | None = Query(None, description="digest | report"),
     provider: str | None = Query(None),
     model: str | None = Query(None),
     status: str | None = Query(None, description="ok | error"),

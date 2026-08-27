@@ -372,7 +372,10 @@ async def init_db() -> None:
                 ALTER TABLE token_usage ALTER COLUMN prompt_tokens DROP DEFAULT;
                 ALTER TABLE token_usage ALTER COLUMN completion_tokens DROP DEFAULT;
                 ALTER TABLE token_usage ALTER COLUMN total_tokens DROP DEFAULT;
-                -- purpose: endpoint kolonunun yerini alir (digest/report/embedding).
+                -- purpose: endpoint kolonunun yerini alir (digest/report). Ayar
+                -- (llm_settings) TEK ama gozlemlenebilirlik amac-basina KALIR --
+                -- bu kolon digest/report cagrilarini birbirinden ayirt etmeye
+                -- devam eder (REFACTOR_PLAN.md Adim 6.5).
                 -- endpoint SILINMEDI -- eski satirlar var, geriye donuk uyum icin
                 -- korunuyor; yeni yazimlarda ayni degerle doldurulur (bkz.
                 -- src/services/token.py::log_token_usage docstring'i).
@@ -604,6 +607,28 @@ async def init_db() -> None:
             # Tasarim: florence/REFACTOR_PLAN.md Bolum 2.3 (migrations/013 ile
             # senkron). Davranis degisikligi yok -- digest/rapor bu tablolari
             # henuz okumuyor (Adim 2'nin isi), sadece sema burada kuruluyor.
+            #
+            # Adim 6.5 (migrations/015 ile senkron): amac-basina secim kalkti,
+            # ``llm_settings`` TEK SATIRLIK (singleton) hale geldi -- ``purpose``
+            # birincil anahtar olmaktan cikti. Bu ALTER TABLE / ADD COLUMN ile
+            # yapilamaz (birincil anahtar kolonunun kendisi degisiyor); bu
+            # yuzden eski sekli (purpose PK) tasiyan bir tablo varsa DUSURULUP
+            # yeniden kuruluyor. Prod'a HIC DEPLOY EDILMEDI (REFACTOR_PLAN.md
+            # Adim 7 henuz yapilmadi) -- veri kaybi riski yok, eski satirlar
+            # (varsa) yerel dev DB'de test verisiydi. Bu blok idempotent: bir
+            # kez calisip 'purpose' kolonunu kaldirdiktan sonra bir sonraki
+            # calistirmada kosul hic tetiklenmez.
+            await cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'llm_settings' AND column_name = 'purpose'
+                    ) THEN
+                        DROP TABLE IF EXISTS llm_settings;
+                    END IF;
+                END $$;
+            """)
             await cur.execute("""
                 CREATE TABLE IF NOT EXISTS llm_providers (
                     provider          TEXT PRIMARY KEY,      -- katalogdaki id (src/llm/providers.py)
@@ -614,8 +639,14 @@ async def init_db() -> None:
                     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
 
+                -- Singleton: tek satir olabilir (id her zaman TRUE). Amac
+                -- basina degil, TEK bir saglayici/model ayari -- digest VE
+                -- report AYNI secimi kullanir, ayrisma yapisal olarak
+                -- imkansiz (REFACTOR_PLAN.md Adim 6.5). Amac bazli
+                -- gozlemlenebilirlik ayri bir eksen: token_usage.purpose
+                -- (bkz. asagida) korunuyor.
                 CREATE TABLE IF NOT EXISTS llm_settings (
-                    purpose    TEXT PRIMARY KEY,             -- digest | report | embedding
+                    id         BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (id),
                     provider   TEXT NOT NULL REFERENCES llm_providers(provider),
                     model      TEXT NOT NULL,
                     params     JSONB NOT NULL DEFAULT '{}',  -- reasoning, timeout, temperature gecersiz kilmalari

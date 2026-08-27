@@ -9,17 +9,26 @@ Kullanim (mevcut komut grubu, davranis korunuyor):
     python scripts/admin_cli.py stats
     python scripts/admin_cli.py export stats
 
-LLM saglayici/model yonetimi (REFACTOR_PLAN.md Adim 4, bkz. PROVIDERS.md):
+LLM saglayici/model yonetimi (REFACTOR_PLAN.md Adim 4 + Adim 6.5, bkz. PROVIDERS.md):
     python scripts/admin_cli.py llm providers
     python scripts/admin_cli.py llm provider set <id> [--base-url URL]
     python scripts/admin_cli.py llm provider rm <id>
     python scripts/admin_cli.py llm models <provider> [--free]
-    python scripts/admin_cli.py llm show
-    python scripts/admin_cli.py llm set <purpose> <provider> <model> [--reasoning V] [--timeout N]
+    python scripts/admin_cli.py llm model show
+    python scripts/admin_cli.py llm model set <provider>/<model> [--reasoning V] [--timeout N]
     python scripts/admin_cli.py llm test <purpose>
     python scripts/admin_cli.py llm usage [--since 24h] [--by provider|model|purpose]
     python scripts/admin_cli.py llm log [--failures] [--since 24h]
     python scripts/admin_cli.py llm rotate-key
+
+Adim 6.5 (2026-08-27 kullanici itirazi): amac-basina secim kalkti. TEK bir
+``llm model set`` digest VE report'u AYNI ANDA gunceller -- ikisini ayri ayri
+ayarlayip birini guncelleyip digerini unutmak (CUSTOM_MODEL/CUSTOM_URL
+ayrismasinin bir kat yukarida yeniden uretilmesi) yapisal olarak imkansiz
+hale geldi. Amaca gore secim yapan bir CLI bayragi HICBIR YERDE yok. Gozlemlenebilirlik
+(``token_usage.purpose``, ``llm log``/``llm usage --by purpose``) AYRI bir
+eksen ve KORUNDU -- digest/report'un maliyeti ve hatalari hala ayri ayri
+gorunur, yalniz AYARIN kendisi artik tek.
 
 Her komut --json ile makine-okunur cikti verebilir. Her yikici (mutating) komut
 --yes ile onay istemini atlayabilir.
@@ -58,7 +67,7 @@ from src.core.database import db  # noqa: E402
 from src.core.redis import r  # noqa: E402
 from src.llm import crypto  # noqa: E402
 from src.llm.agents import LLMPurposeUnconfigured, build_agent, elapsed_ms, log_llm_call  # noqa: E402
-from src.llm.providers import PROVIDERS  # noqa: E402
+from src.llm.providers import PROVIDERS, InvalidModelSpec, resolve as resolve_spec  # noqa: E402
 from src.llm.settings import (  # noqa: E402
     PURPOSES,
     ResolvedLLM,
@@ -67,7 +76,7 @@ from src.llm.settings import (  # noqa: E402
     list_providers,
     mask_secret,
     remove_provider,
-    resolve_purpose,
+    resolve_llm,
     set_selection,
     structured_output_forbids_reasoning,
     upsert_provider,
@@ -686,9 +695,9 @@ async def llm_provider_rm(args: argparse.Namespace) -> int:
         await remove_provider(provider_id)
     except psycopg.errors.ForeignKeyViolation:
         print(
-            f"HATA: '{provider_id}' hala bir veya daha fazla amac (digest/report/embedding) "
-            f"tarafindan kullaniliyor; once 'llm set <amac> <baska-saglayici> <model>' ile "
-            f"o amaci baska bir saglayiciya tasiyin."
+            f"HATA: '{provider_id}' su an TEK model ayarinin (digest+report paylasir) "
+            f"saglayicisi; once 'llm model set <baska-saglayici>/<model>' ile secimi baska "
+            f"bir saglayiciya tasiyin."
         )
         return 1
     _out(args, {"provider": provider_id, "removed": True}, f"Saglayici silindi: {provider_id}")
@@ -729,76 +738,86 @@ async def llm_models(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
-# llm show / set / test
+# llm model show / model set / test
 # ---------------------------------------------------------------------------
+#
+# REFACTOR_PLAN.md Adim 6.5: amac-basina ``llm show``/``llm set`` kalkti.
+# Ayar TEK (``llm_settings`` singleton) -- digest VE report AYNI saglayici/
+# modeli kullanir. Amaca gore secim yapan bir CLI bayragi HICBIR YERDE yok. Gozlemlenebilirlik
+# (son cagri durumu) AYRI bir eksen olarak ``token_usage.purpose`` uzerinden
+# amac basina KALIR -- ``llm_model_show`` bunu asagida hala amac basina
+# gosterir, ama YAZDIGI/OKUDUGU AYAR tek.
 
 
-async def llm_show(args: argparse.Namespace) -> int:
-    entries = []
-    for purpose in PURPOSES:
-        resolved = await resolve_purpose(purpose)
-        last = await _last_token_usage_row(purpose)
-        if isinstance(resolved, ResolvedLLM):
-            entry = {
-                "purpose": purpose,
-                "configured": True,
-                "provider": resolved.provider.id,
-                "model": resolved.model,
-                "base_url": resolved.base_url,
-                "api_key": mask_secret(resolved.api_key) if resolved.api_key else "(anahtar yok/gerekmiyor)",
-                "params": resolved.params,
-            }
-        else:
-            assert isinstance(resolved, Unconfigured)
-            entry = {"purpose": purpose, "configured": False, "reason": resolved.reason}
-        entry["last_call"] = last
-        entries.append(entry)
+async def llm_model_show(args: argparse.Namespace) -> int:
+    resolved = await resolve_llm()
+    if isinstance(resolved, ResolvedLLM):
+        entry = {
+            "configured": True,
+            "provider": resolved.provider.id,
+            "model": resolved.model,
+            "base_url": resolved.base_url,
+            "api_key": mask_secret(resolved.api_key) if resolved.api_key else "(anahtar yok/gerekmiyor)",
+            "params": resolved.params,
+        }
+    else:
+        assert isinstance(resolved, Unconfigured)
+        entry = {"configured": False, "reason": resolved.reason}
+
+    # Son cagri durumu gozlemlenebilirlik ekseninde amac basina kalir --
+    # token_usage.purpose digest/report'u ayirt etmeye devam ediyor.
+    entry["last_calls"] = {purpose: await _last_token_usage_row(purpose) for purpose in PURPOSES}
 
     if getattr(args, "json", False):
-        print(json_module.dumps(entries, ensure_ascii=False, indent=2, default=str))
+        print(json_module.dumps(entry, ensure_ascii=False, indent=2, default=str))
         return 0
 
-    for entry in entries:
-        print(f"=== {entry['purpose']} ===")
-        if entry["configured"]:
-            print(f"  saglayici/model : {entry['provider']}/{entry['model']}")
-            print(f"  base_url        : {entry['base_url']}")
-            print(f"  anahtar         : {entry['api_key']}")
-            print(f"  params          : {entry['params']}")
-        else:
-            print(f"  YAPILANDIRILMAMIS: {entry['reason']}")
-        last = entry["last_call"]
+    if entry["configured"]:
+        print(f"saglayici/model : {entry['provider']}/{entry['model']}")
+        print(f"base_url        : {entry['base_url']}")
+        print(f"anahtar         : {entry['api_key']}")
+        print(f"params          : {entry['params']}")
+    else:
+        print(f"YAPILANDIRILMAMIS: {entry['reason']}")
+    print()
+    for purpose, last in entry["last_calls"].items():
         if last:
             print(
-                f"  son cagri       : {last['created_at']} status={last['status']} "
+                f"son cagri ({purpose}) : {last['created_at']} status={last['status']} "
                 f"provider={last['provider']} model={last['model']} "
                 f"duration_ms={last['duration_ms']}"
                 + (f" error={last['error']}" if last.get("error") else "")
             )
         else:
-            print("  son cagri       : (hic cagri yok)")
-        print()
+            print(f"son cagri ({purpose}) : (hic cagri yok)")
     return 0
 
 
-async def llm_set(args: argparse.Namespace) -> int:
-    """Bir amac icin saglayici+model secimini yazar -- yazmadan ONCE bes dogrulama.
+async def llm_model_set(args: argparse.Namespace) -> int:
+    """TEK saglayici+model ayarini yazar -- yazmadan ONCE bes dogrulama.
 
-    Sira (REFACTOR_PLAN.md 2.6): (1) saglayici katalogda mi, (2) anahtar var/
-    cozulebiliyor mu (keyless saglayicilarda atlanir), (3) model canli
-    roster'da mi, (4) reasoning degeri saglayicinin kabul ettigi kumede mi,
-    (5) yapilandirilmis ciktili amacta reasoning aciliyorsa uyar (engelleme).
-    2026-08-26 arizasi 3. maddede takilirdi -- bu yuzden 3. madde ``--force``
-    ile SADECE "roster'a erisilemedi" durumunda atlanabilir, "model roster'da
-    yok" durumunda ASLA atlanamaz.
+    Sira (REFACTOR_PLAN.md 2.6, Adim 6.5): (1) saglayici katalogda mi,
+    (2) anahtar var/cozulebiliyor mu (keyless saglayicilarda atlanir),
+    (3) model canli roster'da mi, (4) reasoning degeri saglayicinin kabul
+    ettigi kumede mi, (5) reasoning aciliyorsa -- yapilandirilmis cikti
+    kullanan amaclardan EN AZ BIRI (bugun: digest VE report ikisi de) bunu
+    paylasacagi icin uyar (engelleme). 2026-08-26 arizasi 3. maddede
+    takilirdi -- bu yuzden 3. madde ``--force`` ile SADECE "roster'a
+    erisilemedi" durumunda atlanabilir, "model roster'da yok" durumunda
+    ASLA atlanamaz.
+
+    Amac-basina degil TEK bir yazma -- ``args.spec`` ``"saglayici/model"``
+    bicimindedir (``src.llm.providers.resolve`` ile ayristirilir, model adi
+    kendi icinde "/" icerebilir -- ornegin OpenRouter -- bu yuzden yalniz
+    ILK "/" ayrac).
     """
-    purpose, provider_id, model = args.purpose, args.provider, args.model
-
-    # 1) saglayici katalogda mi
-    spec = PROVIDERS.get(provider_id)
-    if spec is None:
-        print(f"HATA: bilinmeyen saglayici: {provider_id!r} (katalogda yok: {sorted(PROVIDERS)})")
+    try:
+        parsed = resolve_spec(args.spec)
+    except InvalidModelSpec as exc:
+        print(f"HATA: {exc}")
         return 1
+    provider_id, model = parsed.provider.id, parsed.model
+    spec = parsed.provider
 
     # 2) anahtar var mi / cozulebiliyor mu (keyless saglayicilar icin anahtar
     # sartı atlanir -- AMA llm_providers'ta bir SATIR yine de sart: llm_settings.
@@ -869,25 +888,33 @@ async def llm_set(args: argparse.Namespace) -> int:
         params["reasoning"] = args.reasoning
 
         # 5) yapilandirilmis ciktida reasoning -- UYARI, engel degil (admin
-        # override Adim 2'de boyle uygulandi, bkz. src/llm/agents.py).
-        if structured_output_forbids_reasoning(purpose):
+        # override boyle uygulandi, bkz. src/llm/agents.py). Ayar TEK ve
+        # PURPOSES icindeki amaclarin tumu (bugun: digest, report) bunu
+        # paylasacagi icin, bunlardan en az biri yapilandirilmis cikti
+        # kullaniyorsa uyar -- amac-basina kosul YOK (Adim 6.5).
+        if any(structured_output_forbids_reasoning(p) for p in PURPOSES):
             print(
-                f"[UYARI] amac={purpose!r} yapilandirilmis cikti kullaniyor (Digest/Report) -- "
-                f"reasoning normalde kapali. Bilerek admin override olarak aciliyorsunuz."
+                f"[UYARI] tek model ayari {', '.join(PURPOSES)} tarafindan PAYLASILIYOR; "
+                f"bunlardan en az biri yapilandirilmis cikti kullaniyor (reasoning normalde "
+                f"kapali). Bilerek admin override olarak aciliyorsunuz."
             )
 
     if args.timeout is not None:
         params["timeout"] = args.timeout
 
-    if not _confirm(f"'{purpose}' amaci '{provider_id}/{model}' olarak ayarlanacak.", args.yes):
+    if not _confirm(
+        f"Tek model ayari '{provider_id}/{model}' olarak yazilacak "
+        f"({', '.join(PURPOSES)} bunu kullanacak).",
+        args.yes,
+    ):
         print("Iptal edildi.")
         return 1
 
-    await set_selection(purpose, provider_id, model, params=params, updated_by=os.getenv("USER") or "admin_cli")
+    await set_selection(provider_id, model, params=params, updated_by=os.getenv("USER") or "admin_cli")
     _out(
         args,
-        {"purpose": purpose, "provider": provider_id, "model": model, "params": params},
-        f"Ayarlandi: {purpose} -> {provider_id}/{model} (params={params})",
+        {"provider": provider_id, "model": model, "params": params},
+        f"Ayarlandi: {provider_id}/{model} (params={params})",
     )
     return 0
 
@@ -1110,7 +1137,7 @@ async def llm_rotate_key(args: argparse.Namespace) -> int:
         f"{len(decrypted)} saglayicinin anahtari yeni ana anahtarla yeniden sifrelendi.",
         "ONEMLI: FLORENCE_MASTER_KEY'i .env/secret yoneticisinde YENI anahtarla guncelleyin -- "
         "guncellemezseniz uygulama DB'deki anahtarlari artik COZEMEZ (cokme yok, ama "
-        "resolve_purpose her amaci 'yapilandirilmamis' gosterir).",
+        "resolve_llm ayari 'yapilandirilmamis' gosterir).",
     )
     return 0
 
@@ -1187,15 +1214,19 @@ def _build_parser() -> argparse.ArgumentParser:
     models_p.add_argument("provider")
     models_p.add_argument("--free", action="store_true", help="yalniz id'sinde 'free' gecen modeller (sezgisel)")
 
-    llm_sub.add_parser("show", help="amac basina secim + son cagri durumu", parents=[common])
+    # llm model: TEK ayar (REFACTOR_PLAN.md Adim 6.5) -- amac-basina "llm
+    # show"/"llm set" kalkti, amaca gore secim yapan bir CLI bayragi HICBIR
+    # YERDE yok.
+    model_p = llm_sub.add_parser("model", help="tek saglayici/model ayari (digest+report paylasir)", parents=[common])
+    model_sub = model_p.add_subparsers(dest="llm_model_command", required=True)
 
-    set_p = llm_sub.add_parser("set", help="bir amaca saglayici+model ata (5 dogrulama)", parents=[common])
-    set_p.add_argument("purpose", choices=PURPOSES)
-    set_p.add_argument("provider")
-    set_p.add_argument("model")
-    set_p.add_argument("--reasoning", default=None, help="ornek: low/medium/high (saglayiciya gore)")
-    set_p.add_argument("--timeout", type=float, default=None, help="istek zaman asimi (saniye)")
-    set_p.add_argument(
+    model_sub.add_parser("show", help="mevcut tek ayar + amac basina son cagri durumu", parents=[common])
+
+    model_set_p = model_sub.add_parser("set", help="tek ayari yaz (5 dogrulama)", parents=[common])
+    model_set_p.add_argument("spec", metavar="provider/model", help="ornek: opencode-zen/deepseek-v4-flash-free")
+    model_set_p.add_argument("--reasoning", default=None, help="ornek: low/medium/high (saglayiciya gore)")
+    model_set_p.add_argument("--timeout", type=float, default=None, help="istek zaman asimi (saniye)")
+    model_set_p.add_argument(
         "--force", action="store_true",
         help="roster'a ERISILEMEDIGINDE devam et (roster'da model YOKSA bu bayrak atlamaya YETMEZ)",
     )
@@ -1256,10 +1287,11 @@ async def main() -> int:
                 return await _dispatch(llm_provider_rm, args, destructive=True)
         if args.llm_command == "models":
             return await _dispatch(llm_models, args, destructive=False)
-        if args.llm_command == "show":
-            return await _dispatch(llm_show, args, destructive=False)
-        if args.llm_command == "set":
-            return await _dispatch(llm_set, args, destructive=True)
+        if args.llm_command == "model":
+            if args.llm_model_command == "show":
+                return await _dispatch(llm_model_show, args, destructive=False)
+            if args.llm_model_command == "set":
+                return await _dispatch(llm_model_set, args, destructive=True)
         if args.llm_command == "test":
             return await _dispatch(llm_test, args, destructive=True)
         if args.llm_command == "usage":

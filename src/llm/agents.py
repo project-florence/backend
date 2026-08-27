@@ -1,11 +1,16 @@
 """Amac-bazli pydantic-ai model kurucusu -- digest ve raporun ortak baglantisi.
 
-REFACTOR_PLAN.md Adim 2: ``build_agent(purpose)`` ``src.llm.settings.resolve_purpose``
-ile saglayici + model + (cozulmus) base_url + (cozulmus) API anahtari + params
-alir, ``api_style``'a gore uygun pydantic-ai provider/model'ini kurar ve
-reasoning ayarini (varsa) hazirlar.
+REFACTOR_PLAN.md Adim 2 + Adim 6.5: ``build_agent(purpose)``
+``src.llm.settings.resolve_llm`` ile TEK saglayici + model + (cozulmus)
+base_url + (cozulmus) API anahtari + params alir (Adim 6.5: cozumleme
+artik amaca gore dallanmiyor -- digest ve report AYNI ayari kullanir),
+``api_style``'a gore uygun pydantic-ai provider/model'ini kurar ve reasoning
+ayarini (varsa) hazirlar. ``purpose`` parametresi burada YALNIZ loglama/
+denetim etiketi olarak kalir (``token_usage.purpose``, ``structured_output_
+forbids_reasoning(purpose)``) -- hangi saglayici/modelin secilecegini
+ETKILEMEZ.
 
-``build_agent`` ZORUNLU olarak async: ``resolve_purpose`` (bkz. ``src/llm/settings.py``)
+``build_agent`` ZORUNLU olarak async: ``resolve_llm`` (bkz. ``src/llm/settings.py``)
 ``src/core/database.py``'deki ``AsyncConnectionPool`` (satir 27, 70) ve
 ``src/core/redis.py``'deki ``aioredis.Redis`` (satir 41) singleton'larina dokunuyor.
 Bu ikisi de ana event loop'ta kuruluyor ve o loop'a bagli -- baska bir thread'de
@@ -57,7 +62,7 @@ from src.llm.settings import (
     LLMPurposeUnconfigured,
     ResolvedLLM,
     Unconfigured,
-    resolve_purpose,
+    resolve_llm,
     structured_output_forbids_reasoning,
 )
 
@@ -136,15 +141,19 @@ class BuiltAgent:
 
 
 async def build_agent(purpose: str) -> BuiltAgent:
-    """Bir amac icin pydantic-ai modeli + model_settings kurar.
+    """``purpose`` icin pydantic-ai modeli + model_settings kurar.
 
-    Cozumlemeyi ``src.llm.settings.resolve_purpose``'a devreder. Amac
-    yapilandirilmamissa/cozulemiyorsa ``LLMPurposeUnconfigured`` firlatir --
-    sessizce varsayilana dusmek YOK.
+    Cozumlemeyi ``src.llm.settings.resolve_llm``'e devreder -- TEK ayar,
+    amaca gore dallanmaz (Adim 6.5). ``purpose`` burada yalniz (a) reasoning
+    kuralinin (``structured_output_forbids_reasoning``) hangi amaca
+    uygulandigini belirlemek ve (b) hata durumunda ``LLMPurposeUnconfigured``
+    mesajini etiketlemek icin kullanilir. Ayar yapilandirilmamissa/
+    cozulemiyorsa ``LLMPurposeUnconfigured`` firlatir -- sessizce
+    varsayilana dusmek YOK.
     """
-    resolved = await resolve_purpose(purpose)
+    resolved = await resolve_llm()
     if isinstance(resolved, Unconfigured):
-        raise LLMPurposeUnconfigured(resolved)
+        raise LLMPurposeUnconfigured(purpose, resolved.reason)
     provider = resolved.provider
     # opencode-zen/opencode-go/ollama-local gibi bazi saglayicilar auth
     # istemiyor (bkz. PROVIDERS.md); OpenAIProvider yine de bir api_key

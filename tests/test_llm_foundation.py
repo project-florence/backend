@@ -1,10 +1,11 @@
-"""Unit tests for the LLM foundation layer (src/llm/*) -- REFACTOR_PLAN.md Adim 1.
+"""Unit tests for the LLM foundation layer (src/llm/*) -- REFACTOR_PLAN.md
+Adim 1 + Adim 6.5 (tek ayar/singleton, embedding kaldirildi).
 
 Hermetic: no real Postgres/Redis/network. ``fake_db``/``fake_redis`` swap the
 shared async singletons (see tests/conftest.py, tests/api_helpers.py).
 Covers: AES-256-GCM round-trip + AAD isolation, master-key failure modes,
 provider catalog invariants, ``resolve()`` spec parsing, and
-``resolve_purpose`` behaviour when nothing is configured.
+``resolve_llm`` behaviour (singleton, amac almaz) when nothing is configured.
 """
 
 import base64
@@ -192,7 +193,17 @@ def test_resolve_invalid_spec_raises(spec):
 def test_structured_output_forbids_reasoning_for_digest_and_report():
     assert settings.structured_output_forbids_reasoning("digest") is True
     assert settings.structured_output_forbids_reasoning("report") is True
-    assert settings.structured_output_forbids_reasoning("embedding") is False
+    # "embedding" artik gecerli bir amac degil (Adim 6.5.B) -- kume disinda
+    # herhangi bir string icin fonksiyon False donmeli (kapali degil, ilgisiz).
+    assert settings.structured_output_forbids_reasoning("some-unknown-purpose") is False
+
+
+def test_purposes_no_longer_includes_embedding():
+    """Adim 6.5.B: embedding bir LLM degil, src/clients/embedding.py'nin
+    hicbir cagirani yoktu (dogrulandi) -- var olmayan bir tuketici icin
+    yapilandirma yuzeyiydi, tamamen kaldirildi."""
+    assert settings.PURPOSES == ("digest", "report")
+    assert "embedding" not in settings.PURPOSES
 
 
 def test_mask_secret():
@@ -203,17 +214,15 @@ def test_mask_secret():
 
 # ---------------------------------------------------------------------------
 # settings: DB/Redis-backed write + resolve flows (fake_db / fake_redis)
+# Adim 6.5: llm_settings singleton -- set_selection/get_selection/
+# resolve_llm ARTIK amac parametresi almiyor (tek ayar, digest+report
+# paylasir).
 # ---------------------------------------------------------------------------
-
-
-async def test_set_selection_rejects_unknown_purpose(fake_db, fake_redis):
-    with pytest.raises(ValueError):
-        await settings.set_selection("not-a-purpose", "openai", "gpt-5")
 
 
 async def test_set_selection_rejects_unknown_provider(fake_db, fake_redis):
     with pytest.raises(ValueError):
-        await settings.set_selection("digest", "not-a-provider", "some-model")
+        await settings.set_selection("not-a-provider", "some-model")
 
 
 async def test_upsert_provider_rejects_unknown_provider(fake_db, fake_redis):
@@ -238,71 +247,66 @@ async def test_upsert_provider_without_key_stores_null(fake_db, fake_redis):
     assert inserts[0][1][1] is None
 
 
-async def test_resolve_purpose_unconfigured_when_no_selection(fake_db, fake_redis):
+async def test_resolve_llm_unconfigured_when_no_selection(fake_db, fake_redis):
     fake_db.queue_fetchone(None)  # llm_settings SELECT -> hic satir yok
-    result = await settings.resolve_purpose("digest")
+    result = await settings.resolve_llm()
     assert isinstance(result, settings.Unconfigured)
-    assert result.purpose == "digest"
 
 
-async def test_resolve_purpose_unconfigured_when_provider_row_missing(fake_db, fake_redis):
+async def test_resolve_llm_unconfigured_when_provider_row_missing(fake_db, fake_redis):
     # 1) llm_settings SELECT -> secim var (openai/gpt-5)
     # 2) llm_providers SELECT -> satir yok
     fake_db.queue_fetchone(("openai", "gpt-5", {}), None)
-    result = await settings.resolve_purpose("report")
+    result = await settings.resolve_llm()
     assert isinstance(result, settings.Unconfigured)
     assert "llm_providers" in result.reason or "satir yok" in result.reason
 
 
-async def test_resolve_purpose_unconfigured_when_disabled(fake_db, fake_redis):
+async def test_resolve_llm_unconfigured_when_disabled(fake_db, fake_redis):
     fake_db.queue_fetchone(("openai", "gpt-5", {}), (None, "https://api.openai.com/v1", False))
-    result = await settings.resolve_purpose("report")
+    result = await settings.resolve_llm()
     assert isinstance(result, settings.Unconfigured)
     assert "devre disi" in result.reason
 
 
-async def test_resolve_purpose_unconfigured_when_key_undecryptable(fake_db, fake_redis, monkeypatch):
+async def test_resolve_llm_unconfigured_when_key_undecryptable(fake_db, fake_redis, monkeypatch):
     _set_master_key(monkeypatch)
     bogus_blob = b"\x00" * 40  # gecerli uzunlukta ama gecersiz tag -> decrypt basarisiz
     fake_db.queue_fetchone(("openai", "gpt-5", {}), (bogus_blob, None, True))
-    result = await settings.resolve_purpose("digest")
+    result = await settings.resolve_llm()
     assert isinstance(result, settings.Unconfigured)
     assert "cozulemedi" in result.reason
 
 
-async def test_resolve_purpose_success(fake_db, fake_redis, monkeypatch):
+async def test_resolve_llm_success(fake_db, fake_redis, monkeypatch):
     _set_master_key(monkeypatch)
     encrypted = crypto.encrypt("sk-live-key", aad="openai")
     fake_db.queue_fetchone(
         ("openai", "gpt-5", {"temperature": 0.2}),
         (encrypted, None, True),
     )
-    result = await settings.resolve_purpose("digest")
+    result = await settings.resolve_llm()
     assert isinstance(result, settings.ResolvedLLM)
     assert result.provider.id == "openai"
     assert result.model == "gpt-5"
     assert result.base_url == "https://api.openai.com/v1"
     assert result.api_key == "sk-live-key"
     assert result.params == {"temperature": 0.2}
+    assert not hasattr(result, "purpose")  # Adim 6.5: ResolvedLLM'de purpose alani YOK
 
 
-async def test_resolve_purpose_openai_compatible_uses_stored_base_url(fake_db, fake_redis):
+async def test_resolve_llm_openai_compatible_uses_stored_base_url(fake_db, fake_redis):
     fake_db.queue_fetchone(
         ("openai-compatible", "local-model", {}),
         (None, "https://my-custom-gateway.example.com/v1", True),
     )
-    result = await settings.resolve_purpose("embedding")
+    result = await settings.resolve_llm()
     assert isinstance(result, settings.ResolvedLLM)
     assert result.base_url == "https://my-custom-gateway.example.com/v1"
     assert result.api_key is None
 
 
-async def test_resolve_purpose_invalid_purpose_raises(fake_db, fake_redis):
-    with pytest.raises(ValueError):
-        await settings.resolve_purpose("not-a-purpose")
-
-
-async def test_resolve_purpose_uses_redis_cache_on_second_call(fake_db, fake_redis, monkeypatch):
+async def test_resolve_llm_uses_redis_cache_on_second_call(fake_db, fake_redis, monkeypatch):
     """Ikinci cagri llm_settings'e tekrar SELECT atmamali (Redis onbellek isabeti)."""
     _set_master_key(monkeypatch)
     encrypted = crypto.encrypt("sk-live-key", aad="openai")
@@ -310,7 +314,7 @@ async def test_resolve_purpose_uses_redis_cache_on_second_call(fake_db, fake_red
         ("openai", "gpt-5", {}),
         (encrypted, None, True),
     )
-    first = await settings.resolve_purpose("digest")
+    first = await settings.resolve_llm()
     assert isinstance(first, settings.ResolvedLLM)
     settings_selects_after_first = len(
         [q for q in fake_db.queries if "FROM llm_settings" in q[0]]
@@ -320,7 +324,7 @@ async def test_resolve_purpose_uses_redis_cache_on_second_call(fake_db, fake_red
     # satirini kuyruga koy -- fakat llm_settings SELECT'i onbellekten
     # gelmeli, kuyruga ikinci bir secim satiri KONULMADI.
     fake_db.queue_fetchone((encrypted, None, True))
-    second = await settings.resolve_purpose("digest")
+    second = await settings.resolve_llm()
     assert isinstance(second, settings.ResolvedLLM)
     settings_selects_after_second = len(
         [q for q in fake_db.queries if "FROM llm_settings" in q[0]]
@@ -329,6 +333,6 @@ async def test_resolve_purpose_uses_redis_cache_on_second_call(fake_db, fake_red
 
 
 async def test_set_selection_invalidates_cache(fake_db, fake_redis):
-    fake_redis.store["llm:selection:digest"] = '{"configured": false}'
-    await settings.set_selection("digest", "openai", "gpt-5")
-    assert "llm:selection:digest" not in fake_redis.store
+    fake_redis.store["llm:selection"] = '{"configured": false}'
+    await settings.set_selection("openai", "gpt-5")
+    assert "llm:selection" not in fake_redis.store

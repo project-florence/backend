@@ -39,8 +39,8 @@ async def lifespan(app: FastAPI):
     # Startuplar: config, DB, external client'lar ve ticker cache'i.
     init_config()
     await init_db()
-    # LLM/embedding istemcileri artik istek/ajan basina llm_settings'ten
-    # cozuluyor (REFACTOR_PLAN.md Adim 2) -- burada eager init YOK.
+    # LLM istemcileri artik istek/ajan basina TEK llm_settings satirindan
+    # cozuluyor (REFACTOR_PLAN.md Adim 2, Adim 6.5) -- burada eager init YOK.
     await cache_tickers_and_companies()
 
     await cron_client.init()

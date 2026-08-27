@@ -175,16 +175,19 @@ async def _reset_singletons(_integration_target):
 
 @pytest.fixture
 async def _cleanup():
-    """Test-basina temizlik kaydi: llm_settings -> llm_providers -> token_usage.
+    """Test-basina temizlik kaydi: llm_settings (singleton) -> llm_providers -> token_usage.
 
-    Sira onemli: ``llm_settings.provider`` FK'si yuzunden bir amac hala bir
-    saglayiciyi kullaniyorken o saglayici satiri silinemez.
+    Sira onemli: ``llm_settings.provider`` FK'si yuzunden secim hala bir
+    saglayiciyi kullaniyorken o saglayici satiri silinemez. Adim 6.5:
+    ``llm_settings`` tek satirlik (singleton) -- ``clear_selection`` artik
+    amac almiyor, ``state.selection_written`` sadece "temizlenecek bir
+    secim yazildi mi" bayragidir.
     """
-    state = SimpleNamespace(purposes=[], providers=[], token_usage_purposes=[])
+    state = SimpleNamespace(selection_written=False, providers=[], token_usage_purposes=[])
     yield state
-    for purpose in state.purposes:
+    if state.selection_written:
         try:
-            await llm_settings.clear_selection(purpose)
+            await llm_settings.clear_selection()
         except Exception:
             pass
     for provider_id in state.providers:
@@ -225,7 +228,12 @@ async def test_init_db_creates_llm_tables_and_is_idempotent():
         usage_cols = {row[0] for row in await cur.fetchall()}
 
     assert {"provider", "api_key_encrypted", "base_url", "enabled"} <= provider_cols
-    assert {"purpose", "provider", "model", "params", "updated_by"} <= settings_cols
+    # Adim 6.5: llm_settings singleton -- "purpose" kolonu YOK, "id" (boolean
+    # PK) var. migrations/015 eski sekli (purpose PK) tasiyan bir tabloyu
+    # DROP edip yeniden kurar; bu assert o migrasyonun gercekten calistigini
+    # da dogrular.
+    assert {"id", "provider", "model", "params", "updated_by"} <= settings_cols
+    assert "purpose" not in settings_cols
     assert {"purpose", "provider", "status", "error", "duration_ms"} <= usage_cols
 
 
@@ -253,61 +261,62 @@ async def test_provider_key_round_trips_through_real_bytea_column(monkeypatch, _
 
 
 # ---------------------------------------------------------------------------
-# set_selection: FK ihlali (hata #2'nin regresyonu)
+# set_selection: FK ihlali (hata #2'nin regresyonu). Adim 6.5: llm_settings
+# singleton -- set_selection artik amac almiyor.
 # ---------------------------------------------------------------------------
 
 
 async def test_set_selection_unknown_provider_raises_fk_violation(_cleanup):
-    _cleanup.purposes.append("digest")
     await llm_settings.remove_provider("xai")  # temiz baslangic garantisi
 
     with pytest.raises(psycopg.errors.ForeignKeyViolation):
-        await llm_settings.set_selection("digest", "xai", "grok-test-model")
+        await llm_settings.set_selection("xai", "grok-test-model")
 
     # Basarisiz INSERT commit edilmedi -- llm_settings'te satir olusmamali.
-    row = await llm_settings.get_selection("digest")
+    row = await llm_settings.get_selection()
     assert row is None
 
 
 # ---------------------------------------------------------------------------
-# resolve_purpose: gercek Redis onbellegi (okuma / bayatlik / gecersiz kilma / TTL)
+# resolve_llm: gercek Redis onbellegi (okuma / bayatlik / gecersiz kilma / TTL)
+# Adim 6.5: tek anahtar (``llm:selection``), amac parametresi yok.
 # ---------------------------------------------------------------------------
 
 
-async def test_resolve_purpose_uses_real_redis_cache_and_invalidates_on_write(_cleanup):
-    _cleanup.purposes.append("digest")
+async def test_resolve_llm_uses_real_redis_cache_and_invalidates_on_write(_cleanup):
+    _cleanup.selection_written = True
     _cleanup.providers.append("ollama-local")
 
     await llm_settings.upsert_provider("ollama-local")  # keyless -- FK icin satir sart
-    await llm_settings.set_selection("digest", "ollama-local", "llama-cache-v1")
+    await llm_settings.set_selection("ollama-local", "llama-cache-v1")
 
-    resolved1 = await llm_settings.resolve_purpose("digest")
+    resolved1 = await llm_settings.resolve_llm()
     assert isinstance(resolved1, llm_settings.ResolvedLLM)
     assert resolved1.model == "llama-cache-v1"
 
-    cache_key = llm_settings._cache_key("digest")
+    cache_key = llm_settings._CACHE_KEY
     conn = await redis_module.r._get_conn()
     assert conn is not None, "Redis baglantisi kurulamadi (container ayakta olmali)"
     ttl = await conn.ttl(cache_key)
     assert 0 < ttl <= 60  # REFACTOR_PLAN.md 2.4: "TTL <= 60s"
 
     # DB'yi set_selection'i BYPASS ederek dogrudan degistir: onbellek
-    # gecersiz kilinmaz, ikinci resolve_purpose cagrisi hala ONBELLEKTEKI
+    # gecersiz kilinmaz, ikinci resolve_llm cagrisi hala ONBELLEKTEKI
     # (eski) modeli donmeli.
     async with database_module.db.cursor(row_factory=None) as cur:
         await cur.execute(
-            "UPDATE llm_settings SET model = %s WHERE purpose = %s",
-            ("llama-should-not-be-seen-yet", "digest"),
+            "UPDATE llm_settings SET model = %s WHERE id",
+            ("llama-should-not-be-seen-yet",),
         )
         await database_module.db.commit()
 
-    resolved2 = await llm_settings.resolve_purpose("digest")
+    resolved2 = await llm_settings.resolve_llm()
     assert isinstance(resolved2, llm_settings.ResolvedLLM)
     assert resolved2.model == "llama-cache-v1"  # hala onbellekten (bayat DB okunmadi)
 
     # set_selection DOGRUDAN gecersiz kilar -- degisiklik hemen gorunmeli.
-    await llm_settings.set_selection("digest", "ollama-local", "llama-cache-v2")
-    resolved3 = await llm_settings.resolve_purpose("digest")
+    await llm_settings.set_selection("ollama-local", "llama-cache-v2")
+    resolved3 = await llm_settings.resolve_llm()
     assert isinstance(resolved3, llm_settings.ResolvedLLM)
     assert resolved3.model == "llama-cache-v2"
 
@@ -318,7 +327,7 @@ async def test_resolve_purpose_uses_real_redis_cache_and_invalidates_on_write(_c
 
 
 async def test_build_agent_runs_on_real_event_loop_and_pool(_cleanup):
-    _cleanup.purposes.append("report")
+    _cleanup.selection_written = True
     _cleanup.providers.append("ollama-local")
 
     # Bu ASSERT bilerek burada: bir sonraki degisiklik build_agent'i tekrar
@@ -327,7 +336,9 @@ async def test_build_agent_runs_on_real_event_loop_and_pool(_cleanup):
     assert inspect.iscoroutinefunction(llm_agents.build_agent)
 
     await llm_settings.upsert_provider("ollama-local")
-    await llm_settings.set_selection("report", "ollama-local", "llama-agent-test")
+    # Adim 6.5: tek ayar -- "report" burada YALNIZ loglama etiketi (build_agent
+    # parametresi), llm_settings'e amac olarak yazilmiyor.
+    await llm_settings.set_selection("ollama-local", "llama-agent-test")
 
     built = await llm_agents.build_agent("report")
     assert isinstance(built, llm_agents.BuiltAgent)

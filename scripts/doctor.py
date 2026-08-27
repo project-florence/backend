@@ -14,11 +14,15 @@ Kontroller (``checks[].name``):
     llm_master_key              -- FLORENCE_MASTER_KEY env kontrolu (AYRI kontrol --
                                     bkz. "WARN/FAIL karari" asagida, cok yaygin bir
                                     ariza sinifi oldugu icin kendi satiri var)
+    llm                          -- REFACTOR_PLAN.md Adim 6.5: TEK ayar (amac-basina
+                                    degil, singleton) icin: secim var mi, saglayici
+                                    katalogda mi, anahtar cozulebiliyor mu, model
+                                    saglayicinin CANLI roster'inda mi.
     llm:<purpose>                -- src/llm/settings.py::PURPOSES icindeki her amac
-                                    (bugun: digest, report, embedding) icin: secim var
-                                    mi, sagliayici katalogda mi, anahtar cozulebiliyor
-                                    mu, model saglayicinin CANLI roster'inda mi, son
-                                    token_usage kaydi basarili miydi.
+                                    (bugun: digest, report) icin: SADECE son
+                                    token_usage kaydi basarili mi (ayarin kendisi
+                                    yukaridaki tek ``llm`` kontrolunde -- burada amac
+                                    basina kalan tek sey gozlemlenebilirlik).
     digest:<slot>                 -- src/core/config.py::get_config()["digest"]["slot_times"]
                                     icindeki her slot (bugun: morning, noon, evening)
                                     icin: bugun uretildi mi / pencere henuz gelmedi mi /
@@ -39,11 +43,11 @@ Kontroller (``checks[].name``):
     ``suggestions`` yalniz OK-disi kontroller icin doldurulur (WARN dahil, sadece
     FAIL degil -- eski surumden FARK, bkz. asagidaki not).
 
-WARN vs FAIL karari -- ``llm:<purpose>`` icin (REFACTOR_PLAN.md 2.4'ten bilincli
+WARN vs FAIL karari -- ``llm`` (tek ayar) icin (REFACTOR_PLAN.md 2.4'ten bilincli
 sapma, gerekce):
     REFACTOR_PLAN.md 2.4 "doctor kirmizi gosterir" diyor ama Adim 7'nin kendisi de
     "kisa yapilandirilmamis pencere bilincli" diyor -- ilk deploy sonrasi
-    ``admin_cli.py llm set`` calistirilana kadar TUM amaclarin yapilandirilmamis
+    ``admin_cli.py llm model set`` calistirilana kadar ayarin yapilandirilmamis
     olmasi BEKLENEN bir durumdur, bir ariza degil. Bu ikisini ayni renkte
     gostermek "kirmizi = gercek sorun" sinyalini asindirir (bu doctor'un butun
     amaci sinyal netligi). Bu yuzden burada AYRIM YAPILDI:
@@ -61,7 +65,13 @@ sapma, gerekce):
         (2026-08-26'nin ikinci ayagi: ox-alpha-free roster'dan kaldirilmisti)
       - Roster'a ulasilamiyor (ag/saglayici kesintisi)              -> WARN
         (dogrulanamadi, ama doctor'un/secimin sucu olmayabilir)
+
+    ``llm:<purpose>`` (Adim 6.5'te yeniden kapsamlandi) SADECE son
+    token_usage kaydini gosterir -- ayarin kendisi artik tek oldugu icin
+    (yukaridaki ``llm`` kontrolu) amac basina tekrar dogrulanmiyor:
       - Son token_usage kaydi status='error'                       -> FAIL
+      - Hic cagri yok                                               -> WARN
+      - Son kayit basariliysa                                       -> OK
 
 Nedensellik notu (karistirmamak icin): reasoning'in yapilandirilmis-cikti
 (``digest``/``report``) amaclarinda varsayilan kapali olmasi 2026-08-26
@@ -100,7 +110,7 @@ from src.llm.settings import (  # noqa: E402
     get_selection,
     list_providers,
     mask_secret,
-    resolve_purpose,
+    resolve_llm,
 )
 from src.version import VERSION  # noqa: E402
 
@@ -155,6 +165,12 @@ _STATIC_SUGGESTIONS: dict[str, str] = {
     "docker": "`docker compose ps` ile servislerin ayakta oldugundan emin ol.",
     "logs": "Son 24 saatteki ERROR satirlarini incele (florence.log).",
     "digest:errors": "`admin_cli.py llm log --failures --since 48h` ile hata detaylarini incele.",
+    "llm": (
+        "`admin_cli.py llm model show` ile mevcut TEK ayari incele. Yeniden ayarlamak "
+        "icin `admin_cli.py llm model set <saglayici>/<model>` (bu komut saglayici/"
+        "anahtar/canli-roster dogrulamasini kendisi yapar, digest VE report'u AYNI ANDA "
+        "gunceller); anahtar eksikse once `admin_cli.py llm provider set <saglayici>`."
+    ),
 }
 
 
@@ -166,10 +182,10 @@ def _suggestion_for(check: dict) -> str | None:
     if name.startswith("llm:"):
         purpose = name.split(":", 1)[1]
         return (
-            f"`admin_cli.py llm show` ile '{purpose}' amacinin secimini incele. "
-            f"Yeniden ayarlamak icin `admin_cli.py llm set {purpose} <saglayici> <model>` "
-            f"(bu komut saglayici/anahtar/canli-roster dogrulamasini kendisi yapar); "
-            f"anahtar eksikse once `admin_cli.py llm provider set <saglayici>`."
+            f"'{purpose}' icin son cagri kaydini incele: "
+            f"`admin_cli.py llm log --failures --since 24h`; elle bir cagri denemek icin "
+            f"`admin_cli.py llm test {purpose}`. Ayarin kendisi ('{purpose}'e ozel degil, "
+            f"digest+report ile PAYLASILAN TEK ayar) icin `llm` kontrolune bak."
         )
     if name.startswith("digest:"):
         slot = name.split(":", 1)[1]
@@ -355,24 +371,27 @@ async def check_llm_master_key() -> dict:
         return {"name": name, "status": "FAIL", "detail": f"beklenmeyen hata: {_sanitize_error(e)}"}
 
 
-async def check_llm_purpose(purpose: str) -> dict:
-    """Bir amac (``digest``/``report``/``embedding``) icin tam saglik raporu.
+async def check_llm_config() -> dict:
+    """TEK LLM ayarinin (REFACTOR_PLAN.md Adim 6.5: singleton, amac almaz)
+    tam saglik raporu.
 
     WARN/FAIL kararinin gerekcesi modul docstring'inde. Ilk bulunan FAIL
-    kosulunda erken doner (5 madde arasinda oncelik sirasi yok -- hepsi ayni
-    agirlikta bir "bozuk" durumu).
+    kosulunda erken doner (4 madde arasinda oncelik sirasi yok -- hepsi ayni
+    agirlikta bir "bozuk" durumu). Son-cagri durumu burada YOK -- o
+    ``check_llm_last_call(purpose)``'a tasindi (amac basina kalan tek sey
+    gozlemlenebilirlik, ayarin kendisi degil).
     """
-    name = f"llm:{purpose}"
+    name = "llm"
     try:
-        selection = await get_selection(purpose)
+        selection = await get_selection()
         if selection is None:
             return {
                 "name": name,
                 "status": "WARN",
-                "detail": "yapilandirilmamis: bu amac icin kayitli bir secim yok (`admin_cli.py llm set` ile ayarlanmali)",
+                "detail": "yapilandirilmamis: kayitli bir secim yok (`admin_cli.py llm model set <saglayici>/<model>` ile ayarlanmali)",
             }
 
-        resolved = await resolve_purpose(purpose)
+        resolved = await resolve_llm()
         if isinstance(resolved, Unconfigured):
             return {"name": name, "status": "FAIL", "detail": f"secim var ama cozulemiyor: {resolved.reason}"}
 
@@ -421,23 +440,37 @@ async def check_llm_purpose(purpose: str) -> dict:
         else:
             details.append("roster=ucnokta yok (dogrulanamadi)")
 
-        # 4) son cagri (token_usage) durumu -- admin_cli._last_token_usage_row
-        # ile ayni fonksiyon (KOPYALANMADI, import edildi).
+        status = "WARN" if roster_warn else "OK"
+        return {"name": name, "status": status, "detail": "; ".join(details)}
+    except Exception as e:
+        return {"name": name, "status": "FAIL", "detail": f"kontrol basarisiz: {e.__class__.__name__}: {_sanitize_error(e)}"}
+
+
+async def check_llm_last_call(purpose: str) -> dict:
+    """Bir amacin (``digest``/``report``) SON cagrisinin durumu.
+
+    Adim 6.5: ayarin kendisi artik tek (yukaridaki ``check_llm_config``),
+    burada amac basina kalan tek sey gozlemlenebilirlik -- 2026-08-26'da
+    digest'in maliyeti ve hatalari hicbir yerde gorunmuyordu, bu ayrim
+    korunuyor.
+    """
+    name = f"llm:{purpose}"
+    try:
         last = await admin_cli._last_token_usage_row(purpose)
         if last is None:
-            details.append("son_cagri=hic yok")
-        elif last["status"] == "error":
+            return {"name": name, "status": "WARN", "detail": "hic cagri yok"}
+        if last["status"] == "error":
             err = (last.get("error") or "(detay yok)")[:200]
             return {
                 "name": name,
                 "status": "FAIL",
-                "detail": f"{provider.id}/{resolved.model}: son cagri basarisiz ({last['created_at']}): {err}",
+                "detail": f"son cagri basarisiz ({last['created_at']}): {err}",
             }
-        else:
-            details.append(f"son_cagri=OK {last['created_at']}")
-
-        status = "WARN" if roster_warn else "OK"
-        return {"name": name, "status": status, "detail": "; ".join(details)}
+        return {
+            "name": name,
+            "status": "OK",
+            "detail": f"son cagri OK {last['created_at']} provider={last.get('provider')} model={last.get('model')}",
+        }
     except Exception as e:
         return {"name": name, "status": "FAIL", "detail": f"kontrol basarisiz: {e.__class__.__name__}: {_sanitize_error(e)}"}
 
@@ -603,7 +636,7 @@ _GROUP_ORDER = ("infra", "llm", "digest", "ops")
 def _group_of(name: str) -> str:
     if name in ("db", "redis", "searxng"):
         return "infra"
-    if name == "llm_master_key" or name.startswith("llm:"):
+    if name == "llm_master_key" or name == "llm" or name.startswith("llm:"):
         return "llm"
     if name.startswith("digest:"):
         return "digest"
@@ -656,8 +689,9 @@ async def main() -> int:
     checks.append(await check_redis())
     checks.append(await check_searxng())
     checks.append(await check_llm_master_key())
+    checks.append(await check_llm_config())
     for purpose in PURPOSES:
-        checks.append(await check_llm_purpose(purpose))
+        checks.append(await check_llm_last_call(purpose))
     checks.extend(await check_digest_slots())
     checks.append(await check_digest_errors())
     checks.append(check_disk())

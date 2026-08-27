@@ -12,10 +12,12 @@ each test exercises exactly the validation logic it targets.
 Covers:
 - ``_check_admin_token``: the ADMIN_TOKEN gate (REFACTOR_PLAN.md Adim 4 "A" --
   this is the behaviour that REPLACES the old file's "warn and proceed").
-- ``llm set``'s five pre-write validations, in particular that a model
-  absent from the live roster is rejected unconditionally (2026-08-26's
-  actual failure mode) and that ``--force`` only ever bypasses "roster
-  unreachable", never "roster reachable but model absent".
+- ``llm model set``'s five pre-write validations (Adim 6.5: singleton, no
+  ``--purpose`` anywhere -- ``args.spec`` is a single ``"provider/model"``
+  string parsed via ``src.llm.providers.resolve``), in particular that a
+  model absent from the live roster is rejected unconditionally
+  (2026-08-26's actual failure mode) and that ``--force`` only ever bypasses
+  "roster unreachable", never "roster reachable but model absent".
 - Secrets never appear in printed output (``llm provider set``).
 - ``_confirm`` refuses a destructive action on a non-TTY without ``--yes``.
 - ``llm provider rm`` turns a FK violation into a friendly message instead
@@ -169,7 +171,7 @@ def test_parse_since_invalid_raises():
 
 
 def _seed_master_key(monkeypatch) -> None:
-    """llm_set dogrulama 2'si crypto.decrypt'i DOGRUDAN cagiriyor; testin
+    """llm_model_set dogrulama 2'si crypto.decrypt'i DOGRUDAN cagiriyor; testin
     gercek bir ana anahtara ve gercek sifreli veriye ihtiyaci var."""
     monkeypatch.setenv(
         "FLORENCE_MASTER_KEY", base64.b64encode(os.urandom(32)).decode("ascii")
@@ -229,7 +231,8 @@ async def test_fetch_live_models_sends_anthropic_headers():
 
 
 # ---------------------------------------------------------------------------
-# llm set: bes dogrulama
+# llm model set: bes dogrulama (Adim 6.5: singleton, args.spec = "provider/model",
+# --purpose YOK -- set_selection artik (provider, model) alir, purpose almaz)
 # ---------------------------------------------------------------------------
 
 
@@ -248,14 +251,21 @@ def _provider_row(provider_id: str, *, has_key: bool, master_key_env: str | None
     }
 
 
-async def test_llm_set_rejects_unknown_provider(capsys):
-    args = _Args(purpose="digest", provider="not-a-real-provider", model="x", reasoning=None, timeout=None, force=False)
-    result = await admin_cli.llm_set(args)
+async def test_llm_model_set_rejects_unknown_provider(capsys):
+    args = _Args(spec="not-a-real-provider/x", reasoning=None, timeout=None, force=False)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     assert "bilinmeyen saglayici" in capsys.readouterr().out
 
 
-async def test_llm_set_keyless_provider_without_row_is_rejected(monkeypatch, capsys):
+async def test_llm_model_set_rejects_spec_without_slash(capsys):
+    args = _Args(spec="no-slash-here", reasoning=None, timeout=None, force=False)
+    result = await admin_cli.llm_model_set(args)
+    assert result == 1
+    assert "HATA" in capsys.readouterr().out
+
+
+async def test_llm_model_set_keyless_provider_without_row_is_rejected(monkeypatch, capsys):
     """Adim 4'te bulunan gercek bir bosluk: anahtarsiz saglayicilar bile
     llm_providers'ta bir SATIR gerektirir (llm_settings.provider FK'si) --
     ``llm provider set <id>`` hic calistirilmadiysa reddedilmeli."""
@@ -264,25 +274,25 @@ async def test_llm_set_keyless_provider_without_row_is_rejected(monkeypatch, cap
         return None
 
     monkeypatch.setattr(admin_cli, "get_provider_row", _no_row)
-    args = _Args(purpose="digest", provider="opencode-zen", model="deepseek-v4-flash-free", reasoning=None, timeout=None, force=False)
-    result = await admin_cli.llm_set(args)
+    args = _Args(spec="opencode-zen/deepseek-v4-flash-free", reasoning=None, timeout=None, force=False)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     out = capsys.readouterr().out
     assert "llm provider set opencode-zen" in out
 
 
-async def test_llm_set_rejects_missing_key_for_key_requiring_provider(monkeypatch, capsys):
+async def test_llm_model_set_rejects_missing_key_for_key_requiring_provider(monkeypatch, capsys):
     async def _no_key_row(provider_id):
         return {"provider": provider_id, "api_key_encrypted": None, "base_url": None, "enabled": True}
 
     monkeypatch.setattr(admin_cli, "get_provider_row", _no_key_row)
-    args = _Args(purpose="report", provider="openai", model="gpt-5", reasoning=None, timeout=None, force=False)
-    result = await admin_cli.llm_set(args)
+    args = _Args(spec="openai/gpt-5", reasoning=None, timeout=None, force=False)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     assert "kayitli bir API anahtari yok" in capsys.readouterr().out
 
 
-async def test_llm_set_rejects_model_not_in_live_roster(monkeypatch, capsys):
+async def test_llm_model_set_rejects_model_not_in_live_roster(monkeypatch, capsys):
     """2026-08-26 arizasinin tam olarak yakalanmasi gereken durum."""
 
     _seed_master_key(monkeypatch)
@@ -306,16 +316,16 @@ async def test_llm_set_rejects_model_not_in_live_roster(monkeypatch, capsys):
     monkeypatch.setattr(admin_cli, "_fetch_live_models", _roster)
 
     args = _Args(
-        purpose="digest", provider="opencode-zen", model="ox-alpha-free",
+        spec="opencode-zen/ox-alpha-free",
         reasoning=None, timeout=None, force=False,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     out = capsys.readouterr().out
     assert "canli roster'inda YOK" in out
 
 
-async def test_llm_set_force_does_not_bypass_model_absent_from_reachable_roster(monkeypatch, capsys):
+async def test_llm_model_set_force_does_not_bypass_model_absent_from_reachable_roster(monkeypatch, capsys):
     """--force yalniz 'roster'a erisilemedi' durumunu atlar; roster
     erisilebilir ve model orada YOKSA --force bile yazmaya izin vermemeli."""
 
@@ -346,15 +356,15 @@ async def test_llm_set_force_does_not_bypass_model_absent_from_reachable_roster(
     monkeypatch.setattr(admin_cli, "set_selection", _fake_set_selection)
 
     args = _Args(
-        purpose="digest", provider="opencode-zen", model="ox-alpha-free",
+        spec="opencode-zen/ox-alpha-free",
         reasoning=None, timeout=None, force=True,  # --force verildi
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     assert not set_selection_calls  # yazmaya HIC gidilmedi
 
 
-async def test_llm_set_force_bypasses_unreachable_roster(monkeypatch, capsys):
+async def test_llm_model_set_force_bypasses_unreachable_roster(monkeypatch, capsys):
     _seed_master_key(monkeypatch)
 
     async def _keyed_row(provider_id):
@@ -373,8 +383,8 @@ async def test_llm_set_force_bypasses_unreachable_roster(monkeypatch, capsys):
 
     set_selection_calls = []
 
-    async def _fake_set_selection(purpose, provider, model, *, params=None, updated_by=None):
-        set_selection_calls.append((purpose, provider, model, params))
+    async def _fake_set_selection(provider, model, *, params=None, updated_by=None):
+        set_selection_calls.append((provider, model, params))
 
     monkeypatch.setattr(admin_cli, "get_provider_row", _keyed_row)
     monkeypatch.setattr(admin_cli, "_resolve_decrypted_key", _decrypted)
@@ -382,15 +392,15 @@ async def test_llm_set_force_bypasses_unreachable_roster(monkeypatch, capsys):
     monkeypatch.setattr(admin_cli, "set_selection", _fake_set_selection)
 
     args = _Args(
-        purpose="digest", provider="opencode-zen", model="deepseek-v4-flash-free",
+        spec="opencode-zen/deepseek-v4-flash-free",
         reasoning=None, timeout=None, force=True,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 0
     assert len(set_selection_calls) == 1
 
 
-async def test_llm_set_without_force_rejects_unreachable_roster(monkeypatch, capsys):
+async def test_llm_model_set_without_force_rejects_unreachable_roster(monkeypatch, capsys):
     _seed_master_key(monkeypatch)
 
     async def _keyed_row(provider_id):
@@ -412,14 +422,14 @@ async def test_llm_set_without_force_rejects_unreachable_roster(monkeypatch, cap
     monkeypatch.setattr(admin_cli, "_fetch_live_models", _roster_unreachable)
 
     args = _Args(
-        purpose="digest", provider="opencode-zen", model="deepseek-v4-flash-free",
+        spec="opencode-zen/deepseek-v4-flash-free",
         reasoning=None, timeout=None, force=False,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
 
 
-async def test_llm_set_rejects_reasoning_for_provider_without_reasoning_param(monkeypatch, capsys):
+async def test_llm_model_set_rejects_reasoning_for_provider_without_reasoning_param(monkeypatch, capsys):
     _seed_master_key(monkeypatch)
 
     async def _keyed_row(provider_id):
@@ -442,15 +452,15 @@ async def test_llm_set_rejects_reasoning_for_provider_without_reasoning_param(mo
 
     # opencode-zen: reasoning_param is None
     args = _Args(
-        purpose="digest", provider="opencode-zen", model="deepseek-v4-flash-free",
+        spec="opencode-zen/deepseek-v4-flash-free",
         reasoning="medium", timeout=None, force=False,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     assert "reasoning_param'i yok" in capsys.readouterr().out
 
 
-async def test_llm_set_rejects_reasoning_value_outside_accepted_set(monkeypatch, capsys, monkeypatch_master_key):
+async def test_llm_model_set_rejects_reasoning_value_outside_accepted_set(monkeypatch, capsys, monkeypatch_master_key):
     async def _key_row(provider_id):
         return {
             "provider": provider_id,
@@ -467,18 +477,21 @@ async def test_llm_set_rejects_reasoning_value_outside_accepted_set(monkeypatch,
 
     # openai reasoning_values = {"minimal", "low", "medium", "high"} -- "ultra" gecersiz.
     args = _Args(
-        purpose="report", provider="openai", model="gpt-5",
+        spec="openai/gpt-5",
         reasoning="ultra", timeout=None, force=False,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 1
     assert "gecerli degil" in capsys.readouterr().out
 
 
-async def test_llm_set_warns_but_allows_reasoning_override_on_structured_output_purpose(
+async def test_llm_model_set_warns_but_allows_reasoning_override(
     monkeypatch, capsys, monkeypatch_master_key
 ):
-    """5. dogrulama: uyar, ENGELLEME (admin override kazanir -- Adim 2'de boyle uygulandi)."""
+    """5. dogrulama: uyar, ENGELLEME (admin override kazanir). Adim 6.5: tek
+    ayar digest+report tarafindan PAYLASILDIGI icin -- ve ikisi de
+    yapilandirilmis cikti kullandigi icin -- bu uyari artik amac
+    parametresi almadan, kosulsuz basiliyor."""
 
     async def _key_row(provider_id):
         return {
@@ -493,26 +506,26 @@ async def test_llm_set_warns_but_allows_reasoning_override_on_structured_output_
 
     set_selection_calls = []
 
-    async def _fake_set_selection(purpose, provider, model, *, params=None, updated_by=None):
-        set_selection_calls.append((purpose, provider, model, params))
+    async def _fake_set_selection(provider, model, *, params=None, updated_by=None):
+        set_selection_calls.append((provider, model, params))
 
     monkeypatch.setattr(admin_cli, "get_provider_row", _key_row)
     monkeypatch.setattr(admin_cli, "_fetch_live_models", _roster)
     monkeypatch.setattr(admin_cli, "set_selection", _fake_set_selection)
 
     args = _Args(
-        purpose="digest", provider="openai", model="gpt-5",  # digest = structured output
+        spec="openai/gpt-5",
         reasoning="medium", timeout=None, force=False,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 0
     out = capsys.readouterr().out
     assert "yapilandirilmis cikti kullaniyor" in out  # uyari basildi
     assert len(set_selection_calls) == 1  # ama yazma ENGELLENMEDI
-    assert set_selection_calls[0][3] == {"reasoning": "medium"}
+    assert set_selection_calls[0][2] == {"reasoning": "medium"}
 
 
-async def test_llm_set_writes_selection_on_full_success(monkeypatch):
+async def test_llm_model_set_writes_selection_on_full_success(monkeypatch):
     _seed_master_key(monkeypatch)
 
     async def _keyed_row(provider_id):
@@ -531,8 +544,8 @@ async def test_llm_set_writes_selection_on_full_success(monkeypatch):
 
     set_selection_calls = []
 
-    async def _fake_set_selection(purpose, provider, model, *, params=None, updated_by=None):
-        set_selection_calls.append((purpose, provider, model, params))
+    async def _fake_set_selection(provider, model, *, params=None, updated_by=None):
+        set_selection_calls.append((provider, model, params))
 
     monkeypatch.setattr(admin_cli, "get_provider_row", _keyed_row)
     monkeypatch.setattr(admin_cli, "_resolve_decrypted_key", _decrypted)
@@ -540,12 +553,50 @@ async def test_llm_set_writes_selection_on_full_success(monkeypatch):
     monkeypatch.setattr(admin_cli, "set_selection", _fake_set_selection)
 
     args = _Args(
-        purpose="digest", provider="opencode-zen", model="deepseek-v4-flash-free",
+        spec="opencode-zen/deepseek-v4-flash-free",
         reasoning=None, timeout=30.0, force=False,
     )
-    result = await admin_cli.llm_set(args)
+    result = await admin_cli.llm_model_set(args)
     assert result == 0
-    assert set_selection_calls == [("digest", "opencode-zen", "deepseek-v4-flash-free", {"timeout": 30.0})]
+    assert set_selection_calls == [("opencode-zen", "deepseek-v4-flash-free", {"timeout": 30.0})]
+
+
+async def test_llm_model_set_model_id_with_embedded_slash_parses_correctly(monkeypatch):
+    """OpenRouter model id'leri kendi iclerinde '/' icerebilir -- src.llm.providers.resolve
+    yalniz ILK ayraci saglayici/model sinirini belirlemek icin kullanir."""
+    _seed_master_key(monkeypatch)
+
+    async def _keyed_row(provider_id):
+        return {
+            "provider": provider_id,
+            "api_key_encrypted": admin_cli.crypto.encrypt("sk-test-key", aad=provider_id),
+            "base_url": None,
+            "enabled": True,
+        }
+
+    async def _decrypted(provider_id):
+        return "sk-test-key"
+
+    async def _roster(provider_id, models_url, api_key):
+        return ["anthropic/claude-3.5-sonnet"]
+
+    set_selection_calls = []
+
+    async def _fake_set_selection(provider, model, *, params=None, updated_by=None):
+        set_selection_calls.append((provider, model, params))
+
+    monkeypatch.setattr(admin_cli, "get_provider_row", _keyed_row)
+    monkeypatch.setattr(admin_cli, "_resolve_decrypted_key", _decrypted)
+    monkeypatch.setattr(admin_cli, "_fetch_live_models", _roster)
+    monkeypatch.setattr(admin_cli, "set_selection", _fake_set_selection)
+
+    args = _Args(
+        spec="openrouter/anthropic/claude-3.5-sonnet",
+        reasoning=None, timeout=None, force=False,
+    )
+    result = await admin_cli.llm_model_set(args)
+    assert result == 0
+    assert set_selection_calls == [("openrouter", "anthropic/claude-3.5-sonnet", {})]
 
 
 # ---------------------------------------------------------------------------
@@ -615,7 +666,7 @@ async def test_llm_provider_rm_reports_fk_violation_as_friendly_message(monkeypa
     result = await admin_cli.llm_provider_rm(args)
     assert result == 1
     out = capsys.readouterr().out
-    assert "hala bir veya daha fazla amac" in out
+    assert "TEK model ayarinin" in out
     assert "Traceback" not in out
 
 

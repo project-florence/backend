@@ -1,19 +1,20 @@
 """LLM saglik probu.
 
-Bu modul artik gercek trafik icin KULLANILMIYOR -- digest, rapor ve gomme
-``src.llm.agents.build_agent`` / ``src.clients.embedding`` uzerinden
-dogrudan ``src.llm.settings.resolve_purpose``'a baglidir (REFACTOR_PLAN.md
-Adim 2). Bu dosyanin tek cagirani ``src/admin/__init__.py::healthcheck`` ve
-``scripts/doctor.py::check_llm``.
+Bu modul artik gercek trafik icin KULLANILMIYOR -- digest ve rapor
+``src.llm.agents.build_agent`` uzerinden dogrudan ``src.llm.settings.
+resolve_llm``'e baglidir (REFACTOR_PLAN.md Adim 2, Adim 6.5). Bu dosyanin
+tek cagirani ``src/admin/__init__.py::healthcheck`` ve
+``scripts/doctor.py``.
 
 2026-08-26 arizasinin bir parcasi da buydu: eskiden bu modul kendi ayri env
 degiskenleri uzerinden, digest'in GERCEKTEN kullandigi yapilandirmadan
 TAMAMEN AYRI bir sey test ediyordu -- digest'in yapilandirmasi
 bozulduktan sonra bile saglik kontrolu yesil kalmaya devam etti, cunku farkli
-bir (hala calisan) sagliayiciyi yokluyordu. ``health_check()`` artik
-``PURPOSES`` icindeki her amaci ``resolve_purpose`` ile cozup GERCEKTEN o
+bir (hala calisan) sagliayiciyi yokluyordu. ``health_check()`` artik TEK
+ayari (Adim 6.5: amac-basina degil singleton -- digest ve report AYNI
+saglayici/modeli paylasir) ``resolve_llm`` ile cozup GERCEKTEN o
 saglayiciya canli, hafif bir istek atar; boylece saglik kontrolu digest/
-rapor/gomme'nin fiilen kullandigi seyi test eder.
+rapor'un fiilen kullandigi seyi test eder.
 """
 
 import logging
@@ -21,13 +22,13 @@ import logging
 import httpx
 
 from src.clients.http import get_client
-from src.llm.settings import PURPOSES, ResolvedLLM, resolve_purpose
+from src.llm.settings import ResolvedLLM, resolve_llm
 
 logger = logging.getLogger(__name__)
 
 
 async def _probe_provider(resolved: ResolvedLLM) -> bool:
-    """Cozulmus bir amacin saglayicisina canli, hafif bir istek atar.
+    """Cozulmus TEK ayarin saglayicisina canli, hafif bir istek atar.
 
     ``models_url`` yoksa (ornegin ``openai-compatible``/``ollama-local`` gibi
     ozel kurulumlarda katalogda tanimli bir canli roster ucnoktasi yoktur)
@@ -60,26 +61,19 @@ async def _probe_provider(resolved: ResolvedLLM) -> bool:
 
 
 async def health_check() -> bool:
-    """En az bir amac (digest/report/embedding) yapilandirilmis VE saglikli mi?
+    """TEK LLM ayari (digest+report paylasir) yapilandirilmis VE saglikli mi?
 
-    Hicbir amac yapilandirilmamissa (temiz kurulum, REFACTOR_PLAN.md Adim 7'nin
-    bilincli "kisa yapilandirilmamis pencere"si) ``False`` doner -- sessiz
-    basari YOK. Yapilandirilmis amaclardan biri bile saglaniyorsa (canli
-    probu gecerse) genel sonuc olumsuz sayilir.
+    Yapilandirilmamissa (temiz kurulum, REFACTOR_PLAN.md Adim 7'nin bilincli
+    "kisa yapilandirilmamis pencere"si) ``False`` doner -- sessiz basari YOK.
     """
-    any_configured = False
-    all_healthy = True
-    for purpose in PURPOSES:
-        resolved = await resolve_purpose(purpose)
-        if not isinstance(resolved, ResolvedLLM):
-            continue
-        any_configured = True
-        if not await _probe_provider(resolved):
-            logger.warning(
-                "LLM health check failed for purpose=%s provider=%s model=%s",
-                purpose,
-                resolved.provider.id,
-                resolved.model,
-            )
-            all_healthy = False
-    return any_configured and all_healthy
+    resolved = await resolve_llm()
+    if not isinstance(resolved, ResolvedLLM):
+        return False
+    healthy = await _probe_provider(resolved)
+    if not healthy:
+        logger.warning(
+            "LLM health check failed for provider=%s model=%s",
+            resolved.provider.id,
+            resolved.model,
+        )
+    return healthy

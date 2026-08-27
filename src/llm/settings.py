@@ -1,22 +1,36 @@
-"""``llm_providers`` / ``llm_settings`` okuma-yazma + amac bazli cozumleme.
+"""``llm_providers`` / ``llm_settings`` okuma-yazma + tek-ayar cozumleme.
 
-Iki tabloyu birlestirip her amac (``digest`` | ``report`` | ``embedding``) icin
-tek bir cagriyla "hangi saglayici, hangi model, hangi base_url, hangi (cozulmus)
-API anahtari, hangi ek parametreler" sorusunu yanitlar (``resolve_purpose``).
+REFACTOR_PLAN.md Adim 6.5: ``llm_settings`` TEK SATIRLIK (singleton) --
+``purpose`` birincil anahtar olmaktan cikti, model birden fazla amacta
+(digest, report) kullanildiginda birini guncelleyip digerini unutmak riski
+yapisal olarak imkansiz hale geldi (bu, CUSTOM_MODEL/CUSTOM_URL
+ayrismasinin -- 2026-08-26 arizasinin kok nedeni -- bir kat yukarida
+yeniden uretilmesiydi). ``resolve_llm()`` iki tabloyu birlestirip "hangi
+saglayici, hangi model, hangi base_url, hangi (cozulmus) API anahtari,
+hangi ek parametreler" sorusunu AMAC ALMADAN yanitlar.
 
-Onbellekleme tasarimi (bilincli karar): Redis'te YALNIZ secim bilgisi
-(saglayici id + model + params) tutulur, TTL <= 60s. Sifresi cozulmus API
-anahtari HICBIR ZAMAN Redis'e yazilmaz -- saglayici satiri ve anahtar her
-``resolve_purpose`` cagrisinda DB'den taze okunup cozulur. Bu, AES-GCM'in
-kucuk payload'da mikrosaniyeler surmesi sayesinde ucretsiz (crypto.py'deki
-not) ve sirri DB+ana anahtar sinirinin disina hic cikarmiyor. Sonuc: bir
+``purpose`` TAMAMEN KAYBOLMADI -- ayar ekseninden gozlemlenebilirlik
+eksenine tasindi. ``token_usage.purpose`` hala digest/report cagrilarini
+ayirt eder (bkz. ``src/llm/agents.py::log_llm_call``); yalniz ayarin
+KENDISI artik amaca gore dallanamaz.
+
+Onbellekleme tasarimi (bilincli karar, Adim 1'den korunuyor): Redis'te
+YALNIZ secim bilgisi (saglayici id + model + params) TEK bir anahtar
+altinda (``_CACHE_KEY``) tutulur, TTL <= 60s. Sifresi cozulmus API anahtari
+HICBIR ZAMAN Redis'e yazilmaz -- saglayici satiri ve anahtar her
+``resolve_llm`` cagrisinda DB'den taze okunup cozulur. Bu, AES-GCM'in kucuk
+payload'da mikrosaniyeler surmesi sayesinde ucretsiz (crypto.py'deki not)
+ve sirri DB+ana anahtar sinirinin disina hic cikarmiyor. Sonuc: bir
 saglayici anahtari rotate edildiginde onbellek gecerliligini beklemeden
-aninda etkili olur; yalniz "hangi saglayici/model secili" bilgisi 60s'e kadar
-bayatlayabilir (yazma sonrasi dogrudan invalidasyon zaten bunu sifira indirir).
+aninda etkili olur; yalniz "hangi saglayici/model secili" bilgisi 60s'e
+kadar bayatlayabilir (yazma sonrasi dogrudan invalidasyon zaten bunu
+sifira indirir).
 
-Seçim yoksa/cozulmezse uygulama COKMEZ: ``resolve_purpose`` ya ``ResolvedLLM``
+Seçim yoksa/cozulmezse uygulama COKMEZ: ``resolve_llm`` ya ``ResolvedLLM``
 ya da ``Unconfigured`` doner (nedeni aciklayan bir ``reason`` ile). Ajanlara
-baglama (bu donus degerini gercekten kullanma) Adim 2'nin isi.
+baglama (bu donus degerini gercekten kullanma) ``src/llm/agents.py::
+build_agent``'in isi -- o katman ``purpose``'u sadece loglama etiketi
+olarak ekler (``LLMPurposeUnconfigured(purpose, reason)``).
 """
 
 import json
@@ -28,24 +42,31 @@ from src.core.redis import r
 from src.llm import crypto
 from src.llm.providers import PROVIDERS, ProviderSpec
 
-# Bugun desteklenen amaclar. REFACTOR_PLAN.md 2.3: llm_settings.purpose bu
-# kumeden biri olmali (DB'de CHECK constraint yok, dogrulama burada).
-PURPOSES: tuple[str, ...] = ("digest", "report", "embedding")
+# Bugun gozlemlenebilirlik icin (token_usage.purpose) kullanilan amaclar.
+# Ayar ARTIK bu kumeye gore dallanmiyor (Adim 6.5) -- bu sadece etiketleme
+# ve dogrulama (CLI'nin "purpose" pozisyonel argumanlari, structured-output
+# reasoning kurali) icin kullanilan bir liste. "embedding" Adim 6.5'te
+# kaldirildi: embedding bir LLM degil, src/clients/embedding.py'nin hicbir
+# cagirani yoktu (dogrulandi) -- var olmayan bir tuketici icin yapilandirma
+# yuzeyiydi.
+PURPOSES: tuple[str, ...] = ("digest", "report")
 
 # ``output_type`` pydantic modeli olan amaclar -- reasoning bunlarda kapali
 # olmali (bkz. REFACTOR_PLAN.md 2.5 ve 0. bolumdeki 2026-08-26 ariza teshisi).
+# Not: embedding kaldirildiktan sonra bu kume PURPOSES ile AYNI -- yani tek
+# model ayari acildiginda reasoning her zaman en az bir tuketiciyi (aslinda
+# ikisini de) etkiler. Bu kume yine de AYRI tutuluyor cunku anlami farkli
+# (yapilandirilmis cikti kullanan amaclar) ve gelecekte structured-output
+# OLMAYAN bir amac eklenirse (ornegin serbest metin ureten bir ozellik) bu
+# ayrim otomatik olarak dogru davranir.
 _STRUCTURED_OUTPUT_PURPOSES = frozenset({"digest", "report"})
 
 _CACHE_TTL = 60  # saniye -- plan: "TTL <= 60s"
-_CACHE_PREFIX = "llm:selection:"
-
-
-def _cache_key(purpose: str) -> str:
-    return f"{_CACHE_PREFIX}{purpose}"
+_CACHE_KEY = "llm:selection"  # TEK anahtar -- singleton ayarda amac yok
 
 
 def structured_output_forbids_reasoning(purpose: str) -> bool:
-    """``output_type`` pydantic modeli olan amaclarda reasoning kapali olmali mi?
+    """``output_type`` bir pydantic modeli olan amaclarda reasoning kapali olmali mi?
 
     Sebep sağlayıcı/model ekseninde degil: reasoning token'lari yapisal
     ciktinin (Digest, Report) semaya ayristirilmasini bozup hata firlatiyor.
@@ -53,7 +74,7 @@ def structured_output_forbids_reasoning(purpose: str) -> bool:
     model/base_url ayrismasindan cikti. ``"deepseek" not in
     model_name.lower()`` gibi model-adina-bakan sezgiler yerine bu acik kural
     kullanilmali. Bu fonksiyon yalniz kurali ifade eder; ajanlara (digest/
-    report agent kurulumuna) baglanmasi Adim 2'nin isi.
+    report agent kurulumuna) baglanmasi ``src/llm/agents.py``'nin isi.
     """
     return purpose in _STRUCTURED_OUTPUT_PURPOSES
 
@@ -69,9 +90,14 @@ def mask_secret(value: str | None) -> str:
 
 @dataclass(frozen=True)
 class ResolvedLLM:
-    """Bir amac icin tam cozulmus, kullanima hazir LLM yapilandirmasi."""
+    """Tam cozulmus, kullanima hazir TEK LLM yapilandirmasi (singleton).
 
-    purpose: str
+    ``purpose`` ALANI YOK -- cozumleme artik amaca gore dallanmiyor
+    (Adim 6.5). Bir cagrinin hangi amac icin yapildigini bilmek gereken
+    yerler (``build_agent``, ``log_llm_call``) bunu KENDI parametreleri
+    olarak, ayri tasir.
+    """
+
     provider: ProviderSpec
     model: str
     base_url: str
@@ -81,9 +107,8 @@ class ResolvedLLM:
 
 @dataclass(frozen=True)
 class Unconfigured:
-    """Bir amac icin ya secim yok ya da secim cozulemiyor (anahtar/saglayici)."""
+    """Secim yok ya da secim cozulemiyor (saglayici/anahtar/base_url)."""
 
-    purpose: str
     reason: str
 
 
@@ -91,18 +116,21 @@ ResolveResult = ResolvedLLM | Unconfigured
 
 
 class LLMPurposeUnconfigured(RuntimeError):
-    """Bir amac (digest/report/embedding) icin saglayici/model secili degil
-    ya da cozulemiyor. ``resolve_purpose`` sessizce ``Unconfigured`` dondugu
-    icin cokmez; bu istisna cagiran katmanlarin (``src/llm/agents.py``,
-    ``src/clients/embedding.py``) o durumu acik bir hataya cevirmek icin
-    kullandigi ortak tip -- boylece cagiran taraf yakalayip anlamli bir
-    HTTP/cron hatasi dondurebilir, sessizce varsayilana dusmek YOK
-    (REFACTOR_PLAN.md 2.4)."""
+    """Bir amac (digest/report) icin cagrilan ``build_agent`` LLM'i coz(em)edi.
 
-    def __init__(self, unconfigured: Unconfigured) -> None:
-        self.purpose = unconfigured.purpose
-        self.reason = unconfigured.reason
-        super().__init__(f"LLM not configured for purpose {unconfigured.purpose!r}: {unconfigured.reason}")
+    ``resolve_llm`` sessizce ``Unconfigured`` dondugu icin cokmez; bu
+    istisna cagiran katmanlarin (``src/llm/agents.py::build_agent``) o
+    durumu acik bir hataya cevirmek icin kullandigi ortak tip -- boylece
+    cagiran taraf yakalayip anlamli bir HTTP/cron hatasi dondurebilir,
+    sessizce varsayilana dusmek YOK (REFACTOR_PLAN.md 2.4). ``purpose``
+    burada YALNIZ hangi cagrinin basarisiz oldugunu belirten bir etiket --
+    ayarin kendisi ``purpose``'a gore degismiyor, tek bir ``reason`` her
+    amac icin aynidir."""
+
+    def __init__(self, purpose: str, reason: str) -> None:
+        self.purpose = purpose
+        self.reason = reason
+        super().__init__(f"LLM not configured (requested for purpose={purpose!r}): {reason}")
 
 
 # --------------------------------------------------------------------------
@@ -143,7 +171,7 @@ async def upsert_provider(
             (provider, encrypted, base_url, enabled),
         )
         await db.commit()
-    await _invalidate_all_selections()
+    await _invalidate_selection_cache()
 
 
 async def clear_provider_key(provider: str) -> None:
@@ -154,20 +182,21 @@ async def clear_provider_key(provider: str) -> None:
             (provider,),
         )
         await db.commit()
-    await _invalidate_all_selections()
+    await _invalidate_selection_cache()
 
 
 async def remove_provider(provider: str) -> None:
     """Saglayici satirini tamamen siler.
 
-    Not: ``llm_settings.provider`` bu satiriya FK ile bagli; halen bu
-    saglayiciyi kullanan bir amac varsa DB bu silmeyi reddeder (referans
-    butunlugu). Once ilgili amaclarin secimini degistirmek/temizlemek gerekir.
+    Not: ``llm_settings.provider`` bu satira FK ile bagli; secim (varsa) hala
+    bu saglayiciyi kullaniyorsa DB bu silmeyi reddeder (referans butunlugu).
+    Once secimi (``set_selection``) baska bir saglayiciya tasimak/temizlemek
+    gerekir.
     """
     async with db.cursor(row_factory=None) as cur:
         await cur.execute("DELETE FROM llm_providers WHERE provider = %s", (provider,))
         await db.commit()
-    await _invalidate_all_selections()
+    await _invalidate_selection_cache()
 
 
 # --------------------------------------------------------------------------
@@ -195,7 +224,7 @@ async def list_providers() -> list[dict]:
 
 
 async def _fetch_provider_row_raw(provider: str) -> tuple | None:
-    """resolve_purpose icin ic kullanim: tuple satir (row_factory=None)."""
+    """resolve_llm icin ic kullanim: tuple satir (row_factory=None)."""
     async with db.cursor(row_factory=None) as cur:
         await cur.execute(
             "SELECT api_key_encrypted, base_url, enabled FROM llm_providers WHERE provider = %s",
@@ -205,29 +234,26 @@ async def _fetch_provider_row_raw(provider: str) -> tuple | None:
 
 
 # --------------------------------------------------------------------------
-# llm_settings: yazma
+# llm_settings: yazma (singleton -- amac parametresi YOK)
 # --------------------------------------------------------------------------
 
 
 async def set_selection(
-    purpose: str,
     provider: str,
     model: str,
     *,
     params: dict[str, Any] | None = None,
     updated_by: str | None = None,
 ) -> None:
-    """Bir amac icin saglayici+model secimini kaydeder.
+    """TEK saglayici+model secimini kaydeder (digest VE report bunu kullanir).
 
     Saglayicinin katalogda var olup olmadigini dogrular; ama saglayicinin
     ``llm_providers``'ta bir satiri olup olmadigini (anahtar girilmis mi)
     KONTROL ETMEZ -- FK bunu zaten zorunlu kilar (once ``upsert_provider``
     cagirilmis olmali, en azindan anahtarsiz bir satir icin bile). Model
-    adinin saglayicinin canli roster'inda olup olmadigi dogrulamasi Adim 4'un
-    (``admin_cli.py llm set``) isi, burada degil.
+    adinin saglayicinin canli roster'inda olup olmadigi dogrulamasi
+    ``scripts/admin_cli.py llm model set``'in isi, burada degil.
     """
-    if purpose not in PURPOSES:
-        raise ValueError(f"bilinmeyen amac: {purpose!r} (beklenen: {PURPOSES})")
     if provider not in PROVIDERS:
         raise ValueError(
             f"bilinmeyen saglayici: {provider!r} (katalogda yok: {sorted(PROVIDERS)})"
@@ -235,42 +261,38 @@ async def set_selection(
     async with db.cursor(row_factory=None) as cur:
         await cur.execute(
             """
-            INSERT INTO llm_settings (purpose, provider, model, params, updated_at, updated_by)
-            VALUES (%s, %s, %s, %s, NOW(), %s)
-            ON CONFLICT (purpose) DO UPDATE SET
+            INSERT INTO llm_settings (id, provider, model, params, updated_at, updated_by)
+            VALUES (TRUE, %s, %s, %s, NOW(), %s)
+            ON CONFLICT (id) DO UPDATE SET
                 provider = EXCLUDED.provider,
                 model = EXCLUDED.model,
                 params = EXCLUDED.params,
                 updated_at = NOW(),
                 updated_by = EXCLUDED.updated_by
             """,
-            (purpose, provider, model, json.dumps(params or {}), updated_by),
+            (provider, model, json.dumps(params or {}), updated_by),
         )
         await db.commit()
-    await r.delete(_cache_key(purpose))
+    await _invalidate_selection_cache()
 
 
-async def clear_selection(purpose: str) -> None:
+async def clear_selection() -> None:
     async with db.cursor(row_factory=None) as cur:
-        await cur.execute("DELETE FROM llm_settings WHERE purpose = %s", (purpose,))
+        await cur.execute("DELETE FROM llm_settings WHERE id")
         await db.commit()
-    await r.delete(_cache_key(purpose))
+    await _invalidate_selection_cache()
 
 
-async def get_selection(purpose: str) -> dict | None:
+async def get_selection() -> dict | None:
     async with db.cursor() as cur:
         await cur.execute(
-            "SELECT purpose, provider, model, params, updated_at, updated_by "
-            "FROM llm_settings WHERE purpose = %s",
-            (purpose,),
+            "SELECT provider, model, params, updated_at, updated_by FROM llm_settings WHERE id"
         )
         return await cur.fetchone()
 
 
-async def _invalidate_all_selections() -> None:
-    """Bir saglayici degisince hangi amac(lar) etkilendigi bilinmez -- hepsini
-    temizlemek yanlis-pozitif (bayat) onbellek riskini sifirlar."""
-    await r.delete(*[_cache_key(p) for p in PURPOSES])
+async def _invalidate_selection_cache() -> None:
+    await r.delete(_CACHE_KEY)
 
 
 # --------------------------------------------------------------------------
@@ -278,29 +300,25 @@ async def _invalidate_all_selections() -> None:
 # --------------------------------------------------------------------------
 
 
-async def _get_selection_cached(purpose: str) -> dict | None:
+async def _get_selection_cached() -> dict | None:
     """Secimi (saglayici id + model + params) Redis onbellekli okur.
 
     Donus: secim yoksa ``None``; varsa ``{"provider", "model", "params"}``.
     Onbellekte "secim yok" durumu da TTL boyunca tutulur (yoksa her cagri
-    bos DB taramasi yapardi); bir yazma/silme sonrasi ``_invalidate_all_
-    selections`` / ``clear_selection`` bu onbellegi hemen gecersiz kilar.
+    bos DB taramasi yapardi); bir yazma/silme sonrasi
+    ``_invalidate_selection_cache`` bu onbellegi hemen gecersiz kilar.
     """
-    cache_key = _cache_key(purpose)
-    cached = await r.get(cache_key)
+    cached = await r.get(_CACHE_KEY)
     if cached is not None:
         payload = json.loads(cached)
         return payload if payload.get("configured") else None
 
     async with db.cursor(row_factory=None) as cur:
-        await cur.execute(
-            "SELECT provider, model, params FROM llm_settings WHERE purpose = %s",
-            (purpose,),
-        )
+        await cur.execute("SELECT provider, model, params FROM llm_settings WHERE id")
         row = await cur.fetchone()
 
     if row is None:
-        await r.set(cache_key, json.dumps({"configured": False}), ex=_CACHE_TTL)
+        await r.set(_CACHE_KEY, json.dumps({"configured": False}), ex=_CACHE_TTL)
         return None
 
     provider_id, model, params = row
@@ -310,25 +328,22 @@ async def _get_selection_cached(purpose: str) -> dict | None:
         "model": model,
         "params": params or {},
     }
-    await r.set(cache_key, json.dumps(payload), ex=_CACHE_TTL)
+    await r.set(_CACHE_KEY, json.dumps(payload), ex=_CACHE_TTL)
     return payload
 
 
-async def resolve_purpose(purpose: str) -> ResolveResult:
-    """Bir amac icin tam LLM yapilandirmasini cozer.
+async def resolve_llm() -> ResolveResult:
+    """TEK LLM yapilandirmasini cozer (amac almaz -- Adim 6.5).
 
     Cokmez: secim yoksa, saglayici katalogdan dusmusse, saglayici satiri
     yoksa/devre disiysa, base_url eksikse veya anahtar cozulemiyorsa
-    ``Unconfigured(reason=...)`` doner. Yalniz ``purpose`` gecersizse (bu
-    kumenin disindaysa) ``ValueError`` firlatir -- bu bir programlama hatasi,
-    calisma-zamani "yapilandirilmamis" durumu degil.
+    ``Unconfigured(reason=...)`` doner.
     """
-    if purpose not in PURPOSES:
-        raise ValueError(f"bilinmeyen amac: {purpose!r} (beklenen: {PURPOSES})")
-
-    selection = await _get_selection_cached(purpose)
+    selection = await _get_selection_cached()
     if selection is None:
-        return Unconfigured(purpose=purpose, reason="bu amac icin kayitli bir secim yok")
+        return Unconfigured(
+            reason="henuz bir model secilmedi (admin_cli.py llm model set <saglayici>/<model>)"
+        )
 
     provider_id: str = selection["provider"]
     model: str = selection["model"]
@@ -337,24 +352,21 @@ async def resolve_purpose(purpose: str) -> ResolveResult:
     provider_spec = PROVIDERS.get(provider_id)
     if provider_spec is None:
         return Unconfigured(
-            purpose=purpose,
             reason=f"saglayici {provider_id!r} artik katalogda yok (secim yapildiktan sonra kaldirilmis olabilir)",
         )
 
     provider_row = await _fetch_provider_row_raw(provider_id)
     if provider_row is None:
         return Unconfigured(
-            purpose=purpose,
             reason=f"saglayici {provider_id!r} icin llm_providers'ta satir yok (once 'llm provider set' calistirilmali)",
         )
     api_key_encrypted, stored_base_url, enabled = provider_row
     if not enabled:
-        return Unconfigured(purpose=purpose, reason=f"saglayici {provider_id!r} devre disi (enabled=false)")
+        return Unconfigured(reason=f"saglayici {provider_id!r} devre disi (enabled=false)")
 
     base_url = provider_spec.base_url or stored_base_url
     if not base_url:
         return Unconfigured(
-            purpose=purpose,
             reason=f"saglayici {provider_id!r} icin base_url gerekli ama ne katalogda ne DB'de var",
         )
 
@@ -364,12 +376,10 @@ async def resolve_purpose(purpose: str) -> ResolveResult:
             api_key = crypto.decrypt(bytes(api_key_encrypted), aad=provider_id)
         except crypto.LLMCryptoError as exc:
             return Unconfigured(
-                purpose=purpose,
                 reason=f"saglayici {provider_id!r} icin API anahtari cozulemedi: {exc}",
             )
 
     return ResolvedLLM(
-        purpose=purpose,
         provider=provider_spec,
         model=model,
         base_url=base_url,

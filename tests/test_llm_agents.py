@@ -144,7 +144,7 @@ async def test_log_llm_call_accepts_plain_string_error(monkeypatch):
     monkeypatch.setattr("src.services.token.log_token_usage", _fake_log)
 
     await log_llm_call(
-        purpose="embedding",
+        purpose="digest",
         model_name="unknown",
         provider_id=None,
         status="error",
