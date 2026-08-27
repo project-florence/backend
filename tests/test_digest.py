@@ -15,12 +15,16 @@ Covers:
 6. service: hard timeout — a slow agent.run raises TimeoutError, never hangs.
 7. tools: down-tolerance markers on external failure.
 8. tools: economy_quotes + gainers/losers are cache-only (no refresh trigger).
-9. cron: _due_digest_slot window logic.
+9. cron: _due_digest_slot window logic (boundary minutes, config-driven,
+   no weekday/holiday gate -- TEST_COVERAGE_PLAN.md Adim C).
 10. cron: dedup — existing (date, slot) row short-circuits generation.
+11. cron: run_market_digest — generates on no-dup, swallows generate_digest
+    exceptions and dedup-check DB failures, no-ops outside any window, and
+    a missed window is documented as NOT compensated (Adim C).
 """
 
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -946,6 +950,208 @@ async def test_run_market_digest_skips_when_row_exists(monkeypatch):
     select = [q for q in fake_db.queries if "SELECT 1 FROM digests" in q[0]]
     assert len(select) == 1
     assert select[0][1] == (date(2026, 8, 19), "morning")
+
+
+# ---------------------------------------------------------------------------
+# 9b. cron window — dakika hassasiyetinde sinirlar (config'ten okunur,
+#     hardcode edilmez) + hafta sonu/tatil gate'i yok (mevcut davranis)
+# ---------------------------------------------------------------------------
+
+
+def test_due_digest_slot_window_boundaries_are_config_driven(monkeypatch):
+    """Pencere sinirlari src.core.config'deki ``digest.slot_times`` + cron_tasks'in
+    ``DIGEST_LEAD``'inden TURETILIR -- burada "09:30"/"09:45" gibi bir deger
+    hardcode EDILMEZ. Config degisirse test de otomatik dogru sinirlari bekler.
+
+    Test edilenler: pencereden hemen once (uretim yok), pencerenin ilk
+    dakikasi (dahil), pencerenin son dakikasi (dahil), pencerenin tam
+    bitis ani (haric — mevcut ``<`` karsilastirmasi, bkz. uretim kodu).
+    """
+    slot_times = get_config()["digest"]["slot_times"]
+    hour, minute = map(int, slot_times["morning"].split(":"))
+    end = datetime(2026, 8, 19, hour, minute, tzinfo=DIGEST_TZ)
+    start = end - cron_tasks.DIGEST_LEAD
+
+    cases = [
+        (start - timedelta(minutes=1), None, "pencereden hemen once"),
+        (start, "morning", "pencerenin ilk dakikasi"),
+        (end - timedelta(minutes=1), "morning", "pencerenin son dakikasi"),
+        (end, None, "pencerenin tam bitis ani"),
+    ]
+    for when, expected, label in cases:
+        _FakeDatetime._fixed = when
+        monkeypatch.setattr(cron_tasks, "datetime", _FakeDatetime)
+        assert _due_digest_slot() == expected, f"{label} ({when.time()}) icin beklenmeyen sonuc"
+
+
+def test_due_digest_slot_has_no_weekday_or_holiday_gate(monkeypatch):
+    """MEVCUT DAVRANIS (kasitli degistirilmedi, sadece belgeleniyor):
+    ``_due_digest_slot`` haftanin gunune veya tatile hic bakmaz. Portfoy
+    al/sat kapisindaki ``TR_HOLIDAYS_2026`` (src/services/market.py) burada
+    YOK -- digest hafta sonu dahil her gun ayni pencerelerde uretilir."""
+    saturday = datetime(2026, 8, 22, tzinfo=DIGEST_TZ)
+    assert saturday.weekday() == 5  # test verisi gercekten Cumartesi mi -- kendini dogrula
+
+    slot_times = get_config()["digest"]["slot_times"]
+    hour, minute = map(int, slot_times["morning"].split(":"))
+    mid_window = saturday.replace(hour=hour, minute=minute) - timedelta(minutes=7)
+
+    _FakeDatetime._fixed = mid_window
+    monkeypatch.setattr(cron_tasks, "datetime", _FakeDatetime)
+
+    assert _due_digest_slot() == "morning"
+
+
+# ---------------------------------------------------------------------------
+# 11. cron: run_market_digest — no-op / generate / hata yutma / dedup hatasi
+# ---------------------------------------------------------------------------
+
+
+async def test_run_market_digest_noop_outside_any_window(monkeypatch):
+    _freeze_time(monkeypatch, "20:00")
+    fake_db = _FakeDB()
+    monkeypatch.setattr(cron_tasks, "db", fake_db)
+
+    called = {"generate": False}
+
+    async def _should_not_run(*args, **kwargs):
+        called["generate"] = True
+
+    monkeypatch.setattr(service_module, "generate_digest", _should_not_run)
+
+    await cron_tasks.run_market_digest()
+
+    assert called["generate"] is False
+    assert fake_db.queries == []  # dedup kontrolune bile ulasilmadi -- pencere disinda ucuz no-op
+
+
+async def test_run_market_digest_generates_when_no_existing_row(monkeypatch):
+    _freeze_time(monkeypatch, "09:35")
+    fake_db = _FakeDB()
+    fake_db.fetchone_result = None
+    monkeypatch.setattr(cron_tasks, "db", fake_db)
+
+    calls = []
+
+    class _FakeDigestResult:
+        title = "Baslik"
+        id = "abc123"
+
+    async def _fake_generate(slot):
+        calls.append(slot)
+        return _FakeDigestResult()
+
+    monkeypatch.setattr(service_module, "generate_digest", _fake_generate)
+
+    await cron_tasks.run_market_digest()
+
+    assert calls == ["morning"]
+
+
+async def test_run_market_digest_swallows_generate_digest_exception_and_releases_connection(monkeypatch):
+    """``except Exception: logger.exception(...)`` yolu: generate_digest ne
+    atarsa atsin run_market_digest'ten disari SIZMAMALI (2026-08-26 arizasinda
+    tam olarak bu yol calisti — sağlayıcı 401/400 verdi, hiçbir alarm
+    tetiklenmedi). token_usage'a error satiri birakma davranisi zaten
+    generate_digest seviyesinde test edildi (bkz.
+    test_generate_digest_logs_failure_to_token_usage); burada dogrulanan,
+    ikisinin ARASINDAKI etkilesim: ust katman istisnayi yutuyor VE finally
+    blogunda DB baglantisini iade ediyor.
+    """
+    _freeze_time(monkeypatch, "09:35")
+    fake_db = _FakeDB()
+    fake_db.fetchone_result = None
+    monkeypatch.setattr(cron_tasks, "db", fake_db)
+
+    release_calls = {"n": 0}
+
+    async def _count_release():
+        release_calls["n"] += 1
+
+    fake_db.release_current = _count_release
+
+    async def _boom(slot):
+        raise RuntimeError("401 Model not supported (ox-alpha-free kaldirildi)")
+
+    monkeypatch.setattr(service_module, "generate_digest", _boom)
+
+    await cron_tasks.run_market_digest()  # raise ETMEMELI
+
+    assert release_calls["n"] == 1
+
+
+async def test_run_market_digest_swallows_dedup_check_db_failure(monkeypatch):
+    """Dedup SELECT'i patlarsa (DB gecici dususu vb.) generate_digest hic
+    cagrilmamali ve istisna yine disari sizmamali."""
+    _freeze_time(monkeypatch, "09:35")
+
+    class _RaisingCursor:
+        async def __aenter__(self):
+            raise RuntimeError("db down")
+
+        async def __aexit__(self, *exc):
+            return False
+
+    class _RaisingDB:
+        def __init__(self):
+            self.rollback_calls = 0
+
+        def cursor(self, row_factory=None):
+            return _RaisingCursor()
+
+        async def rollback(self):
+            self.rollback_calls += 1
+
+        async def release_current(self):
+            pass
+
+    raising_db = _RaisingDB()
+    monkeypatch.setattr(cron_tasks, "db", raising_db)
+
+    called = {"generate": False}
+
+    async def _should_not_run(*args, **kwargs):
+        called["generate"] = True
+
+    monkeypatch.setattr(service_module, "generate_digest", _should_not_run)
+
+    await cron_tasks.run_market_digest()  # raise ETMEMELI
+
+    assert called["generate"] is False
+    assert raising_db.rollback_calls == 1
+
+
+async def test_missed_window_is_not_compensated_documented_behavior(monkeypatch):
+    """MEVCUT DAVRANIS (kasitli, DUZELTILMEDI): proses bir uretim penceresi
+    BOYUNCA kapaliysa (hicbir tick o pencerede dusmediyse) o slot o GUN bir
+    daha asla uretilmez -- telafi/geriye-donuk-uretim mekanizmasi YOKTUR.
+    ``_due_digest_slot`` yalnizca "su an" bakar, geçmisi hic hatirlamaz. Bu
+    test bu davranisi BELGELER, degistirmez (TEST_COVERAGE_PLAN.md Adim C,
+    madde 10)."""
+    # Pencerenin son dakikasinda tick dusseydi hala uretilebilirdi...
+    _freeze_time(monkeypatch, "09:44")
+    assert cron_tasks._due_digest_slot() == "morning"
+
+    # ...ama proses o an kapaliydi (hicbir tick calismadi) diye simule
+    # ediyoruz: run_market_digest o tick'te hic cagrilmadi. Pencere kapaninca:
+    _freeze_time(monkeypatch, "09:46")
+    assert cron_tasks._due_digest_slot() is None
+
+    fake_db = _FakeDB()
+    monkeypatch.setattr(cron_tasks, "db", fake_db)
+    called = {"generate": False}
+
+    async def _should_not_run(*args, **kwargs):
+        called["generate"] = True
+
+    monkeypatch.setattr(service_module, "generate_digest", _should_not_run)
+
+    await cron_tasks.run_market_digest()
+
+    assert called["generate"] is False
+    assert fake_db.queries == []  # dedup sorgusuna bile ulasilmadi -- erken no-op
+    # Bir sonraki sans 13:00 (noon) penceresi -- bu gunku "morning" bir
+    # daha asla uretilmeyecek.
 
 
 # ---------------------------------------------------------------------------

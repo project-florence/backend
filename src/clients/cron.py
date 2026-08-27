@@ -107,6 +107,18 @@ class CronClient:
         if acquired is not None:
             return bool(acquired)
 
+        # redis-py'nin ``set(..., nx=True)`` cagrisi HEM "Redis'e erisilemedi"
+        # HEM DE "anahtar zaten var (kilit baska worker'da)" durumunda ayni
+        # sekilde None doner (gercek Redis'e karsi dogrulandi). Bu ikisini
+        # ayirt etmeden asagidaki yerel (surec-ici) fallback kilide dusmek,
+        # Redis TAMAMEN SAGLIKLIYKEN bile baska bir worker'in gercek Redis
+        # kilidini yok sayip isi yine de calistirir -- coklu worker
+        # koordinasyonunu tam da onu gerektiren durumda etkisiz kilar
+        # (TEST_COVERAGE_PLAN.md Adim C, bulunan gercek hata). Baglanti halen
+        # canliysa bu gercek bir NX reddidir -- fallback'e dusme.
+        if r.is_connected():
+            return False
+
         now = time.monotonic()
         async with self._fallback_lock:
             expires_at = self._fallback_locks.get(lock_key, 0.0)
@@ -133,13 +145,22 @@ class CronClient:
 
     async def _run_code(self, code: CodeType, name: str) -> None:
         ns: dict = {"__cron_name__": name}
-        exec(code, ns)
-        main = ns.get("__cron_main__")
-        if main is not None:
+        # ``__cron_main__`` module-seviyesinde bir isim baglamasi (STORE_NAME)
+        # oldugu icin derlenmis kodun ``co_names``'inde CALISTIRMADAN tespit
+        # edilebilir. Bu kontrol BURADA yapilmazsa eski format icin asagidaki
+        # dal secilmeden once modern-format varsayimiyla kosulsuz bir
+        # ``exec(code, ns)`` cagrisi tetiklenir -- eski (fonksiyon sarmalayicisiz)
+        # kaynakta bu, isin govdesini burada (event loop'u BLOKLAYARAK) bir kez,
+        # sonra asagidaki ``asyncio.to_thread`` dalinda tekrar calistirip isi
+        # IKI KEZ yurutur (Adim C'de bulunan gercek hata; bkz.
+        # tests/test_cron_client.py::test_run_code_legacy_sync_format_runs_in_thread).
+        if "__cron_main__" in code.co_names:
+            exec(code, ns)
+            main = ns["__cron_main__"]
             await main()
         else:
-            # Eski format: duz sync kaynak. Event loop'u bloklamamak icin
-            # thread'de calistir (eski davranis).
+            # Eski format: duz sync kaynak, gövdesi dogrudan yan etkili.
+            # Event loop'u bloklamamak icin SADECE thread'de calistir.
             await asyncio.to_thread(exec, code, ns)
 
     # ------------------------------------------------------------------

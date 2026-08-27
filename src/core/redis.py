@@ -59,6 +59,17 @@ class _AsyncRedisProxy:
                         return None
         return self._conn
 
+    def is_connected(self) -> bool:
+        """Canli bir Redis baglantisi var mi (yeniden baglanmayi DENEMEDEN)?
+
+        Cagrilar basarisiz oldugunda ``_call`` ``_conn``'u dusurur; dolayisiyla
+        bu bayrak "son islem gercekten Redis'e ulasti mi" sorusunu ayirt eder.
+        ``set(..., nx=True)`` hem "anahtar zaten var" hem "Redis yok" durumunda
+        ``None`` dondugu icin cagiranin bu ikisini ayirmaya ihtiyaci var
+        (bkz. ``src/clients/cron.py::CronClient._claim``).
+        """
+        return self._conn is not None
+
     async def _call(self, method: str, *args, **kwargs):
         conn = await self._get_conn()
         if conn is None:
