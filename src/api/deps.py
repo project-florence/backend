@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
@@ -136,7 +137,12 @@ async def get_current_user_full(token: str | None = Depends(oauth2_scheme), acce
 def verify_admin_token(x_admin_token: str = Header(...)):
     if not ADMIN_TOKEN:
         raise HTTPException(status_code=500, detail="ADMIN_TOKEN not configured")
-    if x_admin_token != ADMIN_TOKEN:
+    # BEKLEYENLER.md: sabit zamanli karsilastirma kullanilmiyordu (str '!='
+    # ilk farkli karakterde erken donerse timing side-channel'a acik) --
+    # secrets.compare_digest ile duzeltildi.
+    # bytes'a cevriliyor: compare_digest str uzerinde yalniz ASCII kabul
+    # eder, ASCII disi bir header degeri TypeError -> 500 uretirdi.
+    if not secrets.compare_digest(x_admin_token.encode(), ADMIN_TOKEN.encode()):
         raise HTTPException(status_code=403, detail="Invalid admin token")
     return True
 
