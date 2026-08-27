@@ -62,9 +62,15 @@ async def _decode_user(jwt_token: str) -> int | None:
                         return None
                     changed_at = row[0]
                     if changed_at is not None:
-                        await r.set(cache_key, changed_at.isoformat(), ex=60)
+                        # Redis'e string cache'lenenle asagida kullanilan yerel
+                        # degisken ayni tipte olmali; aksi halde cache-hit
+                        # yolunda calisan `datetime.fromisoformat` cache-miss
+                        # yolunda datetime nesnesiyle cagrilip TypeError firlatir.
+                        changed_at = changed_at.isoformat()
+                        await r.set(cache_key, changed_at, ex=60)
                     else:
-                        await r.set(cache_key, "", ex=60)
+                        changed_at = ""
+                        await r.set(cache_key, changed_at, ex=60)
             if changed_at not in (None, ""):
                 changed_dt = datetime.fromisoformat(changed_at)
                 if changed_dt.tzinfo is None:
