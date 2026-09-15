@@ -24,6 +24,14 @@ from psycopg_pool import AsyncConnectionPool
 
 load_dotenv()
 
+# Havuz buyuklugu: tek uvicorn worker + istek basina (istek baglantisi +
+# middleware analytics baglantisi) ~2 slot tuketimi goz onune alinarak 25.
+# Dashboard acilisi ~15 paralel istek atar; 10'luk havuz 2026-09-15'te
+# surekli PoolTimeout -> 503 uretti. Postgres max_connections=100, paylasim
+# (admin/cron ayni DB'ye baglanir) icin hala guvenli headroom var.
+# Ortam degiskeni ile ezilebilir (prod .env / compose).
+_DEFAULT_POOL_MAX = 25
+
 _pool: AsyncConnectionPool | None = None
 _pool_lock = asyncio.Lock()
 
@@ -70,7 +78,7 @@ async def _get_pool() -> AsyncConnectionPool:
                 pool = AsyncConnectionPool(
                     conninfo=_conninfo(),
                     min_size=1,
-                    max_size=int(os.getenv("POSTGRES_POOL_MAX", "10")),
+                    max_size=int(os.getenv("POSTGRES_POOL_MAX", str(_DEFAULT_POOL_MAX))),
                     open=False,
                     # Baglanti canlilik kontrolu: olmus baglantilar havuzdan
                     # cikarilir (yoksa 30s+ PoolTimeout'a takiliriz).
@@ -101,9 +109,61 @@ async def _get_conn() -> AsyncConnection:
     conn = _current_conn.get()
     if conn is None:
         pool = await _get_pool()
-        conn = await pool.getconn()
+        conn = await _shielded_getconn(pool)
         _current_conn.set(conn)
     return conn
+
+
+def _put_back_later(pool: AsyncConnectionPool, conn: AsyncConnection) -> None:
+    """Sahipsiz kalan baglantiyi havuza iade eden bekci gorev.
+
+    Iptal sirasinda (asagida) havuz sonradan baglanti verirse kimse
+    beklemiyor olur; baglanti cope gitmesin diye ayri bir task ile iade
+    edilir. Kapanis sirasinda loop olmusse sessizce vazgecilir.
+    """
+
+    async def _put() -> None:
+        try:
+            await pool.putconn(conn)
+        except Exception:
+            pass
+
+    try:
+        asyncio.ensure_future(_put())
+    except RuntimeError:
+        pass
+
+
+async def _shielded_getconn(pool: AsyncConnectionPool) -> AsyncConnection:
+    """Havuzdan iptal-guvenli baglanti alimi.
+
+    Arka plan: SPA sayfa gecislerinde yarim kalan fetch'ler istek task'ini
+    iptal eder (CancelledError). Korunmasiz ``await pool.getconn()``,
+    iptal havuz slotu verildikten SONRA gelirse baglantiyi sahipsiz
+    birakir: slot tukenir ama Postgres tarafinda baglanti gorunmez ve
+    havuz bir daha toparlanamaz (2026-09-15 503 dalgasinin kalici kismi).
+    Bu fonksiyon verilen her baglantinin ya cagirana ulasmasini ya da
+    havuza iade edilmesini garanti eder; iptal her durumda yeniden
+    yukseltilir (gorev hijyeni korunur).
+    """
+    task = asyncio.ensure_future(pool.getconn())
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        if task.done() and not task.cancelled() and task.exception() is None:
+            # Baglanti verildi ama artik kimse beklemiyor: iade et.
+            try:
+                await asyncio.shield(pool.putconn(task.result()))
+            except (Exception, asyncio.CancelledError):
+                pass
+        elif not task.done():
+            # Henuz verilmedi: bittiginde sahipsiz kalmamasi icin bekci tak.
+            task.add_done_callback(
+                lambda t: None
+                if (t.cancelled() or t.exception() is not None)
+                else _put_back_later(pool, t.result())
+            )
+        raise
 
 
 async def _release_conn() -> None:
@@ -111,16 +171,26 @@ async def _release_conn() -> None:
     if conn is None:
         return
     _current_conn.set(None)
+    # Iptal ortasinda bile iade tamamlanmali: rollback/putconn shield ile
+    # korunur, iptal bayragi sonda yeniden yukseltilir. Boylece yarim kalan
+    # istekler havuzda slot sizdirmaz.
+    was_cancelled = False
     try:
         # Bekleyen (commit edilmemis) islem varsa geri al; havuz temiz kalsin.
-        await conn.rollback()
+        await asyncio.shield(conn.rollback())
+    except asyncio.CancelledError:
+        was_cancelled = True
     except Exception:
         pass
     try:
         pool = await _get_pool()
-        await pool.putconn(conn)
+        await asyncio.shield(pool.putconn(conn))
+    except asyncio.CancelledError:
+        was_cancelled = True
     except Exception:
         pass
+    if was_cancelled:
+        raise asyncio.CancelledError
 
 
 class _AsyncDatabase:

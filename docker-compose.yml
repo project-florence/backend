@@ -1,7 +1,16 @@
+# Tum servislerde log rotasyonu: sinirsiz json-file buyumesi 2026-09-15'te
+# florence_api'de 227MB'a ulasti. 3x50MB tutulur, eskiler silinir.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:17
     container_name: florence_postgres
+    logging: *default-logging
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
@@ -13,6 +22,7 @@ services:
   redis:
     image: redis:7.4.2-alpine
     container_name: florence_redis
+    logging: *default-logging
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "127.0.0.1:${REDIS_HOST_PORT}:6379"
@@ -23,6 +33,7 @@ services:
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
+    logging: *default-logging
     ports:
       - "127.0.0.1:${SEARXNG_HOST_PORT}:8080"
     volumes:
@@ -35,6 +46,7 @@ services:
   api:
     build: .
     container_name: florence_api
+    logging: *default-logging
     user: "10001:10001"
     ports:
       - "127.0.0.1:${API_HOST_PORT}:7055"
@@ -58,6 +70,7 @@ services:
   admin:
     build: .
     container_name: florence_admin
+    logging: *default-logging
     # The admin UDS is mounted under /run/florence with host-managed permissions.
     user: "0:0"
     command: sh -c "umask 006 && exec uvicorn src.admin:admin_app --uds /run/florence/admin.sock"
@@ -81,6 +94,7 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: florence_mailpit
+    logging: *default-logging
     profiles: ["dev"]
     ports:
       - "127.0.0.1:1025:1025"

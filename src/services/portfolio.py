@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
+from psycopg_pool import PoolTimeout
 from src.services.market import get_market_status
 from src.services.ticker import is_valid_ticker, get_current_price, get_price_history
 from src.core.database import db
@@ -98,6 +99,11 @@ async def load_portfolio(portfolio_id: str, user_id: int) -> Portfolio | None:
             if not row or not row[0]:
                 return None
             return Portfolio.model_validate(row[0])
+    except PoolTimeout:
+        # Havuz basincligi 404 gibi maskelenmemeli: yukariya firlat ki
+        # main.py global handler 503 + retry semalarıyla cevap versin
+        # (2026-09-15'te valuation 404'u saatlerce yanlis teshise yol acti).
+        raise
     except Exception:
         return None
 
@@ -113,6 +119,8 @@ async def list_portfolios(user_id: int) -> list[Portfolio]:
             if not rows:
                 return []
             return [Portfolio.model_validate(row[0]) for row in rows]
+    except PoolTimeout:
+        raise
     except Exception:
         return []
 
@@ -437,6 +445,12 @@ async def get_portfolio_valuation(portfolio_id: str, user_id: int) -> dict | Non
     if portfolio is None:
         return None
 
+    # Salt-okuma fan-out: asagidaki dongu her sembol icin ag'a cikip
+    # saniyelerce surebilir. Yukleme bitti; havuz slotunu bosuna tutmamak
+    # icin baglantiyi simdi iade et (price.py'deki kritik desen;
+    # 2026-09-15 503 dalgasinin uzun-tutan kaynagi).
+    await db.release_current()
+
     assets = calculate_assets(portfolio)
 
     holdings_value = 0.0
@@ -481,6 +495,9 @@ async def get_diversification(portfolio_id: str, user_id: int) -> dict | None:
     portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
+
+    # Yukaridakiyle ayni gerekce (valuation): ag fan-out'u oncesi iade.
+    await db.release_current()
 
     assets = calculate_assets(portfolio)
     if not assets:
@@ -533,6 +550,9 @@ async def get_best_worst_performers(portfolio_id: str, user_id: int, top_n: int 
     portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
+
+    # Yukaridakiyle ayni gerekce (valuation): ag fan-out'u oncesi iade.
+    await db.release_current()
 
     assets = calculate_assets(portfolio)
     if not assets:
@@ -602,6 +622,9 @@ async def get_portfolio_history(portfolio_id: str, user_id: int, period: str = "
     if portfolio is None:
         return None
 
+    # En agir fan-out (tarih x sembol fiyat gecmisi): yukleme sonrasi iade.
+    await db.release_current()
+
     now = datetime.now(timezone.utc)
     period_map = {"1w": 7, "1mo": 30, "3mo": 90, "6mo": 180, "1y": 365, "max": None}
     days = period_map.get(period)
@@ -637,6 +660,8 @@ async def get_returns(portfolio_id: str, user_id: int, period: str = "1mo") -> d
     portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
+
+    await db.release_current()
 
     history = await get_portfolio_history(portfolio_id, user_id, period)
     if not history or len(history) < 1:
@@ -679,6 +704,8 @@ async def get_risk_metrics(portfolio_id: str, user_id: int, period: str = "1y") 
     if portfolio is None:
         return None
 
+    await db.release_current()
+
     history = await get_portfolio_history(portfolio_id, user_id, period)
     if not history or len(history) < 3:
         return {"volatility": None, "max_drawdown": None, "sharpe_ratio": None}
@@ -712,6 +739,8 @@ async def compare_with_benchmark(portfolio_id: str, user_id: int, benchmark_tick
     portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
+
+    await db.release_current()
 
     history = await get_portfolio_history(portfolio_id, user_id, "max")
     if not history or len(history) < 2:
@@ -840,6 +869,10 @@ async def get_portfolio_snapshot(portfolio_id: str, user_id: int) -> dict | None
     portfolio = await load_portfolio(portfolio_id, user_id)
     if portfolio is None:
         return None
+
+    # Alt cagrilarin her biri kendi yuklemesini yapar; bu dis baglanti
+    # dakikalarca surecek toplama sirasinda havuzu isgal etmesin.
+    await db.release_current()
 
     valuation = await get_portfolio_valuation(portfolio_id, user_id)
     diversification = await get_diversification(portfolio_id, user_id)

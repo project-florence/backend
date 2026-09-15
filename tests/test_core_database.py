@@ -18,6 +18,10 @@ cagrilir) o korumayi hermetik bir sahte havuzla gecersiz kilar -- gercek
 sokete hic dokunulmaz.
 """
 
+import asyncio
+
+import pytest
+
 from src.core import database as db_module
 
 
@@ -213,3 +217,134 @@ async def test_cursor_keep_true_survives_exception_but_release_current_cleans_up
 
     await db.release_current()
     assert leaked_conn in pool.returned  # middleware'in yaptigi temizlik
+
+
+# ---------------------------------------------------------------------------
+# Iptal-guvenli havuz alimi: CancelledError slot sizdirmamali (2026-09-15)
+# ---------------------------------------------------------------------------
+
+
+class BlockingPool(FakePool):
+    """``getconn()`` disaridan serbest birakilana kadar bekler.
+
+    Boylece iptal, havuz beklemesi SIRASINDA deterministik olarak
+    uretilebilir: once task beklemeye girer, sonra disaridan ``cancel()``
+    edilir, en son kapi acilip havuzun gec de olsa baglanti vermesi
+    saglanir.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._gate = asyncio.Event()
+
+    async def getconn(self):
+        await self._gate.wait()
+        return await super().getconn()
+
+    def release_gate(self):
+        self._gate.set()
+
+
+class BlockingRollbackConn(FakeConn):
+    """``rollback()`` kapi acilana kadar bekler (iade-ortasi iptal testi)."""
+
+    def __init__(self, name):
+        super().__init__(name)
+        self._gate = asyncio.Event()
+        self.entered_rollback = False
+
+    async def rollback(self):
+        self.entered_rollback = True
+        await self._gate.wait()
+        await super().rollback()
+
+    def release_gate(self):
+        self._gate.set()
+
+
+class GatedPool(FakePool):
+    """Tek seferlik, kapi kontrollu baglanti verir (iade-ortasi iptal testi)."""
+
+    def __init__(self, conn):
+        super().__init__()
+        self._conn = conn
+
+    async def getconn(self):
+        return self._conn
+
+
+def _install_custom_pool(monkeypatch, pool) -> None:
+    async def _get_pool():
+        return pool
+
+    monkeypatch.setattr(db_module, "_get_pool", _get_pool)
+    db_module._current_conn.set(None)
+
+
+async def test_cancelled_checkout_returns_late_granted_connection(monkeypatch):
+    """Bekleme sirasinda iptal + gec verilen baglanti cope gitmemeli.
+
+    2026-09-15 503 dalgasinin kalici kismi: SPA sayfa gecisleri istek
+    task'ini iptal ediyordu; korunmasiz ``await pool.getconn()`` sonrasi
+    verilen baglanti sahipsiz kalip slot tuketiyordu (Postgres'te
+    baglanti gorunmedigi icin teshis de zordu). Beklenti: iptal yayilir,
+    ContextVar temiz kalir, gec verilen baglanti havuza iade edilir.
+    """
+    pool = BlockingPool()
+    _install_custom_pool(monkeypatch, pool)
+
+    task = asyncio.ensure_future(db_module._get_conn())
+    await asyncio.sleep(0)  # task havuz beklemesine girsin
+    assert not task.done()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    # ContextVar kirlenmemis olmali (sahipsiz baglanti yok).
+    assert db_module._current_conn.get() is None
+
+    pool.release_gate()  # havuz simdi baglantiyi veriyor (kimse beklemiyor)
+    await asyncio.sleep(0.05)  # bekci callback + iade task'i calissin
+
+    assert len(pool.conns) == 1
+    assert pool.conns[0] in pool.returned, (
+        "gec verilen baglanti havuza iade edilmemis -- slot sizintisi"
+    )
+    assert db_module._current_conn.get() is None
+
+
+async def test_cancelled_release_still_returns_connection(monkeypatch):
+    """Iade ortasinda (rollback beklerken) iptal gelse bile slot donmeli.
+
+    Beklenti: rollback tamamlanir, baglanti havuza iade edilir, iptal
+    SONDA yeniden yukseltilir (gorev hijyeni: iptal yutulmaz).
+    """
+    conn = BlockingRollbackConn("conn-0")
+    pool = GatedPool(conn)
+    _install_custom_pool(monkeypatch, pool)
+
+    async def _checkout_and_release():
+        checkout = await db_module._get_conn()
+        assert checkout is conn
+        await db_module._release_conn()
+
+    # Alim + iade AYNI task'ta olmali (ContextVar task-yereldir).
+    task = asyncio.ensure_future(_checkout_and_release())
+    for _ in range(100):
+        if conn.entered_rollback:
+            break
+        await asyncio.sleep(0.01)
+    assert conn.entered_rollback, "worker rollback beklemesine giremedi"
+    assert not task.done()
+    task.cancel()
+    conn.release_gate()  # rollback tamamlanabilsin
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    # shield ile korunan rollback arka planda tamamlanir; birkac tick ver.
+    for _ in range(100):
+        if conn.rolledback:
+            break
+        await asyncio.sleep(0.01)
+
+    assert conn.rolledback is True
+    assert conn in pool.returned, "iade-ortasi iptal slot dusurmemeli"
+    assert db_module._current_conn.get() is None

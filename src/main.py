@@ -23,6 +23,7 @@ from src.core.database import db, init_db
 from src.core.logging import init_logging
 from src.cron.register import register_cron_jobs
 from src.finance import finance_service
+from src.services.analytics import aclose as analytics_aclose
 from src.services.analytics import fire_and_forget
 from src.services.bist import cache_tickers_and_companies
 
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
         logger.exception("finance warm_startup failed; continuing startup")
     yield
     await cron_client.stop()
+    await analytics_aclose()
     await db.close()
     await close_client()
 
