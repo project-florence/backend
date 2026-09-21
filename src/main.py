@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +21,7 @@ from src.clients.http import close_client
 from src.core.config import init_config, is_production
 from src.core.database import db, init_db
 from src.core.logging import init_logging
+from src.core.ratelimit import client_ip, rate_limiter
 from src.cron.register import register_cron_jobs
 from src.finance import finance_service
 from src.services.analytics import aclose as analytics_aclose
@@ -113,13 +114,81 @@ async def auth_and_tracking_middleware(request: Request, call_next):
         "/openapi.json",
     }
 
+    # B-17 — public-first piyasa okumasi: bu yollar YALNIZ okuma metotlari
+    # (GET/HEAD) icin public'tir; ayni path'e POST/PUT/DELETE gelirse auth
+    # aranir. Deger, giris yapmamis (anonim) istekler icin IP basina
+    # dakikalik istek limitidir. Prefix eslesmesi ("p" veya "p/...") ile
+    # kapsanan uclar tam olarak okuma uclaridir; kisisel uclar (favorites,
+    # portfolios, reports, ...) bu listede DEGILDIR.
+    PUBLIC_READ_PATHS: dict[str, int] = {
+        "/api/v1/companies/summary": 60,
+        "/api/v1/companies/info": 60,
+        "/api/v1/companies/search": 60,
+        "/api/v1/price/current": 60,
+        "/api/v1/price/history": 60,
+        "/api/v1/economy/quotes": 60,
+        "/api/v1/economy/history": 60,
+        "/api/v1/ipos": 60,
+        "/api/v1/news": 10,
+        "/api/v1/digest": 60,
+    }
+
     path = request.url.path
 
     # CORS preflight (OPTIONS) istekleri auth gerektirmez.
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    is_public = any(path == p or path.startswith(p + "/") for p in PUBLIC_PATHS if p.startswith("/api/"))
+    def _is_always_public() -> bool:
+        # METHOD'dan bagimsiz public yollar (login/register/legal/...). Prefix
+        # eslesmesi "/" sinirinda yapilir: "/api/v1/legalxyz" public SAYILMAZ.
+        return any(
+            path == p or path.startswith(p + "/")
+            for p in PUBLIC_PATHS
+            if p.startswith("/api/")
+        )
+
+    always_public = _is_always_public()
+
+    read_scope: str | None = None
+    read_limit: int | None = None
+    if request.method in ("GET", "HEAD"):
+        for prefix, limit in PUBLIC_READ_PATHS.items():
+            if path == prefix or path.startswith(prefix + "/"):
+                read_scope, read_limit = prefix, limit
+                break
+
+    is_public = always_public or read_limit is not None
+
+    if path.startswith("/api/") and read_limit is not None and not always_public:
+        # Anonim IP limiti. Girisli kullaniciyi anonime karismamak icin once
+        # opsiyonel auth cozulur: token yoksa/gecersizse kullanici None kalir
+        # -> IP kovasina yazilir. Token'i gecerli olan istek IP limitine
+        # girmez (authenticated uclarda per-user limit zaten var).
+        user_id: int | None = None
+        try:
+            user_id = await get_current_user_optional(request)
+        except PoolTimeout:
+            return JSONResponse(status_code=503, content={"detail": "Database busy, please retry"})
+        except Exception:
+            user_id = None
+        if user_id is not None:
+            request.state.user_id = user_id
+        else:
+            try:
+                await rate_limiter.check(
+                    f"anon:{read_scope}:{client_ip(request)}",
+                    max_requests=read_limit,
+                    window_seconds=60,
+                )
+            except HTTPException as exc:
+                if exc.status_code == 429:
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": "error_rate_limited"},
+                        headers=exc.headers or {"Retry-After": "60"},
+                    )
+                raise
 
     if path.startswith("/api/") and not is_public:
         try:

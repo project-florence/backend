@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import jwt
-from fastapi import Depends, HTTPException, status, Header, Cookie
+from fastapi import Depends, HTTPException, status, Header, Cookie, Request
 from fastapi.security import OAuth2PasswordBearer
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -86,7 +86,19 @@ async def _decode_user(jwt_token: str) -> int | None:
         return None
 
 
-async def get_current_user_optional(request):
+async def get_current_user_optional(request: Request) -> int | None:
+    """Gecerli token varsa user_id, yoksa/gecersizse ``None``.
+
+    B-17: public-first okuma uclarinda hem middleware (anonim IP limiti icin
+    kimlik ayrimi) hem de handler bagimliligi olarak kullanilir. Middleware
+    zaten cozmusse (``request.state.user_id``) JWT/DB'ye tekrar gidilmez.
+    """
+    # Middleware public okuma yollarinda kullaniciyi bir kez cozer; handler'in
+    # da ayni degeri tekrar cozmesi (2x JWT + DB kontrolu) gereksiz olur.
+    # ``state`` her Request'te olmayabilir (test sahteleri) -> defansif.
+    state = getattr(request, "state", None)
+    if state is not None and getattr(state, "user_id", None) is not None:
+        return state.user_id
     auth = request.headers.get("Authorization")
     if auth and auth.startswith("Bearer "):
         return await _decode_user(auth[7:])
@@ -112,6 +124,21 @@ async def get_current_user(token: str | None = Depends(oauth2_scheme), access_to
     return user_id
 
 
+async def _lookup_user_type(user_id: int) -> str:
+    """``users.user_type`` degerini doner; hata/eksik satirda ``"user"``."""
+    from src.core.database import db
+
+    try:
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute("SELECT user_type FROM users WHERE id = %s", (user_id,))
+            row = await cur.fetchone()
+        if row:
+            return row[0] or "user"
+    except Exception:
+        pass  # DB hatasinda admin boost yok; normal limit uygulanir
+    return "user"
+
+
 async def get_current_user_full(token: str | None = Depends(oauth2_scheme), access_token: str | None = Cookie(default=None)):
     """(user_id, user_type) doner — rate limit'te admin boost'u icin.
 
@@ -119,19 +146,20 @@ async def get_current_user_full(token: str | None = Depends(oauth2_scheme), acce
     DB'den okunur (JWT'ye dokunulmaz -> eski token'larla da calisir).
     """
     user_id = await get_current_user(token, access_token)
+    return user_id, await _lookup_user_type(user_id)
 
-    from src.core.database import db
 
-    user_type = "user"
-    try:
-        async with db.cursor(row_factory=None) as cur:
-            await cur.execute("SELECT user_type FROM users WHERE id = %s", (user_id,))
-            row = await cur.fetchone()
-        if row:
-            user_type = row[0] or "user"
-    except Exception:
-        pass  # DB hatasinda admin boost yok; normal limit uygulanir
-    return user_id, user_type
+async def get_current_user_full_optional(request: Request) -> tuple[int | None, str | None]:
+    """Anonim erisime acik uclarda (ornek ``/news/{ticker}``) (user_id, user_type).
+
+    Anonimde ``(None, None)``; girisli kullanicida admin boost icin user_type
+    cozulur (B-17). Boylece gizli ucun auth zorunlulugu kalkarken girisli
+    kullanici icin mevcut per-user limit davranisi korunur.
+    """
+    user_id = await get_current_user_optional(request)
+    if user_id is None:
+        return None, None
+    return user_id, await _lookup_user_type(user_id)
 
 
 def verify_admin_token(x_admin_token: str = Header(...)):

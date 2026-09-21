@@ -9,7 +9,7 @@ from src.services.news import get_latest_news
 from src.services.price import get_price_history
 from src.services.quote import get_quote
 from src.services.stats import increment_stat, get_popular_companies, get_popular_tickers
-from src.api.deps import validate_ticker, get_current_user, get_current_user_full
+from src.api.deps import validate_ticker, get_current_user_full_optional
 from src.core.ratelimit import rate_limiter
 from src.services.maintenance import require_feature
 
@@ -74,13 +74,23 @@ async def companies_summary(
 
 
 @router.get("/news/{ticker}")
-async def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="Number of news items"), user: tuple[int, str] = Depends(get_current_user_full), _: bool = Depends(require_feature("news"))):
+async def news(ticker: str, amount: int = Query(default=10, ge=1, le=50, description="Number of news items"), user: tuple[int | None, str | None] = Depends(get_current_user_full_optional), _: bool = Depends(require_feature("news"))):
+    """Haber akisi (B-17: public-first, anonim okunabilir).
+
+    - Girisli kullanici: mevcut per-user limit korunur (10/dk, admin 10x).
+    - Anonim: IP bazli 10/dk limit auth middleware'inde uygulanir; burada
+      tekrar sayilmaz (cift sayim limiter'i yarilar).
+    - ``require_feature("news")`` bagimliligi anonimde de calisir: haber
+      ozelligi global bakimda kapatilmissa herkese 503 doner. Girisli
+      davranisi degismez.
+    """
     current_user_id, user_type = user
-    # Admin kullanicilar 10x limit alir (10 -> 100 istek/dk).
-    await rate_limiter.check(
-        f"news:{current_user_id}:{ticker.upper()}", max_requests=10, window_seconds=60,
-        is_admin=(user_type == "admin"),
-    )
+    if current_user_id is not None:
+        # Admin kullanicilar 10x limit alir (10 -> 100 istek/dk).
+        await rate_limiter.check(
+            f"news:{current_user_id}:{ticker.upper()}", max_requests=10, window_seconds=60,
+            is_admin=(user_type == "admin"),
+        )
     await validate_ticker(ticker)
     result = await get_latest_news(ticker, amount)
     await increment_stat(ticker, "news_count")

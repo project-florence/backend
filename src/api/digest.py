@@ -14,8 +14,12 @@ order when multiple selectors are provided (most specific wins):
    stale-but-valid digest is never mistaken for a fresh one.
 
 Providing ``slot`` without ``date`` is invalid (422). Invalid ``date``,
-``slot`` or ``at`` formats are rejected with 422. This endpoint is
-authenticated (``get_current_user``) and intentionally NOT in PUBLIC_PATHS.
+``slot`` or ``at`` formats are rejected with 422.
+
+B-17: this endpoint is now public-first (in ``PUBLIC_READ_PATHS``) — anonymous
+GET is allowed with an IP-based rate limit applied in the auth middleware
+(guest reads are 60/min). Authentication is therefore optional here
+(``get_current_user_optional``); no per-user state is read.
 """
 
 import logging
@@ -25,7 +29,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from src.api.deps import get_current_user
+from src.api.deps import get_current_user_optional
 from src.services.digest import reads
 
 router = APIRouter()
@@ -34,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 @router.get("/digest")
 async def read_digest(
-    current_user_id: int = Depends(get_current_user),
+    current_user_id: int | None = Depends(get_current_user_optional),
     date: date_type | None = Query(None, description="YYYY-MM-DD digest date"),
     slot: Literal["morning", "noon", "evening"] | None = Query(
         None, description="digest slot (requires date)"

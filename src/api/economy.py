@@ -5,8 +5,10 @@ gram-palladium-price, currency) keep their paths and response keys
 (``{Buying, Selling, Change, Type}``) but now serve numeric payloads through
 the ``FinanceService`` bridge (design spec 8.1 / Faz 4). The canonical
 endpoints (quotes, history, analysis, records, providers) expose the new
-numeric contract (design spec 8.2). All routes stay behind the regular auth
-middleware — none of them is added to PUBLIC_PATHS.
+numeric contract (design spec 8.2). B-17: the read-only ``quotes`` and
+``history`` endpoints are anonymous-accessible (GET only) with an IP-based
+rate limit in the auth middleware; the remaining routes (analysis, records,
+providers, the legacy bridge) stay behind the regular auth middleware.
 """
 
 from datetime import datetime, timedelta, timezone
