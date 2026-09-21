@@ -52,14 +52,16 @@ def _set_auth_cookies(response, access_token: str, refresh_token: str):
         secure=secure,
         samesite="strict",
         max_age=refresh_token_ttl_days() * 24 * 3600,
-        path="/api/v1/auth",
+        # B-02: path access ile ayni ("/") olmali; aksi halde tarayici refresh
+        # cerezini sayfa isteklerinde gondermez ve Next proxy'si yenileyemez.
+        path="/",
     )
 
 
 def _delete_auth_cookies(response):
     secure = os.getenv("ENVIRONMENT", "development") == "production"
     response.delete_cookie(key="access_token", httponly=True, secure=secure, samesite="strict", path="/")
-    response.delete_cookie(key="refresh_token", httponly=True, secure=secure, samesite="strict", path="/api/v1/auth")
+    response.delete_cookie(key="refresh_token", httponly=True, secure=secure, samesite="strict", path="/")
 
 
 class UserRegister(BaseModel):

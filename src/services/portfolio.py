@@ -125,6 +125,154 @@ async def list_portfolios(user_id: int) -> list[Portfolio]:
         return []
 
 
+_LEGACY_TO_CANONICAL_CACHE: dict[str, str] | None = None
+
+
+def _legacy_to_canonical() -> dict[str, str]:
+    """SYMBOL_REGISTRY legacy adi -> kanonik sembol haritasi (tembel kurulur)."""
+    global _LEGACY_TO_CANONICAL_CACHE
+    if _LEGACY_TO_CANONICAL_CACHE is None:
+        from src.finance.symbols import SYMBOL_REGISTRY
+        _LEGACY_TO_CANONICAL_CACHE = {
+            d.legacy_name: d.canonical
+            for d in SYMBOL_REGISTRY.values()
+            if d.legacy_name
+        }
+    return _LEGACY_TO_CANONICAL_CACHE
+
+
+def _canonical_economy_symbol(ticker: str) -> str | None:
+    """Ticker kanonik ekonomi sembolu ise kanonik halini, hisse ise None doner."""
+    from src.finance.symbols import SYMBOL_REGISTRY
+
+    upper = ticker.strip().upper()
+    if upper in SYMBOL_REGISTRY:
+        return upper
+    return _legacy_to_canonical().get(ticker.strip().lower())
+
+
+async def _fetch_quotes_bulk(tickers: set[str]) -> dict[str, dict]:
+    """Tek geciste toplu fiyat + gunluk degisim (B-10).
+
+    Ekonomi sembolleri ``finance_service.get_quotes``'un tek cagrisindan, BIST
+    sembolleri ``services.quote.get_quotes``'un tek cagrisindan beslenir; her
+    portfoy icin ayri bir fiyat turu YOKTUR. Fiyati bilinmeyen sembol
+    ``{"price": None, "change_pct": None}`` ile doner (sessiz).
+    """
+    from src.finance import finance_service
+    from src.services.quote import get_quotes as get_bist_quotes
+
+    out: dict[str, dict] = {
+        t: {"price": None, "change_pct": None} for t in tickers
+    }
+
+    canonical_by_ticker: dict[str, str] = {}
+    bist_tickers: set[str] = set()
+    for t in tickers:
+        canonical = _canonical_economy_symbol(t)
+        if canonical is not None:
+            canonical_by_ticker[t] = canonical
+        else:
+            bist_tickers.add(t.upper())
+
+    if canonical_by_ticker:
+        bundle = await finance_service.get_quotes(sorted(set(canonical_by_ticker.values())))
+        for t, canonical in canonical_by_ticker.items():
+            q = bundle.quotes.get(canonical)
+            if q is None:
+                continue
+            price = q.buying if q.buying is not None else q.price
+            if price is None:
+                price = q.selling
+            out[t] = {"price": price, "change_pct": q.change_pct}
+
+    if bist_tickers:
+        bist_quotes = await get_bist_quotes(sorted(bist_tickers))
+        for t in tickers:
+            q = bist_quotes.get(t.upper())
+            if q is not None:
+                out[t] = {"price": q.get("price"), "change_pct": q.get("change_pct")}
+
+    return out
+
+
+async def get_portfolios_summaries(user_id: int) -> list[dict]:
+    """Tum portfoyler icin liste karti ozetleri (B-10).
+
+    ``list_portfolios`` ile tum portfoyler TEK sorguda yuklenir, ardindan
+    tutulan benzersiz semboller icin fiyat/degisim TEK gecisli toplu cekilir
+    (``_fetch_quotes_bulk``); portfoy basina ayri fiyat turu yoktur. Valüasyon
+    mantigi ``calculate_assets`` + ``balance + holdings_value`` ile yeniden
+    kullanilir. Bos portfoyde ``current_value == cost_basis`` ve
+    ``position_count == 0``.
+    """
+    portfolios = await list_portfolios(user_id)
+
+    # Ag fan-out'u (fiyat cekimi) oncesi yukleme baglantisini iade et
+    # (valuation deseni).
+    await db.release_current()
+
+    assets_by_id: dict[str, dict[str, Asset]] = {}
+    all_tickers: set[str] = set()
+    for p in portfolios:
+        assets = calculate_assets(p)
+        assets_by_id[p.metadata.id] = assets
+        all_tickers.update(assets.keys())
+
+    quotes = await _fetch_quotes_bulk(all_tickers) if all_tickers else {}
+    as_of = datetime.now(timezone.utc)
+
+    items: list[dict] = []
+    for p in portfolios:
+        assets = assets_by_id[p.metadata.id]
+        balance = p.metadata.balance
+
+        holdings_value = 0.0
+        weighted_change_sum = 0.0
+        change_weight = 0.0
+        for ticker, asset in assets.items():
+            info = quotes.get(ticker) or {}
+            price = info.get("price")
+            if price is None:
+                continue
+            value = price * asset.amount
+            holdings_value += value
+            change_pct = info.get("change_pct")
+            if change_pct is not None:
+                weighted_change_sum += value * change_pct
+                change_weight += value
+
+        current_value = balance + holdings_value
+        cost_basis = p.metadata.initial_balance
+        total_return_pct = (
+            (current_value - cost_basis) / cost_basis * 100 if cost_basis > 0 else None
+        )
+
+        if not assets:
+            daily_change_pct = 0.0
+        elif change_weight > 0 and current_value > 0:
+            # Tutulan varliklarin gunluk degisimi toplam portfoy degerine gore
+            # agirliklandirilir (nakit gunluk degismez).
+            daily_change_pct = weighted_change_sum / current_value
+        else:
+            daily_change_pct = None
+
+        items.append({
+            "id": p.metadata.id,
+            "name": p.metadata.name,
+            "currency": "TRY",
+            "created_at": p.metadata.created_at,
+            "current_value": current_value,
+            "cost_basis": cost_basis,
+            "daily_change_pct": daily_change_pct,
+            "total_return_pct": total_return_pct,
+            "position_count": len(assets),
+            "as_of": as_of,
+        })
+
+    return items
+
+
 async def create_portfolio(user_id: int, name: str, initial_balance: float) -> Portfolio | None:
     now = datetime.now(timezone.utc)
     metadata = Metadata(
@@ -247,7 +395,7 @@ async def add_transaction(portfolio_id: str, user_id: int, ticker: str, _type: s
     # Borsa kapaliyken piyasa fiyatiyla islem engellensin (elle fiyat girisi
     # yapan update_transaction bilincli tasarim geregi bu kontrolden muaftir).
     if get_market_status() != "open":
-        raise HTTPException(status_code=400, detail="Market is closed")
+        raise HTTPException(status_code=400, detail="error_market_closed")
 
     if quantity <= 0:
         return False

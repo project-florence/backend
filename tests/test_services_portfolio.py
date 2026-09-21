@@ -936,3 +936,110 @@ async def test_import_transactions_csv_save_failure(monkeypatch, fake_db):
     assert res["success"] is False
     assert "Could not save" in res["message"]
     assert res["imported"] == 0
+
+
+# ---------------------------------------------------------------------------
+# portfolio summaries (B-10)
+# ---------------------------------------------------------------------------
+
+
+async def test_get_portfolios_summaries_empty(fake_db, monkeypatch):
+    p = _portfolio(id="pf-empty", initial_balance=1000.0, balance=1000.0)
+    fake_db.fetchall_result = [(p.model_dump(),)]
+
+    async def _bulk(tickers):
+        return {}
+
+    monkeypatch.setattr(portfolio_module, "_fetch_quotes_bulk", _bulk)
+    items = await portfolio_module.get_portfolios_summaries(1)
+
+    assert len(items) == 1
+    it = items[0]
+    assert it["id"] == "pf-empty"
+    assert it["currency"] == "TRY"
+    assert it["current_value"] == pytest.approx(1000.0)
+    assert it["cost_basis"] == pytest.approx(1000.0)
+    assert it["position_count"] == 0
+    assert it["daily_change_pct"] == 0.0
+    assert it["total_return_pct"] == pytest.approx(0.0)
+    assert it["as_of"] is not None
+
+
+async def test_get_portfolios_summaries_single_position(fake_db, monkeypatch):
+    p = _portfolio(id="pf-1", initial_balance=2000.0, balance=1000.0)
+    p.transactions.append(_tx("THYAO", "BUY", 10, 100.0, commission=1.0))
+    fake_db.fetchall_result = [(p.model_dump(),)]
+
+    async def _bulk(tickers):
+        assert tickers == {"THYAO"}
+        return {"THYAO": {"price": 150.0, "change_pct": 5.0}}
+
+    monkeypatch.setattr(portfolio_module, "_fetch_quotes_bulk", _bulk)
+    items = await portfolio_module.get_portfolios_summaries(1)
+
+    it = items[0]
+    assert it["position_count"] == 1
+    assert it["current_value"] == pytest.approx(2500.0)
+    assert it["cost_basis"] == pytest.approx(2000.0)
+    assert it["total_return_pct"] == pytest.approx(25.0)
+    # 1500 (pozisyon degeri) * %5 / 2500 (toplam) = %3
+    assert it["daily_change_pct"] == pytest.approx(3.0)
+
+
+async def test_get_portfolios_summaries_multiple_portfolios(fake_db, monkeypatch):
+    p1 = _portfolio(id="pf-1", initial_balance=1000.0, balance=1000.0)
+    p2 = _portfolio(id="pf-2", initial_balance=3000.0, balance=500.0)
+    p2.transactions.append(_tx("GARAN", "BUY", 10, 100.0, commission=0.0))
+    fake_db.fetchall_result = [(p1.model_dump(),), (p2.model_dump(),)]
+
+    async def _bulk(tickers):
+        assert tickers == {"GARAN"}
+        return {"GARAN": {"price": 120.0, "change_pct": -2.0}}
+
+    monkeypatch.setattr(portfolio_module, "_fetch_quotes_bulk", _bulk)
+    items = await portfolio_module.get_portfolios_summaries(1)
+
+    assert [i["id"] for i in items] == ["pf-1", "pf-2"]
+    assert items[0]["position_count"] == 0
+    assert items[0]["current_value"] == pytest.approx(1000.0)
+    assert items[1]["position_count"] == 1
+    assert items[1]["current_value"] == pytest.approx(1700.0)
+    assert items[1]["total_return_pct"] == pytest.approx((1700.0 - 3000.0) / 3000.0 * 100)
+    assert items[1]["daily_change_pct"] == pytest.approx(1200.0 * -2.0 / 1700.0)
+    # Toplu yukleme: tek SELECT (portfoy basina ek sorgu yok).
+    selects = [q for q in fake_db.queries if "SELECT portfolio FROM portfolios" in q[0]]
+    assert len(selects) == 1
+
+
+async def test_fetch_quotes_bulk_routes_economy_and_bist(monkeypatch, fake_redis):
+    from src.finance import finance_service
+    from src.finance.models import ProviderName, Quote
+    from src.finance.models import QuoteBundle
+    from datetime import timezone as _tz
+
+    from src.services import quote as quote_module
+
+    async def _econ(symbols):
+        assert symbols == ["USD"]
+        return QuoteBundle(
+            ts=datetime.now(_tz.utc),
+            source=ProviderName.GENELPARA,
+            quotes={
+                "USD": Quote(
+                    symbol="USD", buying=41.0, selling=41.2, price=None,
+                    change_pct=1.5, source=ProviderName.GENELPARA,
+                    ts=datetime.now(_tz.utc),
+                )
+            },
+        )
+
+    async def _bist(tickers):
+        assert tickers == ["THYAO"]
+        return {"THYAO": {"price": 300.0, "change_pct": -1.0}}
+
+    monkeypatch.setattr(finance_service, "get_quotes", _econ)
+    monkeypatch.setattr(quote_module, "get_quotes", _bist)
+
+    out = await portfolio_module._fetch_quotes_bulk({"USD", "THYAO"})
+    assert out["USD"] == {"price": 41.0, "change_pct": 1.5}
+    assert out["THYAO"] == {"price": 300.0, "change_pct": -1.0}

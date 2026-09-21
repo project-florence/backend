@@ -142,7 +142,7 @@ async def test_generate_insufficient_credit(monkeypatch, fake_db, fake_redis):
     )
 
     assert resp.status_code == 402
-    assert resp.json()["detail"] == "insufficient credit"
+    assert resp.json()["detail"] == "error_insufficient_credit"
 
 
 async def test_generate_invalid_type(monkeypatch, fake_db, fake_redis):
@@ -155,7 +155,7 @@ async def test_generate_invalid_type(monkeypatch, fake_db, fake_redis):
     )
 
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Invalid type"
+    assert resp.json()["detail"] == "error_invalid_report_type"
 
 
 async def test_generate_invalid_ticker(monkeypatch, fake_db, fake_redis):
@@ -167,7 +167,7 @@ async def test_generate_invalid_ticker(monkeypatch, fake_db, fake_redis):
     )
 
     assert resp.status_code == 404
-    assert "Invalid BIST ticker" in resp.json()["detail"]
+    assert resp.json()["detail"] == "error_invalid_ticker"
 
 
 async def test_generate_missing_type(monkeypatch, fake_db, fake_redis):
@@ -245,7 +245,7 @@ async def test_history_invalid_sort(fake_db, fake_redis):
     resp = await request(app, "GET", "/reports/history?sort=banana")
 
     assert resp.status_code == 400
-    assert "Invalid sort" in resp.json()["detail"]
+    assert resp.json()["detail"] == "error_invalid_sort"
 
 
 async def test_history_invalid_order(fake_db, fake_redis):
@@ -253,7 +253,7 @@ async def test_history_invalid_order(fake_db, fake_redis):
     resp = await request(app, "GET", "/reports/history?order=sideways")
 
     assert resp.status_code == 400
-    assert "Invalid order" in resp.json()["detail"]
+    assert resp.json()["detail"] == "error_invalid_order"
 
 
 async def test_search_success(fake_db, fake_redis):
@@ -341,7 +341,7 @@ async def test_get_single_report_not_found(fake_db, fake_redis):
     resp = await request(app, "GET", "/reports/999")
 
     assert resp.status_code == 404
-    assert "not found" in resp.json()["detail"].lower()
+    assert resp.json()["detail"] == "error_report_not_found"
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +373,7 @@ async def test_download_invalid_ftype(monkeypatch, fake_db, fake_redis):
     resp = await request(app, "POST", "/reports/download?report_id=1&ftype=exe")
 
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Invalid file type."
+    assert resp.json()["detail"] == "error_invalid_file_type"
 
 
 async def test_download_report_not_found(monkeypatch, fake_db, fake_redis):
@@ -386,4 +386,4 @@ async def test_download_report_not_found(monkeypatch, fake_db, fake_redis):
     resp = await request(app, "POST", "/reports/download?report_id=999&ftype=md")
 
     assert resp.status_code == 404
-    assert resp.json()["detail"] == "Report not found."
+    assert resp.json()["detail"] == "error_report_not_found"

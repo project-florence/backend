@@ -143,6 +143,28 @@ async def test_login_success(monkeypatch, fake_db, fake_redis):
     assert resp.cookies.get("access_token")
 
 
+async def test_login_sets_refresh_cookie_on_root_path(monkeypatch, fake_db, fake_redis):
+    # B-02: refresh_token Set-Cookie path=/ olmali (access ile ayni).
+    _patch_ph(monkeypatch)
+    fake_db.queue_fetchone((7, "hash:password123", "user", True))
+
+    app = build_app(auth_router)
+    resp = await request(
+        app,
+        "POST",
+        "/auth/login",
+        data={"username": "alice", "password": "password123"},
+    )
+
+    assert resp.status_code == 200
+    by_name = {}
+    for c in resp.headers.get_list("set-cookie"):
+        by_name[c.split("=", 1)[0]] = c.lower()
+    assert "path=/" in by_name["refresh_token"]
+    assert "httponly" in by_name["refresh_token"]
+    assert "samesite=strict" in by_name["refresh_token"]
+
+
 async def test_login_wrong_password(monkeypatch, fake_db, fake_redis):
     _patch_ph(monkeypatch)
     fake_db.queue_fetchone((7, "hash:password123", "user", True))
@@ -369,7 +391,9 @@ async def test_logout_deletes_auth_cookies(fake_db, fake_redis):
 
     assert "access_token" in by_name
     assert "refresh_token" in by_name
-    assert "path=/api/v1/auth" in by_name["refresh_token"].lower()
+    # B-02: refresh cerezi access ile ayni kok path'te olmali.
+    assert "path=/" in by_name["refresh_token"].lower()
+    assert "path=/api/v1/auth" not in by_name["refresh_token"].lower()
     for c in cookies:
         low = c.lower()
         assert "max-age=0" in low or "expires=" in low

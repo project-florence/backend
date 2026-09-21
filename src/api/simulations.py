@@ -47,7 +47,7 @@ async def simulation_detail(
 ):
     detail = await get_simulation_detail(current_user_id, sim_id)
     if not detail:
-        raise HTTPException(status_code=404, detail="Simulation not found")
+        raise HTTPException(status_code=404, detail="error_simulation_not_found")
     return detail
 
 
@@ -67,12 +67,12 @@ async def simulate(
             if float(target) <= 0:
                 raise ValueError
         except (TypeError, ValueError):
-            raise HTTPException(status_code=400, detail="Invalid target price")
+            raise HTTPException(status_code=400, detail="error_invalid_target")
     cost = round(days * get_config()["simulation"]["per_day_cost"], 3)
 
     ok, remaining_credits = await credit_spend(current_user_id, cost)
     if not ok:
-        raise HTTPException(status_code=402, detail="insufficient credit")
+        raise HTTPException(status_code=402, detail="error_insufficient_credit")
 
     # Kredi islemlerinin tutabilecegi baglantiyi simulasyon (CPU-yogun,
     # thread'de calisan) oncesinde iade et — baglanti checked-out kalmasin.
@@ -82,12 +82,12 @@ async def simulate(
         history = await get_price_history(ticker, "2y", "1d")
         current_price = await get_current_price(ticker)
         result = await asyncio.to_thread(montecarlo.simulate_from_data, history, days, bounds, target, current_price)
-    except TypeError as e:
+    except TypeError:
         await credit_refund(current_user_id, cost)
-        raise HTTPException(status_code=400, detail="Invalid simulation parameters")
-    except Exception as e:
+        raise HTTPException(status_code=400, detail="error_invalid_simulation_params")
+    except Exception:
         await credit_refund(current_user_id, cost)
-        raise HTTPException(status_code=500, detail="Simulation failed, credits refunded.")
+        raise HTTPException(status_code=500, detail="error_simulation_failed")
 
     await increment_stat(ticker, "simulation_count")
 
@@ -109,7 +109,7 @@ async def simulate(
 
     if sim_id is None:
         await credit_refund(current_user_id, cost)
-        raise HTTPException(status_code=500, detail="Simulation could not be saved")
+        raise HTTPException(status_code=500, detail="error_simulation_failed")
 
     result["simulation_id"] = sim_id
     result["ticker"] = ticker

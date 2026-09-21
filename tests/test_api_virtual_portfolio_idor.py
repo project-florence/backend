@@ -175,6 +175,6 @@ async def test_add_transaction_rejected_when_market_closed(fake_db, fake_redis, 
     )
 
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Market is closed"
+    assert resp.json()["detail"] == "error_market_closed"
     # Piyasa kapaliyken kilit/DB'ye hic ulasilmamali.
     assert fake_db.queries == []

@@ -27,10 +27,10 @@ ORDER = {"asc": "ASC", "desc": "DESC"}
 def _sort_order_clause(sort: str, order: str) -> tuple[str, str]:
     sort_col = SORT_COLUMNS.get(sort)
     if sort_col is None:
-        raise HTTPException(status_code=400, detail=f"Invalid sort. Allowed: {sorted(SORT_COLUMNS)}")
+        raise HTTPException(status_code=400, detail="error_invalid_sort")
     order_dir = ORDER.get(order)
     if order_dir is None:
-        raise HTTPException(status_code=400, detail="Invalid order. Allowed: asc, desc")
+        raise HTTPException(status_code=400, detail="error_invalid_order")
     return sort_col, order_dir
 
 
@@ -73,7 +73,7 @@ async def generate_report_endpoint(
     await validate_ticker(ticker)
 
     if type not in ("quick_report", "deep_report"):
-        raise HTTPException(status_code=400, detail="Invalid type")
+        raise HTTPException(status_code=400, detail="error_invalid_report_type")
 
     cfg = get_config()["report"]
     max_tokens = cfg["quick_report_max_tokens"] if type == "quick_report" else cfg["deep_report_max_tokens"]
@@ -81,7 +81,7 @@ async def generate_report_endpoint(
 
     ok, remaining_credits = await credit_spend(current_user_id, estimated_cost)
     if not ok:
-        raise HTTPException(status_code=402, detail="insufficient credit")
+        raise HTTPException(status_code=402, detail="error_insufficient_credit")
 
     # Kredi islemlerinin tutabilecegi baglantiyi LLM cagrisindan ONCE iade et
     # (rapor 30-60s+ surebilir; baglanti checked-out kalmasin).
@@ -91,13 +91,13 @@ async def generate_report_endpoint(
 
     try:
         report_obj = await generate_report(ticker, mode, user_id=current_user_id, purpose=purpose)
-    except Exception as e:
+    except Exception:
         await credit_refund(current_user_id, estimated_cost)
-        raise HTTPException(status_code=500, detail="Report generation failed")
+        raise HTTPException(status_code=500, detail="error_report_failed")
 
     if report_obj is None:
         await credit_refund(current_user_id, estimated_cost)
-        raise HTTPException(status_code=500, detail="Report generation returned no result")
+        raise HTTPException(status_code=500, detail="error_report_failed")
 
     total_tokens = report_obj.token_usage.get("total", 0)
     actual_cost = _compute_cost(total_tokens)
@@ -112,7 +112,7 @@ async def generate_report_endpoint(
         extra_ok, remaining_credits = await credit_spend(current_user_id, extra_cost)
         if not extra_ok:
             await credit_refund(current_user_id, estimated_cost)
-            raise HTTPException(status_code=500, detail="Report cost could not be charged")
+            raise HTTPException(status_code=500, detail="error_report_failed")
 
     async with db.cursor(row_factory=None) as cur:
         try:
@@ -136,7 +136,7 @@ async def generate_report_endpoint(
         except Exception:
             await db.rollback()
             await credit_refund(current_user_id, actual_cost)
-            raise HTTPException(status_code=500, detail="Report could not be saved")
+            raise HTTPException(status_code=500, detail="error_report_failed")
 
     if report_id:
         await track_event("report_generated", user_id=current_user_id, ticker=ticker, details={
@@ -237,7 +237,7 @@ async def get_report_history(
                         """, (current_user_id,))
             rows = await cur.fetchall()
         except Exception as e:
-            raise HTTPException(status_code=500, detail="Database error")
+            raise HTTPException(status_code=500, detail="error_database")
 
     history = _parse_history_rows(rows)
     return history
@@ -267,7 +267,7 @@ async def search_reports(
                         """, (current_user_id, pattern, pattern, limit, offset))
             rows = await cur.fetchall()
         except Exception as e:
-            raise HTTPException(status_code=500, detail="Database error")
+            raise HTTPException(status_code=500, detail="error_database")
 
     return _parse_history_rows(rows)
 
@@ -285,13 +285,12 @@ async def get_single_report(report_id: int, current_user_id: int = Depends(get_c
             row = await cur.fetchone()
 
             if not row:
-                raise HTTPException(status_code=404,
-                                    detail="Report not found or you do not have permission to view it.")
+                raise HTTPException(status_code=404, detail="error_report_not_found")
 
         except HTTPException:
             raise
         except Exception:
-            raise HTTPException(status_code=500, detail="Database error")
+            raise HTTPException(status_code=500, detail="error_database")
 
     token_usage = row[3]
     if isinstance(token_usage, str):
@@ -322,7 +321,7 @@ async def get_single_report(report_id: int, current_user_id: int = Depends(get_c
 async def download_report(report_id: int = Query(...), ftype: str = Query(...), current_user_id: int = Depends(get_current_user)):
     report = await get_report_by_id(report_id, current_user_id)
     if not report:
-        raise HTTPException(status_code=404, detail="Report not found.")
+        raise HTTPException(status_code=404, detail="error_report_not_found")
     report_str = report_to_str(report)
 
     if ftype == "md":
@@ -346,4 +345,4 @@ async def download_report(report_id: int = Query(...), ftype: str = Query(...), 
             headers={"Content-Disposition": f'attachment; filename="report_{report_id}.pdf"'},
         )
     else:
-        raise HTTPException(status_code=400, detail="Invalid file type.")
+        raise HTTPException(status_code=400, detail="error_invalid_file_type")

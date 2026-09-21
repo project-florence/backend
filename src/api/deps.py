@@ -150,4 +150,40 @@ def verify_admin_token(x_admin_token: str = Header(...)):
 async def validate_ticker(ticker: str):
     from src.services.bist import is_valid_bist_ticker
     if not await is_valid_bist_ticker(ticker):
-        raise HTTPException(status_code=404, detail=f"Invalid BIST ticker: {ticker}")
+        raise HTTPException(status_code=404, detail="error_invalid_ticker")
+
+
+def _legacy_symbol_map() -> dict[str, str]:
+    """SYMBOL_REGISTRY legacy adi -> kanonik sembol eslemesi."""
+    from src.finance.symbols import SYMBOL_REGISTRY
+    return {d.legacy_name: d.canonical for d in SYMBOL_REGISTRY.values() if d.legacy_name}
+
+
+async def validate_symbol(ticker: str) -> str:
+    """BIST ticker VEYA kanonik ekonomi sembolunu dogrular (B-16).
+
+    Favoriler gibi hem hisse hem FX/kiymetli maden kabul eden uclar icin ortak
+    dogrulama. Gecerli sembolun kanonik halini doner: BIST buyuk harfe cevrilir;
+    ekonomi sembolleri kanonik anahtar (``USD``, ``XAU-GRAM``) ya da legacy ad
+    (``gram-altin``) olarak kabul edilip kanonige normalize edilir. Gecersiz
+    sembol, mevcut BIST davranisiyla tutarli olarak 404 alir.
+    """
+    from src.services.bist import is_valid_bist_ticker
+    from src.finance.symbols import SYMBOL_REGISTRY
+
+    if not ticker:
+        raise HTTPException(status_code=404, detail="error_invalid_ticker")
+
+    stripped = ticker.strip()
+    upper = stripped.upper()
+    if upper in SYMBOL_REGISTRY:
+        return upper
+
+    legacy = _legacy_symbol_map()
+    if stripped.lower() in legacy:
+        return legacy[stripped.lower()]
+
+    if await is_valid_bist_ticker(upper):
+        return upper
+
+    raise HTTPException(status_code=404, detail="error_invalid_ticker")

@@ -94,7 +94,7 @@ async def test_create_portfolio_service_failure(monkeypatch, fake_db, fake_redis
     )
 
     assert resp.status_code == 500
-    assert resp.json()["detail"] == "Failed to create portfolio"
+    assert resp.json()["detail"] == "error_portfolio_create_failed"
 
 
 # ---------------------------------------------------------------------------
@@ -116,6 +116,55 @@ async def test_list_portfolios(monkeypatch, fake_db, fake_redis):
     assert len(items) == 2
     assert items[0]["metadata"]["name"] == "A"
     assert items[1]["metadata"]["name"] == "B"
+
+
+async def test_portfolio_summaries_success(monkeypatch, fake_db, fake_redis):
+    async def _summaries(user_id):
+        assert user_id == 7
+        return [
+            {
+                "id": "pf-1",
+                "name": "A",
+                "currency": "TRY",
+                "created_at": "2026-08-20T09:00:00+00:00",
+                "current_value": 1250.0,
+                "cost_basis": 1000.0,
+                "daily_change_pct": 2.5,
+                "total_return_pct": 25.0,
+                "position_count": 1,
+                "as_of": "2026-08-20T10:00:00+00:00",
+            }
+        ]
+
+    _patch_svc(monkeypatch, get_portfolios_summaries=_summaries)
+
+    app = build_app(vp_router)
+    resp = await request(app, "GET", "/portfolios/summaries")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["items"]) == 1
+    item = body["items"][0]
+    assert item["id"] == "pf-1"
+    assert item["currency"] == "TRY"
+    assert item["current_value"] == 1250.0
+    assert item["cost_basis"] == 1000.0
+    assert item["daily_change_pct"] == 2.5
+    assert item["total_return_pct"] == 25.0
+    assert item["position_count"] == 1
+
+
+async def test_portfolio_summaries_empty(monkeypatch, fake_db, fake_redis):
+    async def _summaries(user_id):
+        return []
+
+    _patch_svc(monkeypatch, get_portfolios_summaries=_summaries)
+
+    app = build_app(vp_router)
+    resp = await request(app, "GET", "/portfolios/summaries")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"items": []}
 
 
 async def test_get_portfolio_success(monkeypatch, fake_db, fake_redis):
@@ -142,7 +191,7 @@ async def test_get_portfolio_not_found(monkeypatch, fake_db, fake_redis):
     resp = await request(app, "GET", "/portfolios/nope")
 
     assert resp.status_code == 404
-    assert resp.json()["detail"] == "Portfolio not found"
+    assert resp.json()["detail"] == "error_portfolio_not_found"
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +343,7 @@ async def test_add_transaction_failure(monkeypatch, fake_db, fake_redis):
     )
 
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Transaction failed"
+    assert resp.json()["detail"] == "error_transaction_failed"
 
 
 async def test_add_transaction_bad_payload(monkeypatch, fake_db, fake_redis):
@@ -371,7 +420,7 @@ async def test_undo_last_transaction_nothing(monkeypatch, fake_db, fake_redis):
     resp = await request(app, "DELETE", "/portfolios/pf-1/transactions/undo")
 
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "Nothing to undo"
+    assert resp.json()["detail"] == "error_nothing_to_undo"
 
 
 # ---------------------------------------------------------------------------
