@@ -17,10 +17,15 @@ jobs:
           script: |
             set -e
             cd /opt/florence
-            git pull --ff-only
+            git pull --ff-only origin main
             # Export dosya dizini: container user'i (10001) yazabilmeli (mount icin)
             mkdir -p data/exports
             chown 10001:10001 data/exports
             chmod 775 data/exports
-            docker-compose down
-            docker-compose up -d --build
+            # `down` KULLANILMAZ: Postgres/Redis/SearXNG ve paylasilan
+            # `florence_default` agi ayakta kalmali (app container'i bu aga bagli;
+            # `down` agi kaldirmaya calisip deploy'u yarida kesiyordu).
+            # `up -d --build` yalniz degisen servisleri yeniden olusturur.
+            docker compose up -d --build
+            sleep 5
+            curl -fsS http://127.0.0.1:7055/api/v1/version
