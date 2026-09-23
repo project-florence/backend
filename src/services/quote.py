@@ -1,11 +1,23 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from src.core.database import db
 from src.core.redis import r
-from src.services.market import MARKET_TIMEZONE, get_market_status
+from src.services.market import (
+    MARKET_TIMEZONE,
+    expected_last_session_date,
+    get_market_status,
+    last_trading_day,
+    session_date,
+    session_ts,
+)
 
 INTRADAY_INTERVALS = ("5m", "30m", "1h")
+
+# Ayni seans icin iki yazim konvansiyonundan (ham UTC vs Istanbul gece
+# yarisi) mukerrer satir gelebilir; dedup icin aralik basina en fazla bu
+# kadar satir tutulur (kucuk kalsin).
+_MAX_ROWS_PER_INTERVAL = 6
 
 
 def _as_float(value) -> float | None:
@@ -14,11 +26,6 @@ def _as_float(value) -> float | None:
 
 def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
-
-
-def _session_date(ts: datetime) -> date:
-    """Yfinance mum zaman damgasini BIST seans tarihine cevirir (TRT)."""
-    return ts.astimezone(MARKET_TIMEZONE).date()
 
 
 async def _read_cached_profile(ticker: str) -> dict:
@@ -34,16 +41,27 @@ async def _read_cached_profile(ticker: str) -> dict:
 
 
 def _completed_daily(daily: list[dict], today: date, status: str) -> list[dict]:
-    """TAMAMLANMIS seanslarin gunluk mumlari (tarihe gore artan)."""
-    by_date: dict[date, dict] = {}
+    """TAMAMLANMIS seanslarin gunluk mumlari (tarihe gore artan).
+
+    Ayni seansa ait mukerrer satirlar tarihe gore tekillestirilir: kanonik
+    ``session_ts(session_date)`` damgasina sahip satir varsa o tercih edilir,
+    yoksa en yeni ``ts`` (satirlar ``ts`` DESC geldigi icin ilk gorulen)
+    kazanir.
+    """
+    best: dict[date, dict] = {}
     for row in daily:  # ts DESC gelir
-        d = _session_date(row["ts"])
-        by_date.setdefault(d, row)
+        d = session_date(row["ts"])
+        current = best.get(d)
+        if current is None:
+            best[d] = row
+        elif row["ts"] == session_ts(d):
+            # Kanonik damga her zaman kazanir.
+            best[d] = row
 
     result = []
-    for d in sorted(by_date):
+    for d in sorted(best):
         if d < today or (d == today and status == "closed"):
-            result.append(by_date[d])
+            result.append(best[d])
     return result
 
 
@@ -67,26 +85,36 @@ async def _build_quote(ticker: str, rows: list[dict]) -> dict:
 
     have_live = status == "open" and bool(intraday)
 
+    price = None
+    previous_close = None
+    as_of = None
+    previous_close_ts = None
+
     if have_live:
         price = _as_float(intraday[0]["close"])
-        previous_close = _as_float(last_session["close"]) if last_session else None
         as_of = intraday[0]["ts"]
-        previous_close_ts = last_session["ts"] if last_session else None
-    else:
-        price = _as_float(last_session["close"]) if last_session else None
-        previous_close = _as_float(prev_session["close"]) if prev_session else None
-        as_of = last_session["ts"] if last_session else None
-        previous_close_ts = prev_session["ts"] if prev_session else None
+        # Onceki kapanis yalnizca hemen onceki islem seansina aitse gecerli;
+        # araya tatil/hafta sonu disinda bosluk girerse karistirmayalim.
+        if last_session is not None and session_date(last_session["ts"]) == last_trading_day(today):
+            previous_close = _as_float(last_session["close"])
+            previous_close_ts = last_session["ts"]
+    elif last_session is not None:
+        price = _as_float(last_session["close"])
+        as_of = last_session["ts"]
+        # Onceki seans, son seansin hemen onceki islem gunu degilse
+        # (veri boslugu) yaniltici degisim uretmemek icin None birakilir.
+        if prev_session is not None and session_date(prev_session["ts"]) == last_trading_day(session_date(last_session["ts"])):
+            previous_close = _as_float(prev_session["close"])
+            previous_close_ts = prev_session["ts"]
 
-    # Mum verisi eksikse profil fallback'i
-    if price is None:
+    # Profil fallback'i YALNIZCA hicbir DB fiyati yoksa ve cift halinde
+    # kullanilir; DB fiyati ile profil previousClose'u asla karistirilmaz.
+    if price is None and previous_close is None:
         price = _as_float(market.get("currentPrice"))
-    if previous_close is None:
         previous_close = _as_float(market.get("previousClose"))
-    if as_of is None and market.get("regularMarketTime"):
-        as_of = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
-    if previous_close_ts is None and market.get("regularMarketTime"):
-        previous_close_ts = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
+        if market.get("regularMarketTime"):
+            as_of = datetime.fromtimestamp(market["regularMarketTime"], tz=timezone.utc)
+            previous_close_ts = as_of
 
     change = price - previous_close if price is not None and previous_close is not None else None
     # Acik piyasada canli intraday veri yoksa yaniltici 0.00 gostermeyelim.
@@ -95,10 +123,12 @@ async def _build_quote(ticker: str, rows: list[dict]) -> dict:
     else:
         change_pct = change / previous_close * 100 if change is not None and previous_close else None
 
-    stale = False
-    if as_of is not None:
-        age_seconds = (now_utc - as_of).total_seconds()
-        stale = age_seconds > (20 * 60 if status == "open" else 3 * 86400)
+    # Acik: 20 dakikadan eski as_of bayat. Kapali: son tamamlanmis seans,
+    # beklenen seans tarihinden eskiyse (veya hic seans yoksa) bayat.
+    if status == "open":
+        stale = as_of is None or (now_utc - as_of) > timedelta(minutes=20)
+    else:
+        stale = last_session is None or session_date(last_session["ts"]) < expected_last_session_date(now_utc)
 
     return {
         "ticker": ticker,
@@ -126,17 +156,25 @@ async def get_quotes(tickers: list[str]) -> dict[str, dict]:
     await _init_db()
 
     placeholders = ",".join(["%s"] * len(ticker_values))
+    # Tum gecmisi taramayi onle: 1d icin 45 gun, intraday icin 2 gun yeter.
+    now_utc = datetime.now(timezone.utc)
+    daily_cutoff = now_utc - timedelta(days=45)
+    intraday_cutoff = now_utc - timedelta(days=2)
+    params = [*ticker_values, daily_cutoff, intraday_cutoff]
     async with db.cursor(row_factory=None) as cur:
         await cur.execute(
             f"""
             SELECT ticker, interval, ts, close
             FROM price_candles
             WHERE ticker IN ({placeholders})
-              AND interval IN ('5m', '30m', '1h', '1d')
+              AND (
+                    (interval = '1d' AND ts >= %s)
+                    OR (interval IN ('5m', '30m', '1h') AND ts >= %s)
+                  )
               AND close IS NOT NULL
             ORDER BY ticker, interval, ts DESC
             """,
-            ticker_values,
+            params,
         )
         rows = await cur.fetchall()
 
@@ -148,7 +186,7 @@ async def get_quotes(tickers: list[str]) -> dict[str, dict]:
     for ticker, interval, ts, close in rows:
         key = ticker.removesuffix(".IS")
         interval_rows = [row for row in grouped.setdefault(key, []) if row["interval"] == interval]
-        if len(interval_rows) < 2:
+        if len(interval_rows) < _MAX_ROWS_PER_INTERVAL:
             grouped[key].append({"interval": interval, "ts": ts, "close": close})
 
     return {ticker: await _build_quote(ticker, grouped.get(ticker, [])) for ticker in normalized}

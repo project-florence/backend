@@ -76,6 +76,37 @@ def next_open_at(now: datetime | None = None) -> datetime | None:
     return None
 
 
+def last_trading_day(d: date) -> date:
+    """``d``'den KESINLIKLE onceki en son islem gununu doner.
+
+    Hafta sonlari ve ``TR_HOLIDAYS_2026`` atlanir. Sonsuz donguye karsi en
+    fazla 30 gun geriye bakilir; bu pencerede islem gunu bulunamazsa
+    ``ValueError`` yukseltilir (takvim bozuksa sessizce yanlis gun
+    dondurmektense acikca hata vermek tercih edilir).
+    """
+    candidate = d - timedelta(days=1)
+    for _ in range(30):
+        if candidate.weekday() < 5 and is_holiday(candidate) is None:
+            return candidate
+        candidate -= timedelta(days=1)
+    raise ValueError(f"no trading day found within 30 days before {d}")
+
+
+def expected_last_session_date(now: datetime | None = None) -> date:
+    """Su an icin "en son tamamlanmis seans" tarihini hesaplar.
+
+    ``now`` Istanbul saatine cevrilir. Bugun bir islem gunu VE saat
+    ``MARKET_CLOSE``'a ulastiysa bugunun seansi tamamlanmistir; aksi halde
+    (kapanis oncesi veya islem gunu degil) bir onceki islem gunu doner.
+    """
+    current = (now or datetime.now(timezone.utc)).astimezone(MARKET_TIMEZONE)
+    today = current.date()
+    is_trading_day = today.weekday() < 5 and is_holiday(today) is None
+    if is_trading_day and current.time() >= MARKET_CLOSE:
+        return today
+    return last_trading_day(today)
+
+
 async def get_market_status_payload(now: datetime | None = None) -> dict:
     """Endpoint yaniti: Redis'te 60s onbellekli (proxy down-tolerant)."""
     try:

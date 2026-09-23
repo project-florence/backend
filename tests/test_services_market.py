@@ -5,7 +5,9 @@ sync ve yan etkisiz (herhangi bir DB/Redis erisimi yok). Sadece
 ``get_market_status_payload`` Redis kullanir (``fake_redis``).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+
+import pytest
 
 import src.services.market as market_module
 
@@ -132,6 +134,54 @@ def test_next_open_at_skips_holiday():
     thursday_before_holiday = _ist(2025, 12, 31, 19, 0)
     result = market_module.next_open_at(thursday_before_holiday)
     assert result == _ist(2026, 1, 2, 10, 0)
+
+
+# ---------------------------------------------------------------------------
+# last_trading_day: d'den KESINLIKLE onceki islem gunu (hafta sonu + tatil atlanir)
+# ---------------------------------------------------------------------------
+
+
+def test_last_trading_day_rolls_back_over_weekend():
+    # 2026-09-21 Pazartesi -> Cuma 2026-09-18 (hafta sonu atlanir).
+    assert market_module.last_trading_day(date(2026, 9, 21)) == date(2026, 9, 18)
+    # Pazar gununden de ayni Cuma'ya.
+    assert market_module.last_trading_day(date(2026, 9, 20)) == date(2026, 9, 18)
+
+
+def test_last_trading_day_skips_holiday():
+    # 2026-01-02 Cuma -> 2026-01-01 tatil (Yilbasi) atlanir -> 2025-12-31 Carsamba.
+    assert market_module.is_holiday(date(2026, 1, 1)) == "Yılbaşı"
+    assert market_module.last_trading_day(date(2026, 1, 2)) == date(2025, 12, 31)
+
+
+def test_last_trading_day_guard_raises_when_calendar_is_all_holidays(monkeypatch):
+    """30 gunluk pencerenin tamami tatil sayilirsa sonsuz dongu yerine hata."""
+    start = date(2026, 9, 23)
+    forced = {(start - timedelta(days=i)): "forced" for i in range(0, 40)}
+    monkeypatch.setattr(market_module, "TR_HOLIDAYS_2026", forced)
+    with pytest.raises(ValueError):
+        market_module.last_trading_day(start)
+
+
+# ---------------------------------------------------------------------------
+# expected_last_session_date: kapanis oncesi/sonrasi
+# ---------------------------------------------------------------------------
+
+
+def test_expected_last_session_date_before_close_on_normal_monday():
+    # 2026-08-24 Pazartesi 15:00 -> seans suruyor, onceki Cuma tamamlanmis.
+    assert market_module.expected_last_session_date(_ist(2026, 8, 24, 15, 0)) == date(2026, 8, 21)
+
+
+def test_expected_last_session_date_at_or_after_close_returns_today():
+    # Kapanis sinirinda (18:10) ve sonrasinda bugunun seansi tamamlanmis sayilir.
+    assert market_module.expected_last_session_date(_ist(2026, 8, 24, 18, 10)) == date(2026, 8, 24)
+    assert market_module.expected_last_session_date(_ist(2026, 8, 24, 18, 30)) == date(2026, 8, 24)
+
+
+def test_expected_last_session_date_on_holiday_falls_back_to_previous_day():
+    # 2026-01-01 Persembe tatil -> 2025-12-31 Carsamba.
+    assert market_module.expected_last_session_date(_ist(2026, 1, 1, 12, 0)) == date(2025, 12, 31)
 
 
 # ---------------------------------------------------------------------------
