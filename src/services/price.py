@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from src.clients.yfinance import afetch_price_history
 from src.core.database import db, price_write_lock
 from src.core.redis import r
-from src.services.market import get_market_status
+from src.services.market import get_market_status, is_placeholder_candle, normalize_candle_ts
 
 INTRADAY_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
 
@@ -95,17 +95,23 @@ async def _build_candle_rows(ticker: str, interval: str, start: datetime, end: d
 
     values = []
     for ts, row in data.iterrows():
-        if _clean(row.get("Open")) is None or _clean(row.get("Close")) is None:
+        open_ = _clean(row.get("Open"))
+        high = _clean(row.get("High"))
+        low = _clean(row.get("Low"))
+        close = _clean(row.get("Close"))
+        if open_ is None or close is None:
             continue
         volume = row.get("Volume")
         if isinstance(volume, (float, int)) and not math.isnan(volume):
             volume = int(volume)
         else:
             volume = 0
+        # Halt edilmis sembolun duz/hacimsiz yer tutucu mumu kalici olmasin.
+        if is_placeholder_candle(open_, high, low, close, volume):
+            continue
         values.append((
-            ticker, interval, ts.to_pydatetime(),
-            _clean(row.get("Open")), _clean(row.get("High")),
-            _clean(row.get("Low")), _clean(row.get("Close")), volume,
+            ticker, interval, normalize_candle_ts(ts.to_pydatetime(), interval),
+            open_, high, low, close, volume,
         ))
     return values
 

@@ -32,6 +32,11 @@ class FakeCursor:
         self.query = query
         self.params = params
 
+    async def executemany(self, query, params_seq=None):
+        self._db.queries.append((query, params_seq))
+        self.query = query
+        self.params = params_seq
+
     async def fetchone(self):
         queue = self._db._fetchone_queue
         if queue:

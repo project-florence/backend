@@ -26,6 +26,7 @@ import yfinance as yf
 
 from src.core.database import db
 from src.core.redis import r
+from src.services.market import is_placeholder_candle, normalize_candle_ts
 from src.services.price import _clean, _write_candle_rows
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,9 @@ async def build_candle_rows_bulk(
         if df.empty:
             continue
         for ts, row in df.iterrows():
+            open_ = _clean(row.get("Open"))
+            high = _clean(row.get("High"))
+            low = _clean(row.get("Low"))
             close = _clean(row.get("Close"))
             if close is None:
                 continue
@@ -131,10 +135,12 @@ async def build_candle_rows_bulk(
                 volume = int(volume)
             else:
                 volume = 0
+            # Halt edilmis sembolun duz/hacimsiz yer tutucu mumu kalici olmasin.
+            if is_placeholder_candle(open_, high, low, close, volume):
+                continue
             values.append((
-                ticker, interval, ts.to_pydatetime(),
-                _clean(row.get("Open")), _clean(row.get("High")),
-                _clean(row.get("Low")), close, volume,
+                ticker, interval, normalize_candle_ts(ts.to_pydatetime(), interval),
+                open_, high, low, close, volume,
             ))
     return values
 

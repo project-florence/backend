@@ -22,6 +22,7 @@ from src.core.database import db, price_write_lock
 from src.core.redis import r
 from src.services.bist import get_bist_companies_as_dict_from_redis
 from src.services.company import get_company_info
+from src.services.market import is_placeholder_candle, normalize_candle_ts
 from src.services.price import INTRADAY_INTERVALS, get_price_history, invalidate_price_cache
 from src.services.stats import get_all_stats
 from src.services.ticker_health import NOT_FOUND, classify_error, filter_suppressed, record_failure, record_success
@@ -172,13 +173,17 @@ async def _update_batch(batch_tickers: list[str], interval: str, period: str, ti
                         values = []
                         for ts, row in tdf.iterrows():
                             ts_dt = ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else ts
+                            open_ = float(row["Open"]) if pd.notna(row["Open"]) else None
+                            high = float(row["High"]) if pd.notna(row["High"]) else None
+                            low = float(row["Low"]) if pd.notna(row["Low"]) else None
+                            close = float(row["Close"]) if pd.notna(row["Close"]) else None
+                            volume = int(row["Volume"]) if pd.notna(row["Volume"]) else 0
+                            # Halt edilmis sembolun duz/hacimsiz yer tutucu mumu kalici olmasin.
+                            if is_placeholder_candle(open_, high, low, close, volume):
+                                continue
                             values.append((
-                                ticker, interval, ts_dt,
-                                float(row["Open"]) if pd.notna(row["Open"]) else None,
-                                float(row["High"]) if pd.notna(row["High"]) else None,
-                                float(row["Low"]) if pd.notna(row["Low"]) else None,
-                                float(row["Close"]) if pd.notna(row["Close"]) else None,
-                                int(row["Volume"]) if pd.notna(row["Volume"]) else 0,
+                                ticker, interval, normalize_candle_ts(ts_dt, interval),
+                                open_, high, low, close, volume,
                             ))
                         if values:
                             await cur.executemany(
