@@ -86,6 +86,14 @@ def test_job_specs_dispatcher_bodies_match_expected_shape():
         assert description  # bos aciklama olmamali
 
 
+def test_job_specs_include_daily_close_repair_30_min():
+    specs = {name: (interval_ms, description) for name, interval_ms, _snippet, description in _job_specs()}
+    assert "daily_close_repair" in specs
+    interval_ms, description = specs["daily_close_repair"]
+    assert interval_ms == 30 * 60 * 1000
+    assert description
+
+
 def test_job_specs_compile_cleanly():
     """Her spec'in kaynak kodu register_job'un derleme adimindan gecebilmeli."""
     client = CronClient()

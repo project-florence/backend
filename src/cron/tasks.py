@@ -11,7 +11,7 @@ import json
 import logging
 import time
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -22,7 +22,15 @@ from src.core.database import db, price_write_lock
 from src.core.redis import r
 from src.services.bist import get_bist_companies_as_dict_from_redis
 from src.services.company import get_company_info
-from src.services.market import is_placeholder_candle, normalize_candle_ts
+from src.services.market import (
+    MARKET_CLOSE,
+    MARKET_TIMEZONE,
+    expected_last_session_date,
+    is_holiday,
+    is_placeholder_candle,
+    normalize_candle_ts,
+    session_date,
+)
 from src.services.price import INTRADAY_INTERVALS, get_price_history, invalidate_price_cache
 from src.services.stats import get_all_stats
 from src.services.ticker_health import NOT_FOUND, classify_error, filter_suppressed, record_failure, record_success
@@ -352,6 +360,108 @@ async def run_update_daily_closes() -> None:
             await asyncio.sleep(BATCH_DELAY)
 
     logger.info("Gunluk kapanis guncellemesi tamamlandi.")
+
+
+# ----------------------------------------------------------------------
+# Gunluk kapanis telafi turu
+# ----------------------------------------------------------------------
+# 18:35 daily_close bazen Yahoo gunluk bari henuz olusmadan kosar ve 24 saat
+# tekrar denemez; o seansin 1d mumu eksik kalir. 30 dk'lik bu tur eksikleri
+# toplayip tazeler. 18:10-18:35 arasinda ilk gecisi daily_close'a birakir.
+DAILY_REPAIR_GRACE_END = dt_time(18, 35)
+DAILY_REPAIR_LOCK_NAME = "daily_close_repair"
+DAILY_REPAIR_LOCK_TTL = 1800
+DAILY_REPAIR_BATCH_SIZE = 50
+
+
+def _repair_now_ist() -> datetime:
+    """Test edilebilirlik icin Istanbul 'simdi'sini dondurur."""
+    return datetime.now(MARKET_TIMEZONE)
+
+
+async def _tickers_missing_daily(tickers: list[str], expected: date) -> list[str]:
+    """Son ``1d`` seansi ``expected``'in gerisinde olan (veya hic mumu
+    olmayan) ticker'lari tek gruplu sorguda bulur.
+
+    Girdi ``.IS`` son ekine gore normalize edilir; donen degerler taban
+    ticker'lardir (``.IS``'siz).
+    """
+    if not tickers:
+        return []
+
+    normalized = [t.upper().removesuffix(".IS") for t in tickers]
+    tickers_is = [f"{t}.IS" for t in normalized]
+    placeholders = ",".join(["%s"] * len(tickers_is))
+
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
+            f"""SELECT ticker, MAX(ts)
+                FROM price_candles
+                WHERE ticker IN ({placeholders}) AND interval = '1d'
+                GROUP BY ticker""",
+            tickers_is,
+        )
+        rows = await cur.fetchall()
+    # Sorgu sonrasi baglanti havuza iade edilsin.
+    await db.release_current()
+
+    last_ts_map = {row[0]: row[1] for row in rows}
+    missing = []
+    for base in normalized:
+        last_ts = last_ts_map.get(f"{base}.IS")
+        if last_ts is None or session_date(last_ts) < expected:
+            missing.append(base)
+    return missing
+
+
+async def run_daily_close_repair() -> None:
+    """Gunluk kapanis telafi turu (30 dk).
+
+    Eksik ``1d`` mumlari 50'lik batch'lerle tazeler. Tum maliyetli kontroller
+    (grace penceresi, eksik listesi) lock ALINMADAN once yapilir; bu yuzden
+    is listesi bossa ucuz bir no-op olur. Ag/DB hatalari loglanir, tur
+    patlamaz.
+    """
+    try:
+        now_ist = _repair_now_ist()
+        expected = expected_last_session_date(now_ist)
+
+        # Grace: islem gunu ve 18:10-18:35 arasi ise ilk gecisi daily_close
+        # yapsin; telafi turu hemen ardindan dener.
+        is_trading_day = now_ist.weekday() < 5 and is_holiday(now_ist.date()) is None
+        if is_trading_day and MARKET_CLOSE <= now_ist.time() < DAILY_REPAIR_GRACE_END:
+            logger.info("[DAILY-REPAIR] 18:10-18:35 grace penceresi, atlaniyor")
+            return
+
+        companies = await get_bist_companies_as_dict_from_redis()
+        all_tickers = sorted({c["ticker"] for c in companies})
+        all_tickers = await filter_suppressed(all_tickers)
+
+        missing = await _tickers_missing_daily(all_tickers, expected)
+        if not missing:
+            logger.info("[DAILY-REPAIR] eksik gunluk mum yok, no-op")
+            return
+
+        if not await _acquire_cron_lock(DAILY_REPAIR_LOCK_NAME, ttl=DAILY_REPAIR_LOCK_TTL):
+            logger.info("[DAILY-REPAIR] lock alinamadi (baskasi calisiyor), atlaniyor")
+            return
+        try:
+            total = len(missing)
+            logger.info("[DAILY-REPAIR] %s ticker icin gunluk kapanis telafisi", total)
+            for i in range(0, total, DAILY_REPAIR_BATCH_SIZE):
+                batch = [f"{t}.IS" for t in missing[i:i + DAILY_REPAIR_BATCH_SIZE]]
+                await _update_batch(batch, "1d", "5d", "DAILY-REPAIR", i, total)
+                if i + DAILY_REPAIR_BATCH_SIZE < total:
+                    logger.info("  %ss bekleniyor...", BATCH_DELAY)
+                    await asyncio.sleep(BATCH_DELAY)
+            logger.info("[DAILY-REPAIR] telafi turu tamamlandi.")
+        finally:
+            await _release_cron_lock(DAILY_REPAIR_LOCK_NAME)
+    except Exception:
+        logger.exception("[DAILY-REPAIR] beklenmeyen hata, tur atlandi")
+    finally:
+        # Cron kurali: tutulan baglanti varsa havuza iade edilsin.
+        await db.release_current()
 
 
 # ----------------------------------------------------------------------

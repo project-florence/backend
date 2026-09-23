@@ -1,3 +1,4 @@
+import asyncio
 import json
 from datetime import date, datetime, timedelta, timezone
 
@@ -18,6 +19,11 @@ INTRADAY_INTERVALS = ("5m", "30m", "1h")
 # yarisi) mukerrer satir gelebilir; dedup icin aralik basina en fazla bu
 # kadar satir tutulur (kucuk kalsin).
 _MAX_ROWS_PER_INTERVAL = 6
+
+# Bu sayiya kadar ticker iceren isteklerde eksik gunluk kapanislar aninda
+# telafi edilir; daha buyuk (market listesi) isteklerde ag cagrisi YAPILMAZ,
+# telafi turunu 30 dk'lik daily_close_repair cron'u ustlenir.
+_ENSURE_FRESH_MAX_TICKERS = 25
 
 
 def _as_float(value) -> float | None:
@@ -161,9 +167,7 @@ async def get_quotes(tickers: list[str]) -> dict[str, dict]:
     daily_cutoff = now_utc - timedelta(days=45)
     intraday_cutoff = now_utc - timedelta(days=2)
     params = [*ticker_values, daily_cutoff, intraday_cutoff]
-    async with db.cursor(row_factory=None) as cur:
-        await cur.execute(
-            f"""
+    query = f"""
             SELECT ticker, interval, ts, close
             FROM price_candles
             WHERE ticker IN ({placeholders})
@@ -173,21 +177,53 @@ async def get_quotes(tickers: list[str]) -> dict[str, dict]:
                   )
               AND close IS NOT NULL
             ORDER BY ticker, interval, ts DESC
-            """,
-            params,
-        )
-        rows = await cur.fetchall()
+            """
 
-    # DB sorgusu bitti: mumlar bellekten islenirken baglanti iade edilsin
-    # (redis/yfinance beklemesi sirasinda checked-out kalmasin).
-    await db.release_current()
+    async def _read_grouped() -> dict[str, list[dict]]:
+        async with db.cursor(row_factory=None) as cur:
+            await cur.execute(query, params)
+            fetched = await cur.fetchall()
+        # DB sorgusu bitti: mumlar bellekten islenirken baglanti iade edilsin
+        # (redis/yfinance beklemesi sirasinda checked-out kalmasin).
+        await db.release_current()
 
-    grouped: dict[str, list[dict]] = {}
-    for ticker, interval, ts, close in rows:
-        key = ticker.removesuffix(".IS")
-        interval_rows = [row for row in grouped.setdefault(key, []) if row["interval"] == interval]
-        if len(interval_rows) < _MAX_ROWS_PER_INTERVAL:
-            grouped[key].append({"interval": interval, "ts": ts, "close": close})
+        grouped: dict[str, list[dict]] = {}
+        for ticker, interval, ts, close in fetched:
+            key = ticker.removesuffix(".IS")
+            interval_rows = [row for row in grouped.setdefault(key, []) if row["interval"] == interval]
+            if len(interval_rows) < _MAX_ROWS_PER_INTERVAL:
+                grouped[key].append({"interval": interval, "ts": ts, "close": close})
+        return grouped
+
+    grouped = await _read_grouped()
+
+    # Kucuk isteklerde (detay/ozet ekrani) gunluk kapanisi eksik kalan
+    # ticker'lari tek seferlik telafi et: 18:35 daily_close Yahoo bari
+    # gelmeden kosmussa mum 24 saat yazilmamis kalir ve ozet bayat gorunur.
+    # Buyuk listelerde (market) ag cagrisi YAPILMAZ; daily_close_repair
+    # cron'u kapsar.
+    if len(normalized) <= _ENSURE_FRESH_MAX_TICKERS:
+        expected = expected_last_session_date(now_utc)
+        behind = []
+        for ticker in normalized:
+            latest_daily = next(
+                (row for row in grouped.get(ticker, []) if row["interval"] == "1d"),
+                None,
+            )
+            if latest_daily is None or session_date(latest_daily["ts"]) < expected:
+                behind.append(ticker)
+        if behind:
+            from src.services.price import ensure_recent_daily_candle
+
+            sem = asyncio.Semaphore(4)
+
+            async def _ensure(base: str) -> bool:
+                async with sem:
+                    return await ensure_recent_daily_candle(base)
+
+            filled = await asyncio.gather(*(_ensure(t) for t in behind))
+            if any(filled):
+                grouped = await _read_grouped()
 
     return {ticker: await _build_quote(ticker, grouped.get(ticker, [])) for ticker in normalized}
 

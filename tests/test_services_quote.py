@@ -36,6 +36,22 @@ def _daily(d, close):
     return (TICKER, "1d", session_ts(d), close)
 
 
+@pytest.fixture(autouse=True)
+def _stub_price_ensure(monkeypatch):
+    """``get_quotes`` gunluk telafi adimini hermetik tutar.
+
+    Varsayilan olarak hicbir ticker icin telafi yapmaz (``False``) -- boylece
+    mevcut testler gercek yfinance agina cikmaz. Tazelik davranisini test
+    eden testler bunu kendi monkeypatch'i ile ezer.
+    """
+    from src.services import price as price_module
+
+    async def _noop(ticker):
+        return False
+
+    monkeypatch.setattr(price_module, "ensure_recent_daily_candle", _noop)
+
+
 # ---------------------------------------------------------------------------
 # (1) Bugunun mumu yok: bayat isaretlenmeli, degisim yuzdesi uydurulmamali.
 # ---------------------------------------------------------------------------
@@ -191,3 +207,58 @@ async def test_get_quotes_query_is_time_bounded(fake_db, fake_redis, monkeypatch
     assert params[0] == "ASELS.IS"
     assert len(params) == 3  # ticker + 1d kesme + intraday kesme
     assert params[1] < params[2]  # 1d penceresi intraday'den daha geriye
+
+
+# ---------------------------------------------------------------------------
+# Kucuk istek: eksik gunluk seans telafi edilir ve SELECT tekrarlanir.
+# Buyuk liste: ag cagrisi YAPILMAZ (telafi cron'a birakilir).
+# ---------------------------------------------------------------------------
+
+
+async def test_small_batch_ensures_fresh_daily_and_requeries(fake_db, fake_redis, monkeypatch):
+    _freeze_now(monkeypatch, _ist(2026, 9, 23, 19, 0))  # kapanistan sonra
+    monkeypatch.setattr(quote_module, "get_market_status", lambda: "closed")
+    from src.services import price as price_module
+
+    # Ilk SELECT bayat (09-22) doner; telafi sonrasi tekrar SELECT taze (09-23).
+    fake_db.queue_fetchall(
+        [_daily(date(2026, 9, 22), 100.0)],
+        [_daily(date(2026, 9, 23), 110.0)],
+    )
+    calls = []
+
+    async def fake_ensure(ticker):
+        calls.append(ticker)
+        return True
+
+    monkeypatch.setattr(price_module, "ensure_recent_daily_candle", fake_ensure)
+
+    quote = (await quote_module.get_quotes(["ASELS"]))["ASELS"]
+
+    assert calls == ["ASELS"]
+    assert quote["price"] == 110.0
+    assert quote["is_stale"] is False
+    selects = [q for q in fake_db.queries if "FROM price_candles" in q[0]]
+    assert len(selects) == 2  # telafi sonrasi yeniden sorgu
+
+
+async def test_large_batch_does_not_ensure(fake_db, fake_redis, monkeypatch):
+    _freeze_now(monkeypatch, _ist(2026, 9, 23, 19, 0))
+    monkeypatch.setattr(quote_module, "get_market_status", lambda: "closed")
+    from src.services import price as price_module
+
+    tickers = [f"T{i:02d}" for i in range(26)]  # > _ENSURE_FRESH_MAX_TICKERS
+    fake_db.queue_fetchall([])
+    calls = []
+
+    async def fake_ensure(ticker):
+        calls.append(ticker)
+        return False
+
+    monkeypatch.setattr(price_module, "ensure_recent_daily_candle", fake_ensure)
+
+    await quote_module.get_quotes(tickers)
+
+    assert calls == []
+    selects = [q for q in fake_db.queries if "FROM price_candles" in q[0]]
+    assert len(selects) == 1  # telafi/re-sorgu YOK

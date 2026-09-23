@@ -88,6 +88,14 @@ def _job_specs() -> list[tuple[str, int, str, str]]:
             "Gunluk kapanis mumlari (18:35 TRT)",
         ),
         (
+            "daily_close_repair",
+            30 * 60 * 1000,
+            "from src.cron.tasks import run_daily_close_repair\n"
+            "async def __cron_main__():\n"
+            "    await run_daily_close_repair()",
+            "Gunluk kapanis telafi turu (30 dk)",
+        ),
+        (
             "economy_refresh",
             10 * 60 * 1000,
             "from src.cron.tasks import run_refresh_economy\n"

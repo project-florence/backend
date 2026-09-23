@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import math
 import time
 from datetime import datetime, timedelta, timezone
@@ -7,9 +8,17 @@ from datetime import datetime, timedelta, timezone
 from src.clients.yfinance import afetch_price_history
 from src.core.database import db, price_write_lock
 from src.core.redis import r
-from src.services.market import get_market_status, is_placeholder_candle, normalize_candle_ts
+from src.services.market import (
+    expected_last_session_date,
+    get_market_status,
+    is_placeholder_candle,
+    normalize_candle_ts,
+    session_date,
+)
 
 INTRADAY_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
+
+logger = logging.getLogger(__name__)
 
 
 def _clean(val):
@@ -146,6 +155,54 @@ async def _write_candle_rows(values: list[tuple]) -> None:
 async def _fetch_and_store(ticker: str, interval: str, start: datetime, end: datetime):
     values = await _build_candle_rows(ticker, interval, start, end)
     await _write_candle_rows(values)
+
+
+async def ensure_recent_daily_candle(ticker: str) -> bool:
+    """Son tamamlanmis gunluk seansin mumu eksikse tek seferlik telafi cekimi.
+
+    ``daily_close`` cron'u bazen 18:35'te Yahoo bari henuz olusmadan kosar ve
+    24 saat tekrar denemez; o seansin ``1d`` mumu hic yazilmaz. Bu yardimci,
+    ``get_quotes``/``get_current_price`` gibi tuketicilerin "kapanis beklenen
+    seansin gerisinde" durumunu gordugunde cagirdigi kendi kendini onaran
+    yoldur. Per-ticker ``refresh_lock:{ticker}:1d`` kilidiyle korunur.
+
+    Ag/DB hatasi yutulur ve ``False`` doner — cagirana asla yukseltmez.
+    """
+    ticker = ticker.upper()
+    if not ticker.endswith(".IS"):
+        ticker = f"{ticker}.IS"
+
+    await _init_db()
+
+    async with db.cursor(row_factory=None) as cur:
+        await cur.execute(
+            "SELECT MAX(ts) FROM price_candles WHERE ticker = %s AND interval = '1d'",
+            (ticker,),
+        )
+        row = await cur.fetchone()
+    # Ag beklemesi baslamadan baglanti iade edilsin (havuz tukenmesin).
+    await db.release_current()
+
+    max_ts = row[0] if row else None
+    if max_ts is not None and session_date(max_ts) >= expected_last_session_date():
+        return False
+
+    if not await _acquire_refresh_lock(ticker, "1d", ttl=300):
+        return False
+
+    now = datetime.now(timezone.utc)
+    # Var olan son mumdan itibaren (en fazla 7 gun geriye) ya da hic yoksa
+    # 30 gunluk pencereden tara; kanonik yazici zaten idempotent upsert yapar.
+    start = max(max_ts, now - timedelta(days=7)) if max_ts is not None else now - timedelta(days=30)
+
+    try:
+        await _fetch_and_store(ticker, "1d", start, now)
+        return True
+    except Exception:
+        logger.exception("ensure_recent_daily_candle: %s icin 1d telafi basarisiz", ticker)
+        return False
+    finally:
+        await r.delete(f"refresh_lock:{ticker}:1d")
 
 
 _PERIOD_DAYS: dict[str, int] = {
@@ -315,10 +372,12 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         await db.release_current()
         return await get_current_price(ticker, "1d")
 
-    if row is not None and _clean(row["close"]) is not None and not stale:
+    # Intraday'de taze satir hemen donebilir. Gunluk (1d) satir ise once
+    # asagidaki "beklenen seans" kontrolunden gecmeli: bayat kapanis
+    # erken donuste kalmamali, telafi cekimi tetiklenebilsin.
+    if row is not None and _clean(row["close"]) is not None and not stale and intraday:
         price = float(row["close"])
-        if intraday:
-            await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
+        await r.set(_current_price_cache_key(ticker, interval), str(price), ex=30)
         await db.release_current()
         return price
 
@@ -347,14 +406,33 @@ async def get_current_price(ticker: str, interval: str = "5m") -> float | None:
         await db.release_current()
         return await get_current_price(ticker, "1d")
 
-    async with db.cursor() as cur:
-        await cur.execute(
-            "SELECT close FROM price_candles "
-            "WHERE ticker = %s AND interval = '1d' ORDER BY ts DESC LIMIT 1",
-            (ticker,),
-        )
-        row = await cur.fetchone()
-    if row and _clean(row["close"]) is not None:
+    # Gunluk (1d) dali: ilk SELECT'in satirini yeniden kullanir. Kapanistan
+    # sonra beklenen seansin mumu yoksa (or. 18:35 daily_close Yahoo bari
+    # gelmeden kosup 24 saat tekrar denemezse) bir kerelik telafi cekimi yapip
+    # en son kapanisi tekrar okur; basarisizlik sessizce bayat kapanisa duser.
+    if row is not None and _clean(row["close"]) is not None:
+        ts = row["ts"]
+        if (
+            ts is not None
+            and session_date(ts) < expected_last_session_date()
+            and get_market_status() == "closed"
+        ):
+            await db.release_current()
+            if await ensure_recent_daily_candle(ticker):
+                async with db.cursor() as cur:
+                    await cur.execute(
+                        "SELECT close FROM price_candles "
+                        "WHERE ticker = %s AND interval = '1d' ORDER BY ts DESC LIMIT 1",
+                        (ticker,),
+                    )
+                    row = await cur.fetchone()
+                if row is not None and _clean(row["close"]) is not None:
+                    await db.release_current()
+                    return float(row["close"])
+                await db.release_current()
+                return None
+            # Telafi yapilamadi: mevcut (bayat) kapanisi dondur.
+            return float(row["close"])
         await db.release_current()
         return float(row["close"])
 
