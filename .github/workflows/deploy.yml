@@ -27,5 +27,16 @@ jobs:
             # `down` agi kaldirmaya calisip deploy'u yarida kesiyordu).
             # `up -d --build` yalniz degisen servisleri yeniden olusturur.
             docker compose up -d --build
-            sleep 5
-            curl -fsS http://127.0.0.1:7055/api/v1/version
+            # Soguk baslangicta init_db + cron + finance warm-up 5 sn'yi
+            # asabildigi icin sabit sleep guvenilir degil; API hazir olana
+            # kadar bekle. Ayaga kalkmadiysa gercekten hata ver.
+            for attempt in $(seq 1 30); do
+              if curl -fsS http://127.0.0.1:7055/api/v1/version; then
+                echo
+                echo "API hazir (deneme ${attempt})"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "API 90 sn icinde hazir olmadi" >&2
+            exit 1
